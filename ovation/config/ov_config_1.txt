@@ -1,0 +1,65 @@
+; Configuration file for ov_config.pro
+; Used to fill Ovation Prime configuration system structure !ov_config.
+; To create your own configuration file, modify a COPY of this template.
+; Set the configuration file and path names in ov_config.pro and then 
+;   recompile ov_config.pro.
+;
+; Format notes:
+;  -- Blank lines, extra spaces, and text after a ';' are ignored.
+;  -- When multiple elements are needed on one line (such as for 
+;     epoch_start), use spaces between elements. 
+;  -- It is okay to have more atypes or jtypes listed than n_types, but 
+;     the excess ones will not be used.
+;  -- The first atype goes with the first jtype, etc.
+;  -- Use the path separator, '\' or '/' for your operating system.
+;  -- Include a final path separator on the end of directory names.
+;  -- Include at least one space after the element names, e.g., "do_test:  0"
+;
+; :author: Janet Machol, NOAA/NGDC May-2012
+;
+; :history:
+; 2012-06-20 Added elements mode, proxy_host, and proxy_port
+; 2012-05-22 Initial version.
+
+
+
+
+do_test:	        0                  ;0: don't run tests  
+                                       ;1: text file tests for energy fluxes
+                                       ;2: plot file tests for energy fluxes
+                                       ;3: text file tests for number fluxes
+                                       ;4: plot file tests for number fluxes
+                                
+mode:               0                  ; 0: historical, 1: real-time, 2: SWPC real-time      
+epoch_start:        2017 11 29 12 00    ;year, month, day, hour, min
+epoch_end:          2017 11 29 16 00   ;epoch_end: year, month, day, hour, min
+epoch_delta_minute: 30                 ;time spacing between model runs
+
+do_psfile:          1                  ;0: don't create plot file(s), 1: create plot file(s)
+
+
+do_txtfile:         1                  ;0: don't create data text file(s), 1: create text file(s)
+do_interpolation:   0                  ;0: no interpolation, 1: dosimple interpolation near midnight 
+n_types:            3                  ;number of types of output files: atype0 and jtype0 
+                                       ;  arrays must have at least this many elements
+
+atype:              0 1 2 3            ;auroral types: 0=diff, 1=mono, 2=wave, 3=ions
+jtype:              1 1 1 2            ;output types:  1=electron energy flux, 2=ion energy flux,
+                                       ;  3=e- number flux,       4=ion number flux, 
+                                       ;  5=e- average energy,    6=ion average energy
+show_model_stats:   0                  ;0: don't show model stats on draw_je plots 
+                                       ;  (e.g. number of satellite days and empirical range)
+do_database:        0                  ;Used for real time system. 1=save model run output 
+                                       ;  in MySQL database. 0=don't use database.
+proxy_host:                            ;For use of real time system behind a firewall.  
+                                       ;  Otherwise leave blank.                     
+proxy_port:                            ;For use of real time system behind a firewall.  
+                                       ;  Otherwise leave blank.                           
+
+dir_col:       config/       ;color file directory
+dir_log:       log/          ;log file directory
+dir_omni2:     omni2/        ;omni2 data directory
+dir_output:    output/       ;output directory
+dir_premodel:  premodel/     ;premodel directory
+dir_testdata:  testdata/     ;test_data directory
+ 

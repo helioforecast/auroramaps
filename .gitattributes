@@ -1,1 +1,2 @@
 *.py linguist-language=python
+ovation/*.pro linguist-language=python

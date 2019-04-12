@@ -226,9 +226,9 @@ for ax in [ax1, ax2]:
     extent=extent, origin=origin, zorder=3, alpha=0.9,
     cmap=aurora_cmap())
 
-fig.text(0.02,0.92,'NOAA OVATION aurora 30-min forecast   '+dt.strftime('%Y-%m-%d %H:%M UT' ), color='white',fontsize=15)
-fig.text(0.99,0.02,'C. Möstl / IWF-helio, Austria', color='white',fontsize=6,ha='right')
+fig.text(0.01,0.92,'NOAA OVATION aurora 30-min forecast   '+dt.strftime('%Y-%m-%d %H:%M UT' ), color='white',fontsize=15)
+fig.text(0.99,0.02,'C. Möstl / IWF-helio, Austria', color='white',fontsize=8,ha='right')
 
-#plt.tight_layout()
-fig.savefig('nowcast/predstorm_aurora_real_'+dt.strftime("%Y_%m_%d__%H%M")  +'.png',dpi=100,facecolor=fig.get_facecolor())
+#exactly full hd resolution with dpi=120 and size 16 9
+fig.savefig('nowcast/predstorm_aurora_real_'+dt.strftime("%Y_%m_%d__%H%M")  +'.jpg',dpi=120,facecolor=fig.get_facecolor())
 plt.show()

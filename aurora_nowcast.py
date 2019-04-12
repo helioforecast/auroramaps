@@ -230,5 +230,5 @@ fig.text(0.01,0.92,'NOAA OVATION aurora 30-min forecast   '+dt.strftime('%Y-%m-%
 fig.text(0.99,0.02,'C. Möstl / IWF-helio, Austria', color='white',fontsize=8,ha='right')
 
 #exactly full hd resolution with dpi=120 and size 16 9
-fig.savefig('nowcast/predstorm_aurora_real_'+dt.strftime("%Y_%m_%d__%H%M")  +'.jpg',dpi=120,facecolor=fig.get_facecolor())
+fig.savefig('nowcast/predstorm_aurora_real_'+dt.strftime("%Y_%m_%d_%H%M")  +'.jpg',dpi=120,facecolor=fig.get_facecolor())
 plt.show()

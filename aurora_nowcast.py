@@ -1,16 +1,10 @@
 """
-Plotting the Aurora Forecast from NOAA on Orthographic Polar Projection
------------------------------------------------------------------------
+Plotting the Aurora 30 min forecast from NOAA
 
-The National Oceanic and Atmospheric Administration (NOAA) monitors the
-solar wind conditions using the ACE spacecraft orbiting close to the L1
-Lagrangian point of the Sun-Earth system. This data is fed into the
-OVATION-Prime model to forecast the probability of visible aurora at
-various locations on Earth. Every five minutes a new forecast is
-published for the coming 30 minutes. The data is provided as a
-1024 by 512 grid of probabilities in percent of visible aurora. The
-data spaced equally in degrees from -180 to 180 and -90 to 90.
+This is based on this script:
+https://scitools.org.uk/cartopy/docs/latest/gallery/aurora_forecast.html
 
+and serves as a testing ground for different ways to visualize
 """
 
 

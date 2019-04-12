@@ -4,12 +4,17 @@ Plotting the Aurora 30 min forecast from NOAA
 This is based on this script:
 https://scitools.org.uk/cartopy/docs/latest/gallery/aurora_forecast.html
 
-and serves as a testing ground for different ways to visualize
+and serves as a testing ground for different ways to visualize the aurora outputs from 
+the ovation model - driven by predstorm - in python with cartopy
+
+C. Moestl, IWF-helio, Graz, Austria.
+twitter @chrisoutofspace
+
 """
 
 
 import matplotlib
-#matplotlib.use('Qt5Agg') 
+matplotlib.use('Qt5Agg') 
 
 import urllib
 from urllib.request import urlopen
@@ -24,7 +29,16 @@ from cartopy.feature.nightshade import Nightshade
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 
-############## FUNCTIONS
+
+from ovationpyme import ovation_prime
+from ovationpyme import ovation_utilities
+from geospacepy import satplottools, special_datetime
+
+
+
+
+
+##################################### FUNCTIONS
 
 def aurora_now():
     """
@@ -88,7 +102,7 @@ def aurora_cmap():
 
 
 
-
+'''
 def aurora_cmap2 ():
     """Return a colormap with aurora like colors"""
     stops = {'red': [(0.00, 0.1725, 0.1725),
@@ -108,16 +122,25 @@ def aurora_cmap2 ():
                        (1.00, 1.0, 1.0)]}
 
     return LinearSegmentedColormap('aurora', stops)
+'''
 
 
 
-################### Main
+
+
+
+
+
+
+
+########################################### Main
 
 
 
 
 plt.close()
-fig = plt.figure(figsize=[15, 7]) 
+#16/9 ration for full hd output
+fig = plt.figure(figsize=[16, 9]) 
 
 fig.set_facecolor('black') 
 
@@ -125,11 +148,11 @@ fig.set_facecolor('black')
 # and the distortion is relatively small around the poles where
 # the aurora is most likely.
 
-# ax2 Europe
-ax1 = fig.add_subplot(1, 2, 2, projection=ccrs.Orthographic(0, 60))
+# ax1 Europe
+ax1 = plt.subplot(1, 2, 2, projection=ccrs.Orthographic(0, 60),position=[0.51,0.05,0.48,0.9])#[left, bottom, width, height]
 # class cartopy.crs.Orthographic(central_longitude=0.0, central_latitude=0.0, globe=None)[source]
-# ax1 Canada
-ax2 = fig.add_subplot(1, 2, 1, projection=ccrs.Orthographic(-100, 60))
+# ax2 northern America
+ax2 = plt.subplot(1, 2, 1, projection=ccrs.Orthographic(-100, 60), position=[0.01,0.05,0.48,0.9])
 
 '''
 # ax2 Europe
@@ -203,9 +226,9 @@ for ax in [ax1, ax2]:
     extent=extent, origin=origin, zorder=3, alpha=0.9,
     cmap=aurora_cmap())
 
-fig.tight_layout()
-fig.tight_layout()
 fig.text(0.02,0.92,'NOAA OVATION aurora 30-min forecast   '+dt.strftime('%Y-%m-%d %H:%M UT' ), color='white',fontsize=15)
 fig.text(0.99,0.02,'C. Möstl / IWF-helio, Austria', color='white',fontsize=6,ha='right')
-fig.savefig('nowcast/predstorm_aurora_real_'+dt.strftime("%Y_%m_%d__%H%M")  +'.png',dpi=300,facecolor=fig.get_facecolor())
 
+#plt.tight_layout()
+fig.savefig('nowcast/predstorm_aurora_real_'+dt.strftime("%Y_%m_%d__%H%M")  +'.png',dpi=100,facecolor=fig.get_facecolor())
+plt.show()

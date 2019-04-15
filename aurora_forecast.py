@@ -1,12 +1,11 @@
-"""
+'''
 Plotting the PREDSTORM aurora forecast
 
 using ovationpyme by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
 C. Moestl, IWF-helio, Graz, Austria.
 twitter @chrisoutofspace
 
-"""
-
+'''
 
 import matplotlib
 matplotlib.use('Qt5Agg') 
@@ -15,7 +14,7 @@ import urllib
 from urllib.request import urlopen
 
 from io import StringIO
-import ciso8601
+from sunpy.time import parse_time
 import numpy as np
 from datetime import datetime
 import cartopy.crs as ccrs
@@ -27,13 +26,10 @@ import sys
 import datetime
 import skimage.transform
 import scipy
-
-
+import aacgmv2
 
 from ovationpyme import ovation_prime
 from ovationpyme import ovation_utilities
-from geospacepy import satplottools, special_datetime
-
 
 
 ##################################### FUNCTIONS
@@ -98,19 +94,38 @@ def aurora_cmap():
 
     return LinearSegmentedColormap('aurora', stops)
 
+def aurora_cmap2 ():
+    """Return a colormap with aurora like colors"""
+    stops = {'red': [(0.00, 0.1725, 0.1725),
+                     (0.50, 0.1725, 0.1725),
+                     (1.00, 0.8353, 0.8353)],
+
+             'green': [(0.00, 0.9294, 0.9294),
+                       (0.50, 0.9294, 0.9294),
+                       (1.00, 0.8235, 0.8235)],
+
+             'blue': [(0.00, 0.3843, 0.3843),
+                      (0.50, 0.3843, 0.3843),
+                      (1.00, 0.6549, 0.6549)],
+
+             'alpha': [(0.00, 0.0, 0.0),
+                       (0.50, 1.0, 1.0),
+                       (1.00, 1.0, 1.0)]}
+
+    return LinearSegmentedColormap('aurora', stops)
+
+
+
+########################################### Main ####################################
+
+
+
+t0 = parse_time("2010-Apr-06 10:00")
 
 
 
 
-########################################### Main
-
-
-
-
-
-
-
-#run ovationpyme
+############################################# run ovationpyme
 
 
 
@@ -129,25 +144,58 @@ jtype - int or str
             6:"ion average energy"
 '''
 jtype = 'electron energy flux'
-
 de = ovation_prime.FluxEstimator('diff', jtype)
 me = ovation_prime.FluxEstimator('mono', jtype)
 we = ovation_prime.FluxEstimator('wave', jtype)
-
-
-t0 = ciso8601.parse_datetime("2010-04-06 01:00")
 #ts = [t0 + datetime.timedelta(hours=i) for i in range(1, 24,1)]
 #print(ts)
-
 #for k in np.arange(1,24):
 #    print(k)
-mlatN, mlonN, fluxN=de.get_flux_for_time(t0, hemi='N')
+mlatN, mlonN, fluxNd=de.get_flux_for_time(t0, hemi='N')
+mlatN, mlonN, fluxNm=me.get_flux_for_time(t0, hemi='N')
+mlatN, mlonN, fluxNf=we.get_flux_for_time(t0, hemi='N')
 
 
+#sum all fluxes
+fluxN=fluxNd+fluxNm+fluxNf
 
 
+#interpolate onto full Earth grid later
+#   1024 values covering 0 to 360 degrees in the horizontal (longitude) direction  (0.32846715 degrees/value)
+#   512 values covering -90 to 90 degrees in the vertical (latitude) direction  (0.3515625 degrees/value)
+#   Values range from 0 (little or no probability of visible aurora) to 100 (high probability of visible aurora)
+#mlonN360=mlonN*15     
+#https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.griddata.html#scipy.interpolate.griddata
+#make full Earth a 1024 (lon) x 512 (lat) image
+#mlon, mlat = np.meshgrid(np.arange(0,360,360/1024.0 ),np.arange(-90,90,180/512.0))
+#for i in np.arange(0,79,1):
+#  points=points.append(mlatN,[024/96 ]
+#mx, my = np.mgrid[-180:360/1024:180j, -90:180/512:90j]  
+#aimg = scipy.interpolate.griddata(points, fluxN, (mx, my), method='cubic')#linear, nearest
 #resize image
-aimg = skimage.transform.resize(fluxN, (512, 1024), anti_aliasing=False)
+#aimg = skimage.transform.resize(fluxN, (512,1024), anti_aliasing=False)
+#Aurora Specification Tabular Values
+# Product: Ovation Aurora Short Term Forecast    <path to tabular data>
+# Product Valid At: 2019-04-15 10:15
+# Product Generated At: 2019-04-15 09:45
+#
+# Prepared by the U.S. Dept. of Commerce, NOAA, Space Weather Prediction Center.
+# Please send comments and suggestions to SWPC.Webmaster@noaa.gov
+#
+# Missing Data:  (n/a)
+# Cadence:   5 minutes
+#
+# Tabular Data is on the following grid
+#
+#   1024 values covering 0 to 360 degrees in the horizontal (longitude) direction  (0.32846715 degrees/value)
+#   512 values covering -90 to 90 degrees in the vertical (latitude) direction  (0.3515625 degrees/value)
+#   Values range from 0 (little or no probability of visible aurora) to 100 (high probability of visible aurora)
+
+
+
+
+#rescale image
+aimg = skimage.transform.resize(fluxN, (512,1024), anti_aliasing=False)
 #convert to probabilities
 pimg=10+8*aimg
 #trim small values
@@ -158,20 +206,52 @@ pimg[np.where(pimg >100)]=100
 pimg = scipy.ndimage.gaussian_filter(pimg,sigma=(9,9))
 
 
-img_proj = ccrs.PlateCarree()
-crs=img_proj	
-img_extent = (-180, 180, -90, 90)
-extent=img_extent
-origin='lower'
+#plt.close()
+#16/9 ration for full hd output
+#fig = plt.figure(figsize=[10, 5]) 
 
-plt.imshow(pimg, vmin=0, vmax=100)#, transform=crs)
- 
-
-
-
+#ax1 = plt.subplot(1, 1, 1, projection=crs)
+#fig.set_facecolor('black') 
+#ax1.coastlines()
+#ax1.imshow(pimg, vmin=0, vmax=100, transform=crs, extent=mapextent, origin='lower',zorder=3,cmap=aurora_cmap())
+#ax1.set_extent(fullextent)
 
 
-sys.exit()
+
+
+
+######################## Coordinate Conversion
+
+print()
+print('Coordinate conversion AACGM -> geographic ')
+
+
+#****************** MLT to mlongtude extra converten??
+
+
+#fix grid bug and convert MLT to Mlongitude
+mlonN=mlonN*15 
+#96 steps in longitude, all should go from 0 to +180 to -180 to 0
+for i in np.arange(1,mlonN.shape[0]):
+   mlonN[i]=mlonN[0]
+#now grid is in correct Mlat mlatN / Mlong mlonN
+
+#Convert to geographic coordinates
+(glatN, glonN, galtN)= aacgmv2.convert_latlon_arr(mlatN,mlonN, 100,t0, code="A2G")
+
+#west, east, south, north
+mapextent=(np.min(glonN), np.max(glonN),np.min(glatN), np.max(glatN))
+
+#** it would be better to interpolate the aurora maps on a full Earth grid and then do the coordinate conversions
+#then you would not need to plot a specific part of the image first on mapextent
+
+
+print('.... done.')
+
+
+print()
+print()
+
 ########################################## Make aurora plot
 
 
@@ -199,10 +279,6 @@ ax1 = fig.add_subplot(1, 2, 2, projection=ccrs.PlateCarree())
 ax2 = fig.add_subplot(1, 2, 1, projection=ccrs.PlateCarree())
 '''
 
-
-
-img, crs, extent, origin, dt = aurora_now()
-
 canada_east = -65
 canada_west = -135
 canada_north = 75
@@ -215,9 +291,8 @@ europe_south = 30
 
 
 
-nightmap = 'https://map1c.vis.earthdata.nasa.gov/wmts-geo/wmts.cgi'
-layer = 'VIIRS_CityLights_2012'
-
+#nightmap = 'https://map1c.vis.earthdata.nasa.gov/wmts-geo/wmts.cgi'
+#layer = 'VIIRS_CityLights_2012'
 #try: urllib.request.urlretrieve(nightmap,'wmts.cgi')
 #except urllib.error.URLError as e:
 #    print('Failed downloading ', nightmap,' ',e.reason)
@@ -238,9 +313,10 @@ provinces_50m = carfeat.NaturalEarthFeature('cultural',
                                              facecolor='none',edgecolor='black')
 
 
+crs=ccrs.PlateCarree()
+
 for ax in [ax1, ax2]:
-    if ax == ax1: ax.set_extent([europe_west, europe_east, europe_south, europe_north])
-    if ax == ax2: ax.set_extent([canada_west, canada_east, canada_south, canada_north])
+
     ax.gridlines(linestyle='--',alpha=0.5)
     #ax.coastlines(alpha=0.5,zorder=3)
     ax.add_feature(land_50m)
@@ -254,18 +330,22 @@ for ax in [ax1, ax2]:
     ax.add_feature(carfeat.RIVERS)#,zorder=2,alpha=0.8)
     ax.add_feature(provinces_50m,alpha=0.5)#,zorder=2,alpha=0.8)
     #ax.stock_img()
-  
-    
     
     #ax.add_wmts(nightmap, layer)
-    ax.add_feature(Nightshade(dt))
-    ax.imshow(img, vmin=0, vmax=100, transform=crs,
-    extent=extent, origin=origin, zorder=3, alpha=0.9,
-    cmap=aurora_cmap())
+    ax.add_feature(Nightshade(t0))
+    ax.imshow(pimg, vmin=0, vmax=100, transform=crs,
+    extent=mapextent, origin='lower', zorder=3, alpha=0.9,
+    cmap=aurora_cmap2())
+    if ax == ax1: ax.set_extent([europe_west, europe_east, europe_south, europe_north])
+    if ax == ax2: ax.set_extent([canada_west, canada_east, canada_south, canada_north])
 
-fig.text(0.01,0.92,'PREDSTORM aurora forecast   '+dt.strftime('%Y-%m-%d %H:%M UT' ), color='white',fontsize=15)
+
+fig.text(0.01,0.92,'PREDSTORM aurora forecast   '+t0.strftime('%Y-%m-%d %H:%M UT' ), color='white',fontsize=15)
 fig.text(0.99,0.02,'C. Möstl / IWF-helio, Austria', color='white',fontsize=8,ha='right')
 
+########### ****** add colorbar for probabilities
+
+
 #exactly full hd resolution with dpi=120 and size 16 9
-fig.savefig('forecast/predstorm_aurora_real_'+dt.strftime("%Y_%m_%d_%H%M")  +'.jpg',dpi=120,facecolor=fig.get_facecolor())
+fig.savefig('forecast/predstorm_aurora_real_'+t0.strftime("%Y_%m_%d_%H%M")  +'.jpg',dpi=120,facecolor=fig.get_facecolor())
 plt.show()

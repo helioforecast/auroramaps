@@ -5,6 +5,10 @@ using ovationpyme by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
 C. Moestl, IWF-helio, Graz, Austria.
 twitter @chrisoutofspace
 
+
+TO DO: MLT -> longitude conversion
+
+
 '''
 
 import matplotlib
@@ -22,6 +26,7 @@ import cartopy.feature as carfeat
 from cartopy.feature.nightshade import Nightshade
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
+import matplotlib.dates as mdates
 import sys
 import datetime
 import skimage.transform
@@ -33,6 +38,76 @@ from ovationpyme import ovation_utilities
 
 
 ##################################### FUNCTIONS
+
+
+
+
+def calc_avg_solarwind_predstorm(dt):
+    """
+    Calculates a weighted average of several
+    solar wind variables n_hours (4 by default) backward
+    in time from the closest hourly OMNIWeb
+    datum to datetime dt
+    """
+
+    #time    matplotlib_time B[nT] Bx   By     Bz   N[ccm-3] V[km/s] Dst[nT]   Kp   aurora [GW]
+    file='predstorm_sample/predstorm_real.txt'
+    l1wind = np.loadtxt(file)
+    # Read forecast date and time
+    l1wind_time=l1wind[:,6] 
+
+    t0_mat=matplotlib.dates.date2num(t0)  
+
+    #find index of closest time to t0
+    closest_time_ind=np.argmin(abs(l1wind_time-t0_mat))
+
+    Bx, By, Bz = l1wind[:,8],l1wind[:,9], l1wind[:,10]
+    V,Ni = l1wind[:,12],l1wind[:,11]
+    #Ec = calc_coupling(Bx, By, Bz, V)
+
+
+    print(mdates.num2date(l1wind_time[closest_time_ind])      )
+
+    n_hours = 4       # hours previous to integrate over
+    prev_hour_weight = 0.65    # reduce weighting by factor of wh each hour back
+    
+    weights = [prev_hour_weight*n_hours_back for n_hours_back in np.arange(n_hours+1)] 
+
+
+    times_for_weight_ind = np.arange(closest_time_ind-n_hours, closest_time_ind+1,1)
+    avgsw = dict()
+    avgsw['Bx'] = np.nansum(Bx[times_for_weight_ind]*weights)/len(times_for_weight_ind)
+    avgsw['By'] = np.nansum(By[times_for_weight_ind]*weights)/len(times_for_weight_ind)
+    avgsw['Bz'] = np.nansum(Bz[times_for_weight_ind]*weights)/len(times_for_weight_ind)
+    avgsw['V'] = np.nansum(V[times_for_weight_ind]*weights)/len(times_for_weight_ind)
+    #avgsw['Ec'] = np.nansum(Ec[om_in_avg]*weights)/len(om_in_avg)
+
+
+
+    return avgsw
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def aurora_now():
     """
@@ -120,7 +195,9 @@ def aurora_cmap2 ():
 
 
 
-t0 = parse_time("2010-Apr-06 10:00")
+t0 = parse_time("2019-Apr-16 08:00")
+
+sw=calc_avg_solarwind_predstorm(t0)
 
 
 
@@ -128,6 +205,9 @@ t0 = parse_time("2010-Apr-06 10:00")
 ############################################# run ovationpyme
 
 
+
+
+sys.exit()
 
 #electron energy flux - mono diff wave needed
 

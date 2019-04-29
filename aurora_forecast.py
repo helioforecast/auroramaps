@@ -1,12 +1,16 @@
 '''
 Plotting the PREDSTORM aurora forecast
 
-using ovationpyme by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
+using a rewritten version of 
+ovationpyme by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
+
+
 C. Moestl, IWF-helio, Graz, Austria.
 twitter @chrisoutofspace
 
-
 TO DO: MLT -> longitude conversion
+
+higher time resolution than 1 hour
 
 
 '''
@@ -64,7 +68,7 @@ import ovation_utilities_predstorm as oup
 #set time
 
 #t0 = parse_time("2019-May-01 23:00")
-t0 = parse_time("2019-Apr-26 16:00")
+t0 = parse_time("2019-Apr-29 23:00")
 
 #real time
 inputfile='/Users/chris/python/predstorm/predstorm_real.txt'
@@ -219,7 +223,7 @@ print('Calculation for 120 frames would take:', np.round((end - start)*120/60,2)
 print()
 print()
 
-########################################## Make aurora plot
+########################################## Make aurora plot global
 
 plt.close()
 fig = plt.figure(figsize=[10, 10]) 
@@ -230,9 +234,11 @@ fig.set_facecolor('black')
 # and the distortion is relatively small around the poles where
 # the aurora is most likely.
 
-# ax1 Europe
-ax1 = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(-100, 90))
+# North America centered
+#ax1 = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(-100, 90))
 
+# Europe centered
+ax1 = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(+10, 60))
 
 #nightmap = 'https://map1c.vis.earthdata.nasa.gov/wmts-geo/wmts.cgi'
 #layer = 'VIIRS_CityLights_2012'
@@ -283,11 +289,12 @@ for ax in [ax1]:
 fig.text(0.01,0.92,'PREDSTORM aurora forecast   '+t0.strftime('%Y-%m-%d %H:%M UT' ), color='white',fontsize=15)
 fig.text(0.99,0.02,'C. Möstl / IWF-helio, Austria', color='white',fontsize=8,ha='right')
 
-#exactly full hd resolution with dpi=120 and size 16 9
+
+plt.tight_layout()  
+
 fig.savefig('forecast/predstorm_aurora_real_Nhemi_'+t0.strftime("%Y_%m_%d_%H%M")  +'.jpg',dpi=120,facecolor=fig.get_facecolor())
 plt.show()
 
-plt.tight_layout()  
 
 
 sys.exit()

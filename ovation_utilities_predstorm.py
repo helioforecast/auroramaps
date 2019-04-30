@@ -14,6 +14,18 @@ import datetime
 import numpy as np
 import matplotlib.dates as mdates
 from matplotlib.colors import LinearSegmentedColormap
+import matplotlib.pyplot as plt
+import urllib
+from urllib.request import urlopen
+from io import StringIO
+import datetime
+#from datetime import datetime
+import cartopy.crs as ccrs
+import cartopy.feature as carfeat
+from cartopy.feature.nightshade import Nightshade
+
+
+
 
 
 def calc_avg_solarwind_predstorm(dt, filein,n_hours):
@@ -137,7 +149,7 @@ def aurora_now():
     response_text.seek(0)
     for line in response_text:
         if line.startswith('Product Valid At:', 2):
-            dt = datetime.strptime(line[-17:-1], '%Y-%m-%d %H:%M')
+            dt = datetime.datetime.strptime(line[-17:-1], '%Y-%m-%d %H:%M')
 
     img_proj = ccrs.PlateCarree()
     img_extent = (-180, 180, -90, 90)
@@ -184,3 +196,22 @@ def aurora_cmap2 ():
                        (1.00, 1.0, 1.0)]}
 
     return LinearSegmentedColormap('aurora', stops)
+    
+    
+    
+    
+
+def round_to_hour(dt):
+    '''
+    round datetime objects to nearest hour
+    '''
+    dt_start_of_hour = dt.replace(minute=0, second=0, microsecond=0)
+    dt_half_hour = dt.replace(minute=30, second=0, microsecond=0)
+
+    if dt >= dt_half_hour:
+        # round up
+        dt = dt_start_of_hour + datetime.timedelta(hours=1)
+    else:
+        # round down
+        dt = dt_start_of_hour
+    return dt    

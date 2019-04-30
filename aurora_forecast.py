@@ -1,17 +1,27 @@
 '''
-Plotting the PREDSTORM aurora forecast
+Plotting an aurora forecast based on the PREDSTORM solar wind prediction method
 
 using a rewritten version of 
 ovationpyme by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
 
-
-C. Moestl, IWF-helio, Graz, Austria.
+by C. Moestl, IWF-helio, Graz, Austria.
 twitter @chrisoutofspace
 
-TO DO: MLT -> longitude conversion
+---
 
-higher time resolution than 1 hour
+TO DO: 
 
+- make MLT longitude conversion correct (mlong dreht sich mit
+- colorbars probabilites
+- movie of next 5 days mp4 / gif movie machen
+- dunkler den hintergrund am Tag
+- historic mode with OMNI2 data
+- code optimizen, insbesondere ovation
+- Newell solar wind coupling als parameter in plot
+- auroral power directly from predstorm_real.txt
+- moon phase astropy
+- cloud cover how? https://pypi.org/project/weather-api/ ?
+- higher time resolution than 1 hour
 
 '''
 
@@ -42,21 +52,8 @@ import ovation_prime_predstorm as opp
 import ovation_utilities_predstorm as oup
 
 
-##################################### FUNCTIONS
 
-
-
-
-
-
-
-
-
-
-
-
-
-########################################### Main ####################################
+######################### input parameters 
 
 
 #initialize
@@ -68,10 +65,40 @@ import ovation_utilities_predstorm as oup
 #set time
 
 #t0 = parse_time("2019-May-01 23:00")
-t0 = parse_time("2019-Apr-29 23:00")
+#t0 = parse_time("2019-Apr-29 23:00")
 
-#real time
+
+
+
+#take time now + 1hour forecast and take nearest hour (as PREDSTORM is 1 hour resolution)
+t0=oup.round_to_hour(datetime.datetime.utcnow()+datetime.timedelta(hours=1))
+
+#t0 = parse_time("2019-May-02 04:00")
+
+
+#for a real time run - run pred5 before
 inputfile='/Users/chris/python/predstorm/predstorm_real.txt'
+
+#-100 for North America, +10 for Europe
+global_plot_longitude=-100
+
+global_plot_latitude=90
+##################################### FUNCTIONS #######################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+##################################### Main ############################################
+
 
 #make solarwind with averaging over last 4 hours
 sw=oup.calc_avg_solarwind_predstorm(t0,inputfile,4)
@@ -124,7 +151,7 @@ we = opp.FluxEstimator('wave', jtype)
 
 
 
-############################################# run ovationpyme
+############################################# run ovationpyme for each frame
 
 #ts = [t0 + datetime.timedelta(hours=i) for i in range(1, 24,1)]
 #print(ts)
@@ -132,22 +159,57 @@ we = opp.FluxEstimator('wave', jtype)
 #    print(k)
 
 
-
 start = time.time()
 
-
-
 print('Fluxes for northern hemisphere')
-mlatN, mlonN, fluxNd=de.get_flux_for_time(t0,inputfile, hemi='N')
-mlatN, mlonN, fluxNm=me.get_flux_for_time(t0,inputfile, hemi='N')
-mlatN, mlonN, fluxNf=we.get_flux_for_time(t0,inputfile, hemi='N')
+mlatN, mltN, fluxNd=de.get_flux_for_time(t0,inputfile, hemi='N')
+mlatN, mltN, fluxNm=me.get_flux_for_time(t0,inputfile, hemi='N')
+mlatN, mltN, fluxNf=we.get_flux_for_time(t0,inputfile, hemi='N')
 
 #sum all fluxes
 fluxN=fluxNd+fluxNm+fluxNf
 
-
-
 print('for aurora maps we use the ',jtype, ' with diff, mono, wave')
+
+
+
+
+############################################# coordinate conversion
+
+print()
+print('Coordinate conversion MLT to AACGM mlon/lat to geographic coordinates ')
+
+
+startcoo=time.time()
+#Convert to geographic coordinates
+mlonN=aacgmv2.convert_mlt(mltN,t0,m2a=True)
+(glatN, glonN, galtN)= aacgmv2.convert_latlon_arr(mlatN,mlonN, 100,t0, code="A2G")
+endcoo = time.time()
+print('Coordinate conversion takes in seconds: ', np.round(endcoo-startcoo,3))
+
+
+
+print('done.')
+
+
+
+print('********* To do: interpolate ovation output correctly on world map')
+print()
+
+
+
+#***************HIER WEITER  das stimmt nicht, richtig mit dem glatN glonN grid plotten
+#west, east, south, north
+mapextent=(np.min(glonN), np.max(glonN),np.min(glatN), np.max(glatN))
+
+#** it would be better to interpolate the aurora maps on a full Earth grid and then do the coordinate conversions
+#then you would not need to plot a specific part of the image first on mapextent
+
+
+print()
+print()
+
+
 
 
 
@@ -155,16 +217,34 @@ print()
 print('image rescaling ...')
 
 #rescale image
-aimg = skimage.transform.resize(fluxN, (512,1024), anti_aliasing=False,mode='constant')
-#convert to probabilities
-pimg=10+8*aimg
+
+aimg = skimage.transform.resize(fluxN, (512,1024), anti_aliasing=True,mode='constant')
+
+
+
+#convert to probabilities from energy flux in erg cm−2 s−1 Case et al. 2016
+#pimg=10+8*aimg ???
+pimg=8*aimg
+
+
+#smooth out artefacts
+pimg = scipy.ndimage.gaussian_filter(pimg,sigma=(11,11))
+
+
+#round probabilities
+pimg=np.round(pimg,0)
+
+
 #trim small values
-pimg[np.where(pimg <12)]=0
+pimg[np.where(pimg <2)]=0
+
 #cut at 100 percent probability
 pimg[np.where(pimg >100)]=100
-#smooth out artefacts
-pimg = scipy.ndimage.gaussian_filter(pimg,sigma=(9,9))
 
+
+#add calibration of probabilities compared to NOAA
+adhoc_calibration=1
+pimg=pimg*adhoc_calibration
 
 #plt.close()
 #16/9 ration for full hd output
@@ -180,39 +260,6 @@ pimg = scipy.ndimage.gaussian_filter(pimg,sigma=(9,9))
 
 
 
-######################## Coordinate Conversion
-
-print()
-print('Coordinate conversion MLT to AACGM mlon/lat to geographic **TODO ')
-
-
-#****************** MLT to mlongitude extra converten??
-#mlongitude dreht sich mit mit der Erde wo ist 0deg?
-
-
-#fix grid bug and convert MLT to Mlongitude
-mlonN=mlonN*15 
-#96 steps in longitude, all should go from 0 to +180 to -180 to 0
-for i in np.arange(1,mlonN.shape[0]):
-   mlonN[i]=mlonN[0]
-#now grid is in correct Mlat mlatN / Mlong mlonN
-
-
-startcoo=time.time()
-#Convert to geographic coordinates
-(glatN, glonN, galtN)= aacgmv2.convert_latlon_arr(mlatN,mlonN, 100,t0, code="A2G")
-
-endcoo = time.time()
-print('Coordinate conversion takes in seconds: ', np.round(endcoo-startcoo,3))
-
-#west, east, south, north
-mapextent=(np.min(glonN), np.max(glonN),np.min(glatN), np.max(glatN))
-
-#** it would be better to interpolate the aurora maps on a full Earth grid and then do the coordinate conversions
-#then you would not need to plot a specific part of the image first on mapextent
-
-
-print('done.')
 
 end = time.time()
 
@@ -220,13 +267,19 @@ print('Time needed:  ',np.round(end - start,2),' sec')
 
 print('Calculation for 120 frames would take:', np.round((end - start)*120/60,2),' minutes')
 
-print()
-print()
 
-########################################## Make aurora plot global
+
+
+
+
+
+
+
+
+########################################## Make aurora plot global for comparison with NOAA nowcast
 
 plt.close()
-fig = plt.figure(figsize=[10, 10]) 
+fig = plt.figure(figsize=[15, 10]) 
 
 fig.set_facecolor('black') 
 
@@ -238,7 +291,16 @@ fig.set_facecolor('black')
 #ax1 = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(-100, 90))
 
 # Europe centered
-ax1 = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(+10, 60))
+#ax1 = plt.subplot(1, 2, 1, projection=ccrs.Orthographic(+10, 60))
+
+
+#PREDSTORM + OVATION
+ax1 = plt.subplot(1, 2, 1, projection=ccrs.Orthographic(global_plot_longitude, global_plot_latitude))
+
+
+#NOAA 
+ax2 = plt.subplot(1, 2, 2, projection=ccrs.Orthographic(global_plot_longitude, global_plot_latitude))
+
 
 #nightmap = 'https://map1c.vis.earthdata.nasa.gov/wmts-geo/wmts.cgi'
 #layer = 'VIIRS_CityLights_2012'
@@ -264,40 +326,80 @@ provinces_50m = carfeat.NaturalEarthFeature('cultural',
 
 crs=ccrs.PlateCarree()
 
-for ax in [ax1]:
+
+
+#load NOAA nowcast
+img, crs, extent, origin, dt = oup.aurora_now()
+
+
+for ax in [ax1,ax2]:
 
     ax.gridlines(linestyle='--',alpha=0.5)
     #ax.coastlines(alpha=0.5,zorder=3)
-    ax.add_feature(land_50m)
+    #ax.add_feature(land_50m, color='darkgreen')
+    ax.add_feature(land_50m, color='darkslategrey')
     #ax.add_feature(carfeat.LAND,zorder=2,alpha=1)
-    ax.add_feature(carfeat.LAKES)#,zorder=2,alpha=1)
+    ax.add_feature(carfeat.LAKES,color='navy')#,zorder=2,alpha=1)
     #ax.add_feature(carfeat.OCEAN)#,zorder=2,alpha=1)
-    ax.add_feature(ocean_50m,linewidth=0.5)
+    ax.add_feature(ocean_50m,linewidth=0.5, color='navy')
 
     ax.add_feature(carfeat.BORDERS, alpha=0.5)#,zorder=2,alpha=0.5)
     #ax.add_feature(carfeat.COASTLINE)#,zorder=2,alpha=0.5)
-    ax.add_feature(carfeat.RIVERS)#,zorder=2,alpha=0.8)
+    #ax.add_feature(carfeat.RIVERS)#,zorder=2,alpha=0.8)
     ax.add_feature(provinces_50m,alpha=0.5)#,zorder=2,alpha=0.8)
     #ax.stock_img()
     
     #ax.add_wmts(nightmap, layer)
-    ax.add_feature(Nightshade(t0))
-    ax.imshow(pimg, vmin=0, vmax=100, transform=crs,
-    extent=mapextent, origin='lower', zorder=3, alpha=0.9,
-    cmap=oup.aurora_cmap2())
+    if ax==ax1: 
+        ax.imshow(pimg*5, vmin=0, vmax=100, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=oup.aurora_cmap())
+        #contour plot?
+        ax.add_feature(Nightshade(t0))
 
-fig.text(0.01,0.92,'PREDSTORM aurora forecast   '+t0.strftime('%Y-%m-%d %H:%M UT' ), color='white',fontsize=15)
+    if ax==ax2: 
+        ax.imshow(img*5, vmin=0, vmax=100, transform=crs, extent=extent, origin='lower', zorder=3, alpha=0.8, cmap=oup.aurora_cmap())
+        ax.add_feature(Nightshade(dt))
+
+   
+    
+fig.text(0.01,0.92,'PREDSTORM aurora forecast   '+t0.strftime('%Y-%m-%d %H:%M UT' )+ '                                                            NOAA forecast  '+dt.strftime('%Y-%m-%d %H:%M UT' ), color='white',fontsize=15)
 fig.text(0.99,0.02,'C. Möstl / IWF-helio, Austria', color='white',fontsize=8,ha='right')
 
 
 plt.tight_layout()  
 
-fig.savefig('forecast/predstorm_aurora_real_Nhemi_'+t0.strftime("%Y_%m_%d_%H%M")  +'.jpg',dpi=120,facecolor=fig.get_facecolor())
+
+
+fig.savefig('test/predstorm_aurora_real_Nhemi_'+t0.strftime("%Y_%m_%d_%H%M")  +'.jpg',dpi=120,facecolor=fig.get_facecolor())
 plt.show()
 
 
 
+
+
+
+
 sys.exit()
+
+
+
+
+
+
+
+
+
+
+
+
+####################################### ZOOM PLOT FOR AMERICA and EUROPE ############################################
+
+
+
+
+
+
+
+
 
 plt.close()
 #16/9 ration for full hd output
@@ -361,17 +463,19 @@ crs=ccrs.PlateCarree()
 
 for ax in [ax1, ax2]:
 
+
     ax.gridlines(linestyle='--',alpha=0.5)
     #ax.coastlines(alpha=0.5,zorder=3)
-    ax.add_feature(land_50m)
+    #ax.add_feature(land_50m, color='darkgreen')
+    ax.add_feature(land_50m, color='darkslategrey')
     #ax.add_feature(carfeat.LAND,zorder=2,alpha=1)
-    ax.add_feature(carfeat.LAKES)#,zorder=2,alpha=1)
+    ax.add_feature(carfeat.LAKES,color='navy')#,zorder=2,alpha=1)
     #ax.add_feature(carfeat.OCEAN)#,zorder=2,alpha=1)
-    ax.add_feature(ocean_50m,linewidth=0.5)
+    ax.add_feature(ocean_50m,linewidth=0.5, color='navy')
 
     ax.add_feature(carfeat.BORDERS, alpha=0.5)#,zorder=2,alpha=0.5)
     #ax.add_feature(carfeat.COASTLINE)#,zorder=2,alpha=0.5)
-    ax.add_feature(carfeat.RIVERS)#,zorder=2,alpha=0.8)
+    #ax.add_feature(carfeat.RIVERS)#,zorder=2,alpha=0.8)
     ax.add_feature(provinces_50m,alpha=0.5)#,zorder=2,alpha=0.8)
     #ax.stock_img()
     

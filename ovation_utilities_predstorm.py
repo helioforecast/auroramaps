@@ -2,12 +2,13 @@
 ovation_utilities rewritten for predstorm input
 
 
-
 modified source code taken originally from https://github.com/lkilcommons/OvationPyme
 
 if you change this do 
-import importlib
-importlib.reload(ovation_utilities_predstorm)  
+>> import importlib
+>> import ovation_utilities_predstorm  
+>> importlib.reload(ovation_utilities_predstorm)  
+to use altered functions in main program
 
 """
 import datetime
@@ -151,9 +152,8 @@ def aurora_now():
         if line.startswith('Product Valid At:', 2):
             dt = datetime.datetime.strptime(line[-17:-1], '%Y-%m-%d %H:%M')
 
-    img_proj = ccrs.PlateCarree()
-    img_extent = (-180, 180, -90, 90)
-    return img, img_proj, img_extent, 'lower', dt
+  
+    return img, dt
 
 
 

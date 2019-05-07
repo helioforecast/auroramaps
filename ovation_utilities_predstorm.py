@@ -24,8 +24,8 @@ import datetime
 import cartopy.crs as ccrs
 import cartopy.feature as carfeat
 from cartopy.feature.nightshade import Nightshade
-
-
+import numba as nb
+from numba import njit
 
 
 
@@ -97,7 +97,7 @@ def calc_avg_solarwind_predstorm(dt, filein,n_hours):
     return avgsw
 
 
-
+@njit
 def calc_coupling_predstorm(Bx, By, Bz, V):
     """
     Empirical Formula for dF/dt - i.e. the Newell coupling
@@ -215,3 +215,64 @@ def round_to_hour(dt):
         # round down
         dt = dt_start_of_hour
     return dt    
+    
+    
+    
+ 
+
+def global_predstorm_noaa(world_image):
+
+
+
+ fig = plt.figure(1,figsize=[15, 10]) 
+ fig.set_facecolor('black') 
+
+ #axis PREDSTORM + OVATION
+ ax1 = plt.subplot(1, 2, 1, projection=ccrs.Orthographic(global_plot_longitude, global_plot_latitude))
+ #axis NOAA 
+ ax2 = plt.subplot(1, 2, 2, projection=ccrs.Orthographic(global_plot_longitude, global_plot_latitude))
+ #load NOAA nowcast
+ noaa_img, dt = oup.aurora_now()
+
+
+ for ax in [ax1,ax2]:
+
+     ax.gridlines(linestyle='--',alpha=0.5,color='white')
+     #ax.coastlines(alpha=0.5,zorder=3)
+     #ax.add_feature(land_50m, color='darkgreen') 
+
+     #ax.add_feature(land_50m, color='darkslategrey')
+     #ax.add_feature(carfeat.LAND,color='darkslategrey')
+     #ax.add_feature(carfeat.LAKES,color='navy')#,zorder=2,alpha=1)
+     #ax.add_feature(carfeat.OCEAN)#,zorder=2,alpha=1)
+     #ax.add_feature(ocean_50m,linewidth=0.5, color='navy')
+
+     #ax.add_feature(carfeat.BORDERS, alpha=0.5)#,zorder=2,alpha=0.5)
+     #ax.add_feature(carfeat.COASTLINE)#,zorder=2,alpha=0.5)
+     #ax.add_feature(carfeat.RIVERS)#,zorder=2,alpha=0.8)
+     #ax.add_feature(provinces_50m,alpha=0.5)#,zorder=2,alpha=0.8)
+     ax.stock_img()#alpha=0.2)
+    
+     #ax.add_wmts(nightmap, layer)
+  
+     #for testing with black background
+     #ax.background_patch.set_facecolor('k')    
+     if ax==ax1: 
+        ax.imshow(world_image, vmin=0, vmax=100, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.9, cmap=oup.aurora_cmap())
+        ax.add_feature(Nightshade(t0))
+
+     if ax==ax2: 
+        ax.imshow(noaa_img, vmin=0, vmax=100, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.9, cmap=oup.aurora_cmap())
+        ax.add_feature(Nightshade(dt))
+
+   
+    
+ fig.text(0.01,0.92,'PREDSTORM aurora forecast   '+t0.strftime('%Y-%m-%d %H:%M UT' )+ '                                                            NOAA forecast  '+dt.strftime('%Y-%m-%d %H:%M UT' ), color='white',fontsize=15)
+ fig.text(0.99,0.02,'C. Möstl / IWF-helio, Austria', color='white',fontsize=8,ha='right')
+ plt.tight_layout()  
+ plot_Nhemi_comparison_filename='test/predstorm_aurora_real_Nhemi_'+t0.strftime("%Y_%m_%d_%H%M")  +'.jpg'
+ fig.savefig(plot_Nhemi_comparison_filename,dpi=120,facecolor=fig.get_facecolor())
+ #plt.show()
+ print('Saved image:  ',plot_Nhemi_comparison_filename)
+
+   

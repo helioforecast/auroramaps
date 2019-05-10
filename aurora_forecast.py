@@ -12,6 +12,12 @@ last update May 2019
 
 --------------------------
 
+test bottlenecks: 
+>> python -m cProfile -s tottime aurora_forecast.py
+
+or use in ipython
+>> %prun function_name 
+
 TO DO: 
 
 - check errors in ovation? how to get probabilites correctly?
@@ -28,6 +34,15 @@ TO DO:
 - higher time resolution than 1 hour - use 1 min real time file, adapt calc_solarwind...
 - black white colormap so that it looks like viirs images for direct comparison
 - add equatorial auroral boundary case et al. 2016
+
+
+ovation optimize ideen: 
+test ovation plots vgl mit papers oder idl
+(einlesen und auf map interp geht jetzt)
+check units, also plots in erg
+nathan case fragen wegen conversion 10+...
+
+
 '''
 
 import matplotlib
@@ -56,17 +71,19 @@ import time
 import numba as nb
 import importlib
   
+  
+# get own modules; make sure they are 
+# automatically reloaded every time when using ipython
+  
 #ovation model
 import ovation_prime_predstorm as opp
-#during development automatic reload
 importlib.reload(opp) 
 
-#extra functions
+#extra functions and for plotting
 import ovation_utilities_predstorm as oup
-#during development automatic reload
 importlib.reload(oup) 
 
-#input parameters - make sure they are reloaded every time when using ipython
+#input parameters 
 import aurora_forecast_input
 importlib.reload(aurora_forecast_input)   
 from aurora_forecast_input import *
@@ -81,170 +98,9 @@ from aurora_forecast_input import *
 
 
 
-
-
-
-
-
-def global_predstorm_north(world_image,dt,counter):
-
-
- plt.close('all')
- fig = plt.figure(1,figsize=[12, 12]) 
- fig.set_facecolor('black') 
-
- #axis PREDSTORM + OVATION
- ax = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(global_plot_longitude, global_plot_latitude))
-
-
- #ax.add_feature(carfeat.BORDERS, color='white',alpha=0.5)
- #ax.add_feature(carfeat.LAND,color='darkslategrey')
- #ax.coastlines(alpha=0.5,zorder=3)
- #ax.add_feature(land_50m, color='darkgreen') 
-
- #ax.add_feature(land_50m, color='darkslategrey')
- #ax.add_feature(carfeat.LAKES,color='navy')#,zorder=2,alpha=1)
- #ax.add_feature(carfeat.OCEAN)#,zorder=2,alpha=1)
- #ax.add_feature(ocean_50m,linewidth=0.5, color='navy')
- 
- #ax.add_feature(carfeat.COASTLINE,color='white')#,zorder=2,alpha=0.5)
- #ax.add_feature(carfeat.RIVERS)#,zorder=2,alpha=0.8)
- #ax.add_feature(provinces_50m,alpha=0.5)#,zorder=2,alpha=0.8)
-
- #ax.add_feature(carfeat.COASTLINE, alpha=0.5,color='white')#,zorder=2,alpha=0.5)
-
- ax.background_patch.set_facecolor('k')    
- ax.coastlines('50m',color='white',alpha=0.8)
- #ax.add_feature(provinces_50m,alpha=0.5)#,zorder=2,alpha=0.8)
- gl=ax.gridlines(linestyle='--',alpha=0.5,color='white')
- gl.n_steps=100
- #ax.stock_img()#alpha=0.2)
- #ax.add_wmts(nightmap, layer)
-
- ax.imshow(world_image, vmin=0, vmax=100, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.9, cmap=oup.aurora_cmap())
- #ax.add_feature(Nightshade(dt))
-
- #pdb.set_trace()
-   
- fig.text(0.5,0.92,'PREDSTORM aurora forecast  '+dt.strftime('%Y-%m-%d %H:%M UT'), color='white',fontsize=15, ha='center')
- fig.text(0.99,0.03,'C. Möstl / IWF-helio, Austria', color='white',fontsize=10,ha='right')
-
- plt.tight_layout()  
-
- #save as image with timestamp in filename
- plot_Nhemi_filename='forecast_global/predstorm_aurora_real_Nhemi_'+dt.strftime("%Y_%m_%d_%H%M")  +'.jpg'
- fig.savefig(plot_Nhemi_filename,dpi=150,facecolor=fig.get_facecolor())
-
- #save as movie frame
- framestr = '%05i' % (counter)  
- fig.savefig('frames_global/aurora_'+framestr+'.jpg',dpi=130,facecolor=fig.get_facecolor())
- #plt.show()
- print('Saved image:  ',plot_Nhemi_filename)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def europe_canada_predstorm(world_image,dt,counter):
-
- #16/9 ration for full hd output
- fig = plt.figure(2,figsize=[16, 9]) 
- fig.set_facecolor('black') 
- # ax1 Europe
- ax1 = plt.subplot(1, 2, 2, projection=ccrs.Orthographic(0, 60),position=[0.51,0.05,0.48,0.9])#[left, bottom, width, height]
- # ax2 northern America
- ax2 = plt.subplot(1, 2, 1, projection=ccrs.Orthographic(-100, 60), position=[0.01,0.05,0.48,0.9])
-
- #define map extents
- canada_east = -65
- canada_west = -135 
- canada_north = 75
- canada_south = 20
-
- europe_east = 50
- europe_west = -20
- europe_north = 75
- europe_south = 30
-
-
- #plot one axis after another
- for ax in [ax1, ax2]:
-
-    #ax.gridlines(linestyle='--',alpha=0.2,color='white')
-    #ax.coastlines(alpha=0.5,zorder=3)
-
-    #ax.add_feature(carfeat.LAND,zorder=2,alpha=1)
-    #ax.add_feature(land_50m, color='darkgreen')
-    #ax.add_feature(land_50m, color='darkslategrey')
-    ax.add_feature(land_50m, color='dimgrey')
-    
-    ax.add_feature(provinces_50m,alpha=0.5)#,zorder=2,alpha=0.8)
-
-  
-    #ax.add_feature(carfeat.COASTLINE)#,zorder=2,alpha=0.5)
-    #ax.add_feature(carfeat.OCEAN,color='mediumslateblue')#,zorder=2,alpha=1)
-    ax.add_feature(ocean_50m, color='darkblue')
-
-    #ax.add_feature(carfeat.RIVERS)#,zorder=2,alpha=0.8)
-    ax.add_feature(carfeat.LAKES,color='darkblue')#,zorder=2,alpha=1) color navy?
-    
-    ax.add_feature(carfeat.BORDERS, alpha=0.5)#,zorder=2,alpha=0.5)
-  
-    ax.add_feature(Nightshade(dt))
-  
-    #ax.stock_img()
-    
-    #ax.add_wmts(nightmap, layer)
-  
-    ax.imshow(world_image, vmin=0, vmax=100, transform=crs,extent=mapextent, origin='lower', zorder=3, alpha=0.9, cmap=oup.aurora_cmap2())
-    
-    if ax == ax1: ax.set_extent([europe_west, europe_east, europe_south, europe_north])
-    if ax == ax2: ax.set_extent([canada_west, canada_east, canada_south, canada_north])
-
- fig.text(0.01,0.92,'PREDSTORM aurora forecast   '+dt.strftime('%Y-%m-%d %H:%M UT' ), color='white',fontsize=15)
- fig.text(0.99,0.02,'C. Möstl / IWF-helio, Austria', color='white',fontsize=8,ha='right')
-
- 
- #save as image with timestamp in filename
- plot_europe_canada_filename='forecast_euro_canada/predstorm_aurora_real_'+dt.strftime("%Y_%m_%d_%H%M")  +'.jpg'
- fig.savefig(plot_europe_canada_filename,dpi=150,facecolor=fig.get_facecolor())
-
-
- #save as movie frame
- framestr = '%05i' % (counter)  
- fig.savefig('frames_euro_canada/aurora_'+framestr+'.jpg',dpi=120,facecolor=fig.get_facecolor())
- #plt.show()
- print('Saved image:  ',plot_europe_canada_filename)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#######################################################################################
 ##################################### Main ############################################
-
+#######################################################################################
 
 plt.close('all')
 
@@ -253,6 +109,32 @@ plt.close('all')
 print()
 print('Making aurora forecasts with OVATION from the PREDSTORM solar wind predictions')
 print()
+
+if mode ==0: 
+    real_time_mode=True
+    historic_mode=False
+if mode ==1: 
+    historic_mode=True
+    real_time_mode=False
+
+    
+if real_time_mode:
+    print('running in real time mode (DSCOVR)')
+    #take time now + 1hour forecast and take nearest hour (as PREDSTORM is 1 hour resolution)
+    t0=oup.round_to_hour(datetime.datetime.utcnow()+datetime.timedelta(hours=1))
+  
+
+if historic_mode:
+    print('running in historic mode (OMNI2)')
+    #parse start time from string to datetime
+    t0 = parse_time(t0_historic_str)
+
+
+
+#make array of hours starting with t0 for which auroramaps are produced
+ts = [t0 + datetime.timedelta(hours=i) for i in range(0, n_hours,1)]
+
+
 print()
 print('Start time:',ts[0].strftime('%Y-%m-%d %H:%M UT' ))
 print('End time:',ts[-1].strftime('%Y-%m-%d %H:%M UT' ))
@@ -262,25 +144,45 @@ print()
 
 
 
-########################### (0) get PREDSTORM file ######################################
+#check if output directories are there
+if os.path.isdir('results') == False: os.mkdir('results')
+if os.path.isdir('results/frames_global') == False: os.mkdir('results/frames_global')
+if os.path.isdir('results/frames_europe_canada') == False: os.mkdir('results/frames_europe_canada')
+if os.path.isdir('results/forecast_europe_canada') == False: os.mkdir('results/forecast_europe_canada')
+if os.path.isdir('results/forecast_global') == False: os.mkdir('results/forecast_global')
 
-###########   get online file or local file from predstorm
-if use_predstorm_online_file:
-    try: 
-      urllib.request.urlretrieve(predstorm_online_url_1hour,'predstorm_real.txt')
-      inputfile='predstorm_real.txt'
-      print('use input from url:')
-      print(predstorm_online_url_1hour)
-    except urllib.error.URLError as e:
+ 
+
+
+
+############### (0) get PREDSTORM solar wind input files, depending on mode ##############
+
+if real_time_mode:
+   ###########   get online file or local file from predstorm
+   if use_predstorm_online_file:
+      try: 
+        urllib.request.urlretrieve(predstorm_online_url_1hour,'predstorm_real.txt')
+        inputfile='predstorm_real.txt'
+        print('use solar wind input from url:')
+        print(predstorm_online_url_1hour)
+      except urllib.error.URLError as e:
         print('Failed downloading ', predstorm_online_url_1hour,' ',e.reason)
     
-else:
-    inputfile=local_input_file
-    print('use input from local file: ')
-    print(inputfile)
+   else:
+     inputfile=local_input_file
+     print('use solar wind input from local file: ')
+     print(inputfile)
 
+if historic_mode:
+     #make txt file in similar format as predstorm
+     oup.omni_txt_generator(ts)     
+     inputfile='predstorm_omni.txt'
+     print('txt file with solar wind parameters generated from OMNI2 data: ', inputfile)
+     #print('starting 24 hours earlier than ovation start time to make solar wind averages')
+    
 
 print()
+
 ########################## (1) LOAD OVATION OBJECTS ####################################
 
 print('Load FluxEstimator objects first.')
@@ -315,6 +217,9 @@ wx,wy=np.mgrid[-90:90:180/512,-180:180:360/1024]
 ovation_img=np.zeros([512,1024,np.size(ts)])
 
 
+#this is the array with the flux in magnetic coordinates for each timestep
+flux_img=np.zeros([80,96,np.size(ts)])
+
 start = time.time()
 print('Start time for run time check ...')
 
@@ -339,10 +244,30 @@ for k in np.arange(0,np.size(ts)):
  #print('get fluxes for northern hemisphere and sum them')
  mlatN, mltN, fluxNd=de.get_flux_for_time(ts[k],inputfile, hemi='N')
  mlatN, mltN, fluxNm=me.get_flux_for_time(ts[k],inputfile, hemi='N')
- mlatN, mltN, fluxNf=we.get_flux_for_time(ts[k],inputfile, hemi='N')
+ mlatN, mltN, fluxNw=we.get_flux_for_time(ts[k],inputfile, hemi='N')
+
+ ''' bottlenecks
+    61440    0.183    0.000    0.497    0.000 ovation_prime_predstorm.py:673(estimate_auroral_flux)
+    61440    0.142    0.000    0.205    0.000 ovation_prime_predstorm.py:637(prob_estimate)
+    61440    0.110    0.000    0.110    0.000 ovation_prime_predstorm.py:684(correct_flux)
+        4    0.088    0.022    0.664    0.166 ovation_prime_predstorm.py:724(get_gridded_flux)
+        4    0.026    0.007    0.077    0.019 ovation_prime_predstorm.py:768(interp_wedge)
+ '''
 
  #sum all fluxes
- fluxN=fluxNd+fluxNm+fluxNf
+ fluxN=fluxNd+fluxNm+fluxNw
+ 
+ 
+ #making flux images for comparison to OVATION IDL output
+ 
+ oup.global_ovation_flux(mlatN,mltN,fluxNd,ts[0])
+ 
+ 
+ sys.exit()
+ 
+ 
+ 
+ 
 
  #print('For our aurora maps we use the ',jtype, ' with diff, mono, wave')
  #print('Fluxes for southern hemisphere are currently not calculated.')
@@ -377,7 +302,6 @@ for k in np.arange(0,np.size(ts)):
  #see https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.griddata.html
  aimg=np.squeeze(scipy.interpolate.griddata(geo_2D, fluxN_1D, (wx, wy), method='linear',fill_value=0))
 
-
  '''
  #for testing conversion and image making - note that the image is upside down with north at bottom
  plt.close('all')
@@ -385,12 +309,13 @@ for k in np.arange(0,np.size(ts)):
  plt.imshow(aimg)
  sys.exit()
  '''
-
+ 
 
 
  #####################  (2c) Convert to probabilities, smooth etc.
  print()
  
+  
  
  # ************* NOT CORRECT -> how to go from erg cm-2 s-1 to probability?
  #Case et al. 2016
@@ -420,8 +345,9 @@ for k in np.arange(0,np.size(ts)):
  #add calibration of probabilities compared to NOAA
  adhoc_calibration=3
  ovation_img[:,:,k]=pimg*adhoc_calibration
-
-
+ 
+ 
+ 
 
  '''
  for testing
@@ -447,35 +373,7 @@ print('------------------------------------------------')
 #print('Calculation for 20 frames would take:', np.round((end - start)*20/60,2),' minutes')
 
 
-
 #####################################  (3) PLOTS  #########################################
-#Night map from VIIRS
-#https://wiki.earthdata.nasa.gov/display/GIBS/GIBS+Available+Imagery+Products#expand-EarthatNight4Products
-nightmap = 'https://map1c.vis.earthdata.nasa.gov/wmts-geo/wmts.cgi'
-
-
-#define extent of the produced world maps - defined as: west east south north
-mapextent=[-180,180,-90,90]   
-
-
-#not so good: layer='VIIRS_Black_Marble'
-#better but takes time
-layer = 'VIIRS_CityLights_2012'
-
-
-
-land_50m = carfeat.NaturalEarthFeature('physical', 'land', '50m',
-                                        edgecolor='k',
-                                        facecolor=carfeat.COLORS['land'])
-ocean_50m = carfeat.NaturalEarthFeature('physical', 'ocean', '50m',
-                                        edgecolor='k',
-                                        facecolor='steelblue')#carfeat.COLORS['water'])                                        
-provinces_50m = carfeat.NaturalEarthFeature('cultural',
-                                             'admin_1_states_provinces_lines',
-                                             '50m',
-                                             facecolor='none',edgecolor='black')
-crs=ccrs.PlateCarree()
-
 
 
 ############################ (3a) Make global aurora plot for comparison with NOAA nowcast
@@ -484,16 +382,26 @@ crs=ccrs.PlateCarree()
 #global_predstorm_noaa(ovation_img)
 
 
+
+#plot the fluxes for direct comparison to ovation prime in IDL
+#for k in np.arange(0,np.size(ts)):
+#    oup.global_predstorm_flux(ovation_img[:,:,k],ts[k],k)
+
+
+#make images and movie frames for the generated aurora image cube
 for k in np.arange(0,np.size(ts)):
-    global_predstorm_north(ovation_img[:,:,k],ts[k],k)
-    europe_canada_predstorm(ovation_img[:,:,k],ts[k],k)
+    oup.global_predstorm_north(ovation_img[:,:,k],ts[k],k)
+    oup.europe_canada_predstorm(ovation_img[:,:,k],ts[k],k)
+    
+    
+    
     
 #make move with frames 
-os.system('ffmpeg -r 10 -i frames_global/aurora_%05d.jpg -b:v 5000k -r 10 predstorm_aurora_global.mp4 -y -loglevel quiet')
-os.system('ffmpeg -r 10 -i frames_euro_canada/aurora_%05d.jpg -b:v 5000k -r 10 predstorm_aurora_euro_canada.mp4 -y -loglevel quiet')
+os.system('ffmpeg -r 10 -i results/frames_global/aurora_%05d.jpg -b:v 5000k -r 10 results/predstorm_aurora_global.mp4 -y -loglevel quiet')
+os.system('ffmpeg -r 10 -i results/frames_europe_canada/aurora_%05d.jpg -b:v 5000k -r 10 results/predstorm_aurora_europe_canada.mp4 -y -loglevel quiet')
 
-os.system('ffmpeg -r 10 -i frames_global/aurora_%05d.jpg -b:v 5000k -r 10 predstorm_aurora_global.gif -y -loglevel quiet')
-os.system('ffmpeg -r 10 -i frames_euro_canada/aurora_%05d.jpg -b:v 5000k -r 10 predstorm_aurora_euro_canada.gif -y -loglevel quiet')
+os.system('ffmpeg -r 10 -i results/frames_global/aurora_%05d.jpg -b:v 5000k -r 10 results/predstorm_aurora_global.gif -y -loglevel quiet')
+os.system('ffmpeg -r 10 -i results/frames_europe_canada/aurora_%05d.jpg -b:v 5000k -r 10 results/predstorm_aurora_europe_canada.gif -y -loglevel quiet')
 
     
     

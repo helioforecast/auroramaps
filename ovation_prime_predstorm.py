@@ -94,6 +94,8 @@ class FluxEstimator(object):
         #if hemi == 'S':
         #   doy = 365.-doy #Use opposite season coefficients to get southern hemisphere results
 
+
+        ######### ****************************** same lines?
         if hemi=='N':
             weightsN = self.season_weights(doy)
             weightsS = self.season_weights(365.-doy)
@@ -165,6 +167,28 @@ class FluxEstimator(object):
             weight['winter'] = 1. - weight['spring']
 
         return weight
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -574,7 +598,7 @@ class SeasonalFluxEstimator(object):
             aheader = f.readline() # y0,d0,yend,dend,files_done,sf0
             #print "Read Auroral Flux Coefficient File %s,\n Header: %s" % (self.afile,aheader)
             # Don't know if it will read from where f pointer is after reading header line
-            adata = np.genfromtxt(f, max_rows=nmlat*nmlt)
+            adata = np.genfromtxt(f, max_rows=nmlat*nmlt) #########*****************
             #print "First line was %s" % (str(adata[0,:]))
 
         self.b1a, self.b2a = np.zeros((nmlt, nmlat)), np.zeros((nmlt, nmlat))
@@ -634,7 +658,7 @@ class SeasonalFluxEstimator(object):
             i_dFbin = 0 if i_dFbin < 0 else self.n_dF_bins-1
         return int(i_dFbin)
 
-    def prob_estimate(self, dF, i_mlt_bin, i_mlat_bin):
+    def prob_estimate(self, dF, i_mlt_bin, i_mlat_bin): ########### ****** OPTIMIZE
         """
         Estimate probability of <something> by using tabulated
         linear regression coefficients ( from prob_b files )
@@ -670,7 +694,7 @@ class SeasonalFluxEstimator(object):
 
         return p
 
-    def estimate_auroral_flux(self, dF, i_mlt_bin, i_mlat_bin):
+    def estimate_auroral_flux(self, dF, i_mlt_bin, i_mlat_bin): ########### ****** OPTIMIZE
         """
         Does what it says on the tin,
         estimates the flux using the regression coeffecients in the 'a' files

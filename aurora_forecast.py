@@ -20,27 +20,20 @@ or use in ipython
 
 TO DO: 
 
-- check errors in ovation? how to get probabilites correctly?
-- colorbars for probabilites
-- colormap better?
+- check errors in ovation? how to get probabilites correctly? as Nathan Case
+- add colorbars for probabilites, colormap better?
 - VIIRS night mode - takes too long for each frame, delete image and replace when making movie?
 - split land on dayside / night lights on night side
 - historic mode with OMNI2 data (1 hour)
 - code optimizen, insbesondere ovation, coordinate conversion take 2 functions used
 - Newell solar wind coupling als parameter in plot
-- auroral power on plot directly from predstorm_real.txt
+- auroral power on plot directly from predstorm_real.txt or from ovationpyme
 - indicate moon phase with astropy
 - cloud cover how? https://pypi.org/project/weather-api/ ?
 - higher time resolution than 1 hour - use 1 min real time file, adapt calc_solarwind...
 - black white colormap so that it looks like viirs images for direct comparison
 - add equatorial auroral boundary case et al. 2016
 
-
-ovation optimize ideen: 
-test ovation plots vgl mit papers oder idl
-(einlesen und auf map interp geht jetzt)
-check units, also plots in erg
-nathan case fragen wegen conversion 10+...
 
 
 '''
@@ -59,6 +52,7 @@ import cartopy.feature as carfeat
 from cartopy.feature.nightshade import Nightshade
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
+import mpl_toolkits  
 import matplotlib.dates as mdates
 import sys
 import datetime
@@ -260,7 +254,12 @@ for k in np.arange(0,np.size(ts)):
  
  #making flux images for comparison to OVATION IDL output
  
+ #change file 
  oup.global_ovation_flux(mlatN,mltN,fluxNd,ts[0])
+ 
+ 
+ 
+ 
  
  
  sys.exit()
@@ -324,6 +323,9 @@ for k in np.arange(0,np.size(ts)):
  #convert to probabilities from energy flux in erg cm−2 s−1 Case et al. 2016
 
  #*******CHECK for UNITS in ovationpyme
+ 
+ 
+ #diffuse flux is too small by factor 2 in pyme, mono by factor 1.5
  
  pimg=8*aimg
    

@@ -27,6 +27,8 @@ import numba as nb
 from numba import njit
 import os
 import pickle	
+import scipy
+import pdb
 
 
 
@@ -524,49 +526,91 @@ def get_omni_data():
 def global_ovation_flux(magnetic_latitude,magnetic_local_time,flux,dt):
 
 
-
-
-
-
-
-
+ 
+ 
+ res_lat=40/80
+ res_lon=360/96
+ 
+ 
  #read in IDL output for comparison
+ idl_file_in='ovation_output/ov_diff_Eflux_2017_1230_2330.txt'
+ #idl_file_in='ovation_output/ov_mono_Eflux_2017_1230_2330.txt'
+ #idl_file_in='ovation_output/ov_wave_Eflux_2017_1230_2330.txt'
+ ovaidl=np.loadtxt(idl_file_in,max_rows=7680)  
+     
+ mltN_idl=ovaidl[:,0]*15*(np.pi/180)
+ mlatN_idl=-ovaidl[:,1] 
+ flux_idl=ovaidl[:,2] 
+ 
+ mltN_idl=mltN_idl.reshape(np.size(flux_idl),1)  
+ mlatN_idl=mlatN_idl.reshape(np.size(flux_idl),1) 
+     
+ flux_idl=flux_idl.reshape(np.size(flux_idl),1)
+ m2D_idl=np.hstack((mltN_idl, mlatN_idl))
+   
+ #idl data theta, idl data radial:
+ it,ir=np.meshgrid(np.arange(0,np.pi*2+1,res_lon*np.pi/180),np.arange(-90,-50,res_lat) )
 
+ 
+ #interpolate onto 2D grid 
+ idlimg=np.squeeze(scipy.interpolate.griddata(m2D_idl, flux_idl,  (it, ir), method='linear',fill_value=0))
 
-
+ 
+ ################ ovationpyme output
+ 
+ #first convert so that suitable for polar plots: theta= longitude, r=latitude
  #magnetic local time to radians
- mltN_rad=magnetic_local_time*15*(np.pi/180) 
+ mltN=magnetic_local_time*15*(np.pi/180) 
  #invert latitude which is the radial axis so that 90N is in center of plot
  mlatN=-magnetic_latitude
  
+ #make 1-D array and then 2D array of coordinates for image interpolation later
+ mltN_1D=mltN.reshape(np.size(flux),1)  
+ mlatN_1D=mlatN.reshape(np.size(flux),1)  
+ m2D=np.hstack((mltN_1D, mlatN_1D))
+ #make flux a 1-D array
+ flux_1D=flux.reshape(np.size(flux),1) 
+
+ #make grid for python ovation version
+ pt,pr=np.meshgrid(np.arange(mltN.min(),mltN.max(),res_lon*np.pi/180),np.arange(mlatN.min(),mlatN.max(),res_lat))
+ #interpolate onto new grid
+ pyimg=np.squeeze(scipy.interpolate.griddata(m2D, flux_1D, (pt, pr), method='linear',fill_value=0))
+ #####################################
+ 
  plt.close('all')
- plt.figure(1,figsize=[10,10])
- ax=plt.subplot(111,projection='polar')
- #ax.contourf(mlatN, mltN*15,  fluxN, colormap='jet')
- cs=ax.contourf(mltN_rad, mlatN, flux, cmap='hot', vmin=np.min(flux),vmax=np.max(flux),levels=20)
- ax.set_rlim(-90,-50)
- plt.rgrids((-90,-80,-70,-60,-50),('90','80','70','60','50 N'),angle=150, fontsize=8, color='white')
- ax.set_theta_zero_location('S')
+ plt.figure(1,figsize=[16,8])
+ plt.suptitle('OVATION aurora energy flux  '+dt.strftime('%Y-%m-%d %H:%M UT'),fontsize=15)
  
- cbar = plt.colorbar(cs)   
+
+ ax1=plt.subplot(121,projection='polar')
+ ax1.set_title('python') 
+ cs=ax1.contourf(pt, pr, pyimg, cmap='hot', vmin=0,vmax=np.max(flux_idl),levels=20,zorder=0)
+ ax1.set_facecolor('black')
+ ax1.set_rlim(-90,-50)
+ plt.rgrids((-90,-80,-70,-60,-50),('90','80','70','60','50 N'),angle=150, fontsize=12, color='white')
+ ax1.set_theta_zero_location('S')
+ plt.colorbar(cs,fraction=0.03, pad=0.1)
+ ax1.grid(color='white', linestyle='--', linewidth=0.5,zorder=2) 
+
+
+ ax2=plt.subplot(122,projection='polar')
+ ax2.set_title('IDL') 
+ cs=ax2.contourf(it, ir, idlimg, cmap='hot', vmin=0,vmax=np.max(flux_idl),levels=20,zorder=0)
+ ax2.set_facecolor('black')  
+ ax2.set_rlim(-90,-50)
+ plt.rgrids((-90,-80,-70,-60,-50),('90','80','70','60','50 N'),angle=150, fontsize=12, color='white')
+ ax2.set_theta_zero_location('S')
+ plt.colorbar(cs,fraction=0.03, pad=0.1)
+ ax2.grid(color='white', linestyle='--', linewidth=0.5,zorder=1) 
+
+ print('Maximum flux python',np.round(np.max(flux_1D),2))
+ print('Maximum flux IDL',np.round(np.max(flux_idl),2))
  
- plt.text(0.5,0.92,'OVATION aurora energy flux  '+dt.strftime('%Y-%m-%d %H:%M UT'), fontsize=15, ha='center')
- plt.text(0.99,0.03,'C. Möstl / IWF-helio, Austria',fontsize=10,ha='right')
-
- #plt.tight_layout()  
  
- plt.show()
-
-
- #save as image with timestamp in filename
- #plot_Nhemi_filename='results/flux_global/aurora_flux_Nhemi_'+dt.strftime("%Y_%m_%d_%H%M")  +'.jpg'
- #fig.savefig(plot_Nhemi_filename,dpi=150,facecolor=fig.get_facecolor())
-
- #save as movie frame
- #framestr = '%05i' % (counter)  
- #fig.savefig('results/frames_flux/aurora_flux'+framestr+'.jpg',dpi=130,facecolor=fig.get_facecolor())
- ##plt.show()
- #print('Saved image:  ',plot_Nhemi_filename)
+ 
+ 
+ plt.tight_layout()
+ plt.savefig('flux_test.png')
 
 
 

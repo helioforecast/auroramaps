@@ -32,7 +32,7 @@ import pdb
 
 
 
-def calc_avg_solarwind_predstorm(dt, filein, ave_hours):
+def calc_avg_solarwind_predstorm(dt, filein):
     """
     Calculates a weighted average of speed and magnetic field
     ave_hours (4 by default) backward
@@ -49,10 +49,9 @@ def calc_avg_solarwind_predstorm(dt, filein, ave_hours):
     file='/Users/chris/python/predstorm/predstorm_real.txt'
     contains:
     time    matplotlib_time B[nT] Bx   By     Bz   N[ccm-3] V[km/s] Dst[nT]   Kp   aurora [GW]
-    
-    - ave_hours  hours previous to integrate over, usually 4
-    
     """
+    #hours previous to integrate over, usually 4
+    ave_hours=4  
     
     l1wind = np.loadtxt(filein)
     
@@ -76,108 +75,25 @@ def calc_avg_solarwind_predstorm(dt, filein, ave_hours):
     for k in np.arange(1,ave_hours,1):
       weights = np.append(weights,weights[k-1]*prev_hour_weight) 
 
-
     #print(weights)  
     #print(closest_time_ind)
     times_for_weight_ind = np.arange(closest_time_ind, closest_time_ind-ave_hours,-1)
     #print(times_for_weight_ind)
     
-    #make list of average solar wind variables
-    avgsw = dict()
+    #make array of average solar wind variables
+    avgsw=np.recarray(1,dtype=[('bx', float), ('by', float),('bz', float),('v', float),('ec', float)])
+    
     #print(bx[times_for_weight_ind])
     #print(v[times_for_weight_ind])
-
-    #pdb.set_trace()
     
-    avgsw['Bx'] = np.round(np.nansum(bx[times_for_weight_ind]*weights)/ np.nansum(weights),2)
-    avgsw['By'] = np.round(np.nansum(by[times_for_weight_ind]*weights)/ np.nansum(weights),2)
-    avgsw['Bz'] = np.round(np.nansum(bz[times_for_weight_ind]*weights)/ np.nansum(weights),2)
-    avgsw['V'] = np.round(np.nansum(v[times_for_weight_ind]*weights)/ np.nansum(weights),1)
-    avgsw['Ec'] = np.round(np.nansum(ec[times_for_weight_ind]*weights)/ np.nansum(weights),1)
-
+    avgsw.bx = np.round(np.nansum(bx[times_for_weight_ind]*weights)/ np.nansum(weights),2)
+    avgsw.by = np.round(np.nansum(by[times_for_weight_ind]*weights)/ np.nansum(weights),2)
+    avgsw.bz = np.round(np.nansum(bz[times_for_weight_ind]*weights)/ np.nansum(weights),2)
+    avgsw.v = np.round(np.nansum(v[times_for_weight_ind]*weights)/ np.nansum(weights),1)
+    avgsw.ec = np.round(np.nansum(ec[times_for_weight_ind]*weights)/ np.nansum(weights),1)
    
     return avgsw
-    
-    
-    
-    
-    
-    
-    
  
-
-def omni_txt_generator(dt):
-
-   '''
-   returns solar wind data in predstorm format from OMNI2 based on datetime array dt
-   starting 24 hours earlier as previous averages are used later in calc_avg_solarwind_predstorm
-   '''
-   
-   
-
-   
-   #load all omni data
-   o=omni_loader()  
-   
-   
-   #convert to matplotlib time    
-   dt_mat=mdates.date2num(dt) 
-       
-   #starting index of dt start time in all omni data - 24 hours 
-   #needed for averaging solar wind before time dt[0]
-   inds=np.argmin(abs(o.time-dt_mat[0]))-24
-   
-   #end index for dt in omni data
-   inde=inds+24+np.size(dt)
-   
-   #print('omni_txt_generator')
-   #print(dt[0])
-   #print(dt[-1])
-   
-   o_time=o.time[inds:inde]
-   
-   vartxtout=np.zeros([inde-inds,13])
-
-    #get date in ascii
-   for i in np.arange(np.size(o_time)):
-       time_dummy=mdates.num2date(o_time[i])
-       vartxtout[i,0]=time_dummy.year
-       vartxtout[i,1]=time_dummy.month
-       vartxtout[i,2]=time_dummy.day
-       vartxtout[i,3]=time_dummy.hour
-       vartxtout[i,4]=time_dummy.minute
-       vartxtout[i,5]=time_dummy.second
-
-   vartxtout[:,6]=o.time[inds:inde]
-   vartxtout[:,7]=o.btot[inds:inde]
-   vartxtout[:,8]=o.bx[inds:inde]
-   vartxtout[:,9]=o.bygsm[inds:inde]
-   vartxtout[:,10]=o.bzgsm[inds:inde]
-   vartxtout[:,11]=o.den[inds:inde]
-   vartxtout[:,12]=o.speed[inds:inde]
-   #vartxtout[:,13]=dst_temerin_li
-   #vartxtout[:,14]=kp_newell
-   #vartxtout[:,15]=aurora_power
-
-   #description
-   #np.savetxt(filename_save, ['time     Dst [nT]     Kp     aurora [GW]   B [nT]    Bx [nT]     By [nT]     Bz [nT]    N [ccm-3]   V [km/s]    '])
-   filename_save='predstorm_omni.txt'
-   np.savetxt(filename_save, vartxtout,  delimiter='',fmt='%4i %2i %2i %2i %2i %2i %10.6f %5.1f %5.1f %5.1f %5.1f   %7.0i %7.0i ', \
-               header='        time      matplotlib_time B[nT] Bx   By     Bz   N[ccm-3] V[km/s] ')
-
-   #with last 3 variables
-   #np.savetxt(filename_save, vartxtout, delimiter='',fmt='%4i %2i %2i %2i %2i %2i %10.6f %5.1f %5.1f %5.1f %5.1f   %7.0i %7.0i   %5.0f %5.1f %5.1f', \
-   #            header='        time      matplotlib_time B[nT] Bx   By     Bz   N[ccm-3] V[km/s] Dst[nT]   Kp   aurora [GW]')
-
-
-
-    
-    
-    
-    
-    
-    
-    
     
 
 @njit
@@ -199,7 +115,14 @@ def calc_coupling_predstorm(Bx, By, Bz, V):
     sintc = np.sin(tc/2.)
     Ec = (V**1.33333)*(sintc**2.66667)*(BT**0.66667)
     return Ec
+   
 
+
+      
+    
+    
+    
+    
 
 
 def aurora_now():
@@ -361,6 +284,70 @@ def global_predstorm_noaa(world_image):
 
   
 
+
+def omni_txt_generator(dt):
+
+   '''
+   returns solar wind data in predstorm format from OMNI2 based on datetime array dt
+   starting 24 hours earlier as previous averages are used later in calc_avg_solarwind_predstorm
+   '''
+ 
+   #load all omni data
+   o=omni_loader()  
+   
+   
+   #convert to matplotlib time    
+   dt_mat=mdates.date2num(dt) 
+       
+   #starting index of dt start time in all omni data - 24 hours 
+   #needed for averaging solar wind before time dt[0]
+   inds=np.argmin(abs(o.time-dt_mat[0]))-24
+   
+   #end index for dt in omni data
+   inde=inds+24+np.size(dt)
+   
+   #print('omni_txt_generator')
+   #print(dt[0])
+   #print(dt[-1])
+   
+   o_time=o.time[inds:inde]
+   
+   vartxtout=np.zeros([inde-inds,13])
+
+    #get date in ascii
+   for i in np.arange(np.size(o_time)):
+       time_dummy=mdates.num2date(o_time[i])
+       vartxtout[i,0]=time_dummy.year
+       vartxtout[i,1]=time_dummy.month
+       vartxtout[i,2]=time_dummy.day
+       vartxtout[i,3]=time_dummy.hour
+       vartxtout[i,4]=time_dummy.minute
+       vartxtout[i,5]=time_dummy.second
+
+   vartxtout[:,6]=o.time[inds:inde]
+   vartxtout[:,7]=o.btot[inds:inde]
+   vartxtout[:,8]=o.bx[inds:inde]
+   vartxtout[:,9]=o.bygsm[inds:inde]
+   vartxtout[:,10]=o.bzgsm[inds:inde]
+   vartxtout[:,11]=o.den[inds:inde]
+   vartxtout[:,12]=o.speed[inds:inde]
+   #vartxtout[:,13]=dst_temerin_li
+   #vartxtout[:,14]=kp_newell
+   #vartxtout[:,15]=aurora_power
+
+   #description
+   #np.savetxt(filename_save, ['time     Dst [nT]     Kp     aurora [GW]   B [nT]    Bx [nT]     By [nT]     Bz [nT]    N [ccm-3]   V [km/s]    '])
+   filename_save='predstorm_omni.txt'
+   np.savetxt(filename_save, vartxtout,  delimiter='',fmt='%4i %2i %2i %2i %2i %2i %10.6f %5.1f %5.1f %5.1f %5.1f   %7.0i %7.0i ', \
+               header='        time      matplotlib_time B[nT] Bx   By     Bz   N[ccm-3] V[km/s] ')
+
+   #with last 3 variables
+   #np.savetxt(filename_save, vartxtout, delimiter='',fmt='%4i %2i %2i %2i %2i %2i %10.6f %5.1f %5.1f %5.1f %5.1f   %7.0i %7.0i   %5.0f %5.1f %5.1f', \
+   #            header='        time      matplotlib_time B[nT] Bx   By     Bz   N[ccm-3] V[km/s] Dst[nT]   Kp   aurora [GW]')
+
+
+
+    
 
 
 def omni_loader():
@@ -527,6 +514,9 @@ def global_ovation_flux(magnetic_latitude,magnetic_local_time,flux,dt):
 
 
  
+ #cmap_name='hot'
+ cmap_name='jet'
+ 
  
  res_lat=40/80
  res_lon=360/96
@@ -536,6 +526,11 @@ def global_ovation_flux(magnetic_latitude,magnetic_local_time,flux,dt):
  idl_file_in='ovation_output/ov_diff_Eflux_2017_1230_2330.txt'
  #idl_file_in='ovation_output/ov_mono_Eflux_2017_1230_2330.txt'
  #idl_file_in='ovation_output/ov_wave_Eflux_2017_1230_2330.txt'
+ 
+ idl_file_in='ovation_output/ov_diff_Eflux_2017_1129_1300.txt'
+ #idl_file_in='ovation_output/ov_mono_Eflux_2017_1129_1300.txt'
+
+ 
  ovaidl=np.loadtxt(idl_file_in,max_rows=7680)  
      
  mltN_idl=ovaidl[:,0]*15*(np.pi/180)
@@ -584,7 +579,7 @@ def global_ovation_flux(magnetic_latitude,magnetic_local_time,flux,dt):
 
  ax1=plt.subplot(121,projection='polar')
  ax1.set_title('python') 
- cs=ax1.contourf(pt, pr, pyimg, cmap='hot', vmin=0,vmax=np.max(flux_idl),levels=20,zorder=0)
+ cs=ax1.contourf(pt, pr, pyimg, cmap=cmap_name, vmin=0,vmax=np.max(flux),levels=20,zorder=0)
  ax1.set_facecolor('black')
  ax1.set_rlim(-90,-50)
  plt.rgrids((-90,-80,-70,-60,-50),('90','80','70','60','50 N'),angle=150, fontsize=12, color='white')
@@ -595,7 +590,7 @@ def global_ovation_flux(magnetic_latitude,magnetic_local_time,flux,dt):
 
  ax2=plt.subplot(122,projection='polar')
  ax2.set_title('IDL') 
- cs=ax2.contourf(it, ir, idlimg, cmap='hot', vmin=0,vmax=np.max(flux_idl),levels=20,zorder=0)
+ cs=ax2.contourf(it, ir, idlimg, cmap=cmap_name, vmin=0,vmax=np.max(flux_idl),levels=20,zorder=0)
  ax2.set_facecolor('black')  
  ax2.set_rlim(-90,-50)
  plt.rgrids((-90,-80,-70,-60,-50),('90','80','70','60','50 N'),angle=150, fontsize=12, color='white')

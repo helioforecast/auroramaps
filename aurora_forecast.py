@@ -179,6 +179,7 @@ print()
 
 ########################## (1) LOAD OVATION OBJECTS ####################################
 
+
 print('Load FluxEstimator objects first.')
 print()
 '''
@@ -194,10 +195,18 @@ jtype - int or str
             6:"ion average energy"
 '''
 jtype = 'electron energy flux'
+
+start = time.time()
+print('Start time for loading FluxEstimator ')
+
 de = opp.FluxEstimator('diff', jtype)
 me = opp.FluxEstimator('mono', jtype)
 we = opp.FluxEstimator('wave', jtype)
 
+end = time.time()
+print()
+print('... end time:  ',np.round(end - start,2),' sec')
+print('------------------------------------------------')
 
 
 ###################### (2) RUN OVATION FOR EACH FRAME TIME ##############################
@@ -214,9 +223,6 @@ ovation_img=np.zeros([512,1024,np.size(ts)])
 #this is the array with the flux in magnetic coordinates for each timestep
 flux_img=np.zeros([80,96,np.size(ts)])
 
-start = time.time()
-print('Start time for run time check ...')
-
 
 for k in np.arange(0,np.size(ts)):
  
@@ -228,34 +234,46 @@ for k in np.arange(0,np.size(ts)):
  print()
  print('Time of PREDSTORM frame',ts[k])
  print()
- print('solar wind input from weighting procedure:')
- #make solarwind with averaging over last 4 hours
- sw=oup.calc_avg_solarwind_predstorm(ts[k],inputfile,4)
+ print('solar wind input from weighting procedure: bxyz,v,ec')
+ #make solarwind with averaging over last 4 hours to check the input
+ sw=oup.calc_avg_solarwind_predstorm(ts[k],inputfile)
  print(sw)
  #for Ec, a cycle average is 4421
- print('Newell coupling compared to solar cycle average: ',np.round(sw['Ec']/4421,2))
+ print('Newell coupling compared to solar cycle average: ',np.round(sw.ec/4421,2))
  print()
+
+ start = time.time()
+ print('Start time for run time check ...')
+
  #print('get fluxes for northern hemisphere and sum them')
  mlatN, mltN, fluxNd=de.get_flux_for_time(ts[k],inputfile, hemi='N')
  mlatN, mltN, fluxNm=me.get_flux_for_time(ts[k],inputfile, hemi='N')
  mlatN, mltN, fluxNw=we.get_flux_for_time(ts[k],inputfile, hemi='N')
 
  ''' bottlenecks
-    61440    0.183    0.000    0.497    0.000 ovation_prime_predstorm.py:673(estimate_auroral_flux)
-    61440    0.142    0.000    0.205    0.000 ovation_prime_predstorm.py:637(prob_estimate)
-    61440    0.110    0.000    0.110    0.000 ovation_prime_predstorm.py:684(correct_flux)
-        4    0.088    0.022    0.664    0.166 ovation_prime_predstorm.py:724(get_gridded_flux)
-        4    0.026    0.007    0.077    0.019 ovation_prime_predstorm.py:768(interp_wedge)
+    30720    0.129    0.000    0.144    0.000 ovation_prime_predstorm.py:350(prob_estimate)
+    30720    0.106    0.000    0.326    0.000 ovation_prime_predstorm.py:389(estimate_auroral_flux)
+    30720    0.075    0.000    0.075    0.000 ovation_prime_predstorm.py:401(correct_flux)
+        2    0.024    0.012    0.360    0.180 ovation_prime_predstorm.py:445(get_gridded_flux)
+     2787    0.010    0.000    0.015    0.000 ovation_prime_predstorm.py:333(which_dF_bin)
+        2    0.004    0.002    0.010    0.005 ovation_prime_predstorm.py:499(interp_wedge)
  '''
 
  #sum all fluxes
  fluxN=fluxNd+fluxNm+fluxNw
  
+ end = time.time()
+ print()
+ print('... end time:  ',np.round(end - start,2),' sec')
+ print('------------------------------------------------')
+
+
  
  #making flux images for comparison to OVATION IDL output
  
  #change file 
  oup.global_ovation_flux(mlatN,mltN,fluxNd,ts[0])
+ 
  
  
  

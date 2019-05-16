@@ -1,5 +1,5 @@
 """
-ovation_utilities rewritten for predstorm input
+ovation_utilities for predstorm
 
 
 modified source code taken originally from https://github.com/lkilcommons/OvationPyme
@@ -8,7 +8,7 @@ if you change this do
 >> import importlib
 >> import ovation_utilities_predstorm  
 >> importlib.reload(ovation_utilities_predstorm)  
-to use altered functions in main program
+in main program to use altered functions in main program
 
 """
 import datetime
@@ -523,11 +523,11 @@ def global_ovation_flux(magnetic_latitude,magnetic_local_time,flux,dt):
  
  
  #read in IDL output for comparison
- idl_file_in='ovation_output/ov_diff_Eflux_2017_1230_2330.txt'
+ #idl_file_in='ovation_output/ov_diff_Eflux_2017_1230_2330.txt'
  #idl_file_in='ovation_output/ov_mono_Eflux_2017_1230_2330.txt'
- #idl_file_in='ovation_output/ov_wave_Eflux_2017_1230_2330.txt'
+ idl_file_in='ovation_output/ov_wave_Eflux_2017_1230_2330.txt'
  
- idl_file_in='ovation_output/ov_diff_Eflux_2017_1129_1300.txt'
+ #idl_file_in='ovation_output/ov_diff_Eflux_2017_1129_1300.txt'
  #idl_file_in='ovation_output/ov_mono_Eflux_2017_1129_1300.txt'
 
  
@@ -549,6 +549,7 @@ def global_ovation_flux(magnetic_latitude,magnetic_local_time,flux,dt):
  
  #interpolate onto 2D grid 
  idlimg=np.squeeze(scipy.interpolate.griddata(m2D_idl, flux_idl,  (it, ir), method='linear',fill_value=0))
+ idlimg[np.where(np.isfinite(idlimg)==False)]=0 
 
  
  ################ ovationpyme output
@@ -579,10 +580,11 @@ def global_ovation_flux(magnetic_latitude,magnetic_local_time,flux,dt):
 
  ax1=plt.subplot(121,projection='polar')
  ax1.set_title('python') 
- cs=ax1.contourf(pt, pr, pyimg, cmap=cmap_name, vmin=0,vmax=np.max(flux),levels=20,zorder=0)
+ cs=ax1.contourf(pt, pr, pyimg, cmap=cmap_name, vmin=0,vmax=2.0,levels=100,zorder=0)
  ax1.set_facecolor('black')
  ax1.set_rlim(-90,-50)
- plt.rgrids((-90,-80,-70,-60,-50),('90','80','70','60','50 N'),angle=150, fontsize=12, color='white')
+ plt.rgrids((-90,-85,-80,-75,-70,-65,-60,-55,-50),('90N','85','80','75','70','65','60','55','50'),angle=150, fontsize=12, color='white')
+ plt.thetagrids((0,45,90,135,180,225,270,315),('0','3','6','9','12','15','18','21'), fontsize=12, color='black')
  ax1.set_theta_zero_location('S')
  plt.colorbar(cs,fraction=0.03, pad=0.1)
  ax1.grid(color='white', linestyle='--', linewidth=0.5,zorder=2) 
@@ -590,19 +592,17 @@ def global_ovation_flux(magnetic_latitude,magnetic_local_time,flux,dt):
 
  ax2=plt.subplot(122,projection='polar')
  ax2.set_title('IDL') 
- cs=ax2.contourf(it, ir, idlimg, cmap=cmap_name, vmin=0,vmax=np.max(flux_idl),levels=20,zorder=0)
+ cs=ax2.contourf(it, ir, idlimg, cmap=cmap_name, vmin=0,vmax=2.0,levels=100,zorder=0)
  ax2.set_facecolor('black')  
  ax2.set_rlim(-90,-50)
- plt.rgrids((-90,-80,-70,-60,-50),('90','80','70','60','50 N'),angle=150, fontsize=12, color='white')
+ plt.rgrids((-90,-85,-80,-75,-70,-65,-60,-55,-50),('90N','85','80','75','70','65','60','55','50'),angle=150, fontsize=12, color='white')
+ plt.thetagrids((0,45,90,135,180,225,270,315),('0','3','6','9','12','15','18','21'), fontsize=12, color='black')
  ax2.set_theta_zero_location('S')
  plt.colorbar(cs,fraction=0.03, pad=0.1)
  ax2.grid(color='white', linestyle='--', linewidth=0.5,zorder=1) 
 
  print('Maximum flux python',np.round(np.max(flux_1D),2))
  print('Maximum flux IDL',np.round(np.max(flux_idl),2))
- 
- 
- 
  
  plt.tight_layout()
  plt.savefig('flux_test.png')
@@ -681,7 +681,7 @@ def global_predstorm_north(world_image,dt,counter):
  #ax.stock_img()#alpha=0.2)
  #ax.add_wmts(nightmap, layer)
 
- ax.imshow(world_image, vmin=0, vmax=100, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.9, cmap=aurora_cmap())
+ ax.imshow(world_image, vmin=0, vmax=5, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.9, cmap=aurora_cmap())
  #ax.add_feature(Nightshade(dt))
 
  #pdb.set_trace()
@@ -798,7 +798,7 @@ def europe_canada_predstorm(world_image,dt,counter):
     
     #ax.add_wmts(nightmap, layer)
   
-    ax.imshow(world_image, vmin=0, vmax=100, transform=crs,extent=mapextent, origin='lower', zorder=3, alpha=0.9, cmap=aurora_cmap2())
+    ax.imshow(world_image, vmin=0, vmax=5, transform=crs,extent=mapextent, origin='lower', zorder=3, alpha=0.9, cmap=aurora_cmap2())
     
     if ax == ax1: ax.set_extent([europe_west, europe_east, europe_south, europe_north])
     if ax == ax2: ax.set_extent([canada_west, canada_east, canada_south, canada_north])

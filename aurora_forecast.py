@@ -101,7 +101,8 @@ plt.close('all')
 
 
 print()
-print('Making aurora forecasts with OVATION from the PREDSTORM solar wind predictions')
+print('Making aurora forecasts with OVATION')
+print('From the PREDSTORM solar wind predictions or OMNI2 data')
 print()
 
 if mode ==0: 
@@ -113,13 +114,16 @@ if mode ==1:
 
     
 if real_time_mode:
-    print('running in real time mode (DSCOVR)')
+    print('running in real time mode using DSCOVR data')
     #take time now + 1hour forecast and take nearest hour (as PREDSTORM is 1 hour resolution)
     t0=oup.round_to_hour(datetime.datetime.utcnow()+datetime.timedelta(hours=1))
+    #or force to given time
+    t0_real_forced_str='2019-May-14 00:00'
+    t0 = parse_time(t0_real_forced_str)
   
 
 if historic_mode:
-    print('running in historic mode (OMNI2)')
+    print('running in historic mode using OMNI2 data')
     #parse start time from string to datetime
     t0 = parse_time(t0_historic_str)
 
@@ -131,7 +135,7 @@ ts = [t0 + datetime.timedelta(hours=i) for i in range(0, n_hours,1)]
 
 print()
 print('Start time:',ts[0].strftime('%Y-%m-%d %H:%M UT' ))
-print('End time:',ts[-1].strftime('%Y-%m-%d %H:%M UT' ))
+print('End time:  ',ts[-1].strftime('%Y-%m-%d %H:%M UT' ))
 print('Number of hourly time steps: ',n_hours)
 print()
 print()
@@ -171,16 +175,15 @@ if historic_mode:
      #make txt file in similar format as predstorm
      oup.omni_txt_generator(ts)     
      inputfile='predstorm_omni.txt'
-     print('txt file with solar wind parameters generated from OMNI2 data: ', inputfile)
+     print('txt file with solar wind parameters generated from OMNI2 data: ')
+     print(inputfile)
      #print('starting 24 hours earlier than ovation start time to make solar wind averages')
     
 
 print()
 
-########################## (1) LOAD OVATION OBJECTS ####################################
+########################## (1) Initialize OVATION ########################################
 
-
-print('Load FluxEstimator objects first.')
 print()
 '''
 atype - str, ['diff','mono','wave','ions']
@@ -196,201 +199,181 @@ jtype - int or str
 '''
 jtype = 'electron energy flux'
 
-start = time.time()
-print('Start time for loading FluxEstimator ')
 
+print('Initialize OVATION')
+start = time.time()
 de = opp.FluxEstimator('diff', jtype)
 me = opp.FluxEstimator('mono', jtype)
-we = opp.FluxEstimator('wave', jtype)
-
+#we = opp.FluxEstimator('wave', jtype)
 end = time.time()
+print('done, took ',np.round(end - start,2),' seconds.')
+
 print()
-print('... end time:  ',np.round(end - start,2),' sec')
-print('------------------------------------------------')
+
+ 
+ 
+print('OVATION uses ',jtype, ' with diffuse and monoenergetic aurora types')
+print('Fluxes for southern hemisphere are currently not calculated.')
+
+print()
 
 
 ###################### (2) RUN OVATION FOR EACH FRAME TIME ##############################
+
+print('Now make the aurora flux data cubes for all timesteps.')
 
 
 #make a world map grid in latitude 512 pixels, longitude 1024 pixel like NOAA
 wx,wy=np.mgrid[-90:90:180/512,-180:180:360/1024]
 
-
-#this is the array with the world maps for each timestep
+#this is the array with the final world maps for each timestep
 ovation_img=np.zeros([512,1024,np.size(ts)])
 
-
-#this is the array with the flux in magnetic coordinates for each timestep
+#this is the array with the flux grid in magnetic coordinates for each timestep
 flux_img=np.zeros([80,96,np.size(ts)])
 
-
-for k in np.arange(0,np.size(ts)):
- 
- print('--------------------------------------------------------------')
- print('time step:', k)
-
- #########  (2b) get solar wind and fluxes
-
- print()
- print('Time of PREDSTORM frame',ts[k])
- print()
- print('solar wind input from weighting procedure: bxyz,v,ec')
- #make solarwind with averaging over last 4 hours to check the input
- sw=oup.calc_avg_solarwind_predstorm(ts[k],inputfile)
- print(sw)
- #for Ec, a cycle average is 4421
- print('Newell coupling compared to solar cycle average: ',np.round(sw.ec/4421,2))
- print()
-
- start = time.time()
- print('Start time for run time check ...')
-
- #print('get fluxes for northern hemisphere and sum them')
- mlatN, mltN, fluxNd=de.get_flux_for_time(ts[k],inputfile, hemi='N')
- mlatN, mltN, fluxNm=me.get_flux_for_time(ts[k],inputfile, hemi='N')
- mlatN, mltN, fluxNw=we.get_flux_for_time(ts[k],inputfile, hemi='N')
-
- ''' bottlenecks
-    30720    0.129    0.000    0.144    0.000 ovation_prime_predstorm.py:350(prob_estimate)
-    30720    0.106    0.000    0.326    0.000 ovation_prime_predstorm.py:389(estimate_auroral_flux)
-    30720    0.075    0.000    0.075    0.000 ovation_prime_predstorm.py:401(correct_flux)
-        2    0.024    0.012    0.360    0.180 ovation_prime_predstorm.py:445(get_gridded_flux)
-     2787    0.010    0.000    0.015    0.000 ovation_prime_predstorm.py:333(which_dF_bin)
-        2    0.004    0.002    0.010    0.005 ovation_prime_predstorm.py:499(interp_wedge)
- '''
-
- #sum all fluxes
- fluxN=fluxNd+fluxNm+fluxNw
- 
- end = time.time()
- print()
- print('... end time:  ',np.round(end - start,2),' sec')
- print('------------------------------------------------')
-
-
- 
- #making flux images for comparison to OVATION IDL output
- 
- #change file 
- oup.global_ovation_flux(mlatN,mltN,fluxNd,ts[0])
- 
- 
- 
- 
- 
- 
- 
- sys.exit()
- 
- 
- 
- 
-
- #print('For our aurora maps we use the ',jtype, ' with diff, mono, wave')
- #print('Fluxes for southern hemisphere are currently not calculated.')
-
-
- #########  (2b) coordinate conversion magnetic to geographic 
-
- print()
- #print('Coordinate conversion MLT to AACGM mlon/lat to geographic coordinates:')
- #startcoo=time.time()
-
- #magnetic coordinates are  mltN mlonN; convert magnetic local time (MLT) to longitude
- mlonN=aacgmv2.convert_mlt(mltN,ts[k],m2a=True)
-
- #magnetic coordinates are now mlatN mlonN
- (glatN, glonN, galtN)= aacgmv2.convert_latlon_arr(mlatN,mlonN, 100,ts[k], code="A2G")
- #endcoo = time.time()
- #print('Coordinate conversion takes seconds: ', np.round(endcoo-startcoo,3))
-
- #geographic coordinates are glatN, glonN, electron flux values are fluxN
-
-
- #change shapes from glatN (80, 96) glonN  (80, 96) to a single array with 7680,2
- glatN_1D=glatN.reshape(np.size(fluxN),1)  
- glonN_1D=glonN.reshape(np.size(fluxN),1)    
- #stack 2 (7680,1) arrays to a single 7680,2 arrays
- geo_2D=np.hstack((glatN_1D,glonN_1D)) 
- #also change flux values to 1D array
- fluxN_1D=fluxN.reshape(7680,1) 
-
- #interpolate to world grid, and remove 1 dimension with squeeze
- #see https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.griddata.html
- aimg=np.squeeze(scipy.interpolate.griddata(geo_2D, fluxN_1D, (wx, wy), method='linear',fill_value=0))
-
- '''
- #for testing conversion and image making - note that the image is upside down with north at bottom
- plt.close('all')
- plt.figure(1)
- plt.imshow(aimg)
- sys.exit()
- '''
- 
-
-
- #####################  (2c) Convert to probabilities, smooth etc.
- print()
- 
-  
- 
- # ************* NOT CORRECT -> how to go from erg cm-2 s-1 to probability?
- #Case et al. 2016
- #print('Convert to probabilites, smooth with gaussian,')
- #print('round numbers, trim values < 2, cut at 100 % probability')
- #convert to probabilities from energy flux in erg cm−2 s−1 Case et al. 2016
-
- #*******CHECK for UNITS in ovationpyme
- 
- 
- #diffuse flux is too small by factor 2 in pyme, mono by factor 1.5
- 
- pimg=8*aimg
-   
- #pimg=10+8*aimg
-
- #smooth out artefacts
- pimg = scipy.ndimage.gaussian_filter(pimg,sigma=(3,5))
-
- #round probabilities?
- #pimg=np.round(pimg,0)
-
- #trim small values
- pimg[np.where(pimg <2)]=0
-
- #cut at 100 percent probability
- pimg[np.where(pimg >100)]=100
-
-
- #add calibration of probabilities compared to NOAA
- adhoc_calibration=3
- ovation_img[:,:,k]=pimg*adhoc_calibration
- 
- 
- 
-
- '''
- for testing
- plt.close()
- #16/9 ration for full hd output
- fig = plt.figure(figsize=[10, 5]) 
- ax1 = plt.subplot(1, 1, 1, projection=crs)
- fig.set_facecolor('black') 
- ax1.coastlines()
- ax1.imshow(pimg, vmin=0, vmax=100, transform=crs, extent=mapextent, origin='lower',zorder=3,cmap=aurora_cmap())
- #ax1.set_extent(fullextent)
- '''
-
-
-
-
-end = time.time()
-
+start = time.time()
+print('--------------------------------------------------------------')
+print('Clock run time start ...')
 print()
-print('... end time:  ',np.round(end - start,2),' sec')
-print('------------------------------------------------')
-#print()
-#print('Calculation for 20 frames would take:', np.round((end - start)*20/60,2),' minutes')
+
+for k in np.arange(0,np.size(ts)): #go through all times
+ 
+    
+    print('Frame number and time:', k, '  ',ts[k])
+
+    #########################################  (2a) get solar wind 
+    
+    startflux=time.time()
+    sw=oup.calc_avg_solarwind_predstorm(ts[k],inputfile)   #make solarwind with averaging over last 4 hours 
+    #print('solar wind input last 4 hours with weights: ')
+    print('Bxyz =',sw.bx[0],sw.by[0],sw.bz[0],' nT   V =',int(sw.v[0]), 'km/s')
+    print('Newell coupling to average: ',np.round(sw.ec[0]/4421,1), ' Ec =',int(sw.ec[0]))    #for the coupling Ec, a cycle average is 4421
+    #get fluxes for northern hemisphere and sum them
+    mlatN, mltN, fluxNd=de.get_flux_for_time(ts[k],inputfile, hemi='N')
+    mlatN, mltN, fluxNm=me.get_flux_for_time(ts[k],inputfile, hemi='N')
+    #mlatN, mltN, fluxNw=we.get_flux_for_time(ts[k],inputfile, hemi='N')     #wave flux not correct yet
+    fluxN=fluxNd+fluxNm#+fluxNw
+    endflux=time.time()
+    print('OVATION: ', np.round(endflux-startflux,2),' sec')
+
+    #for debugging
+    #making flux images for comparison to OVATION IDL output
+    #change IDL file in this function for flux comparison
+    #oup.global_ovation_flux(mlatN,mltN,fluxNw,ts[0])
+    #oup.global_ovation_flux(mlatN,mltN,fluxNd+fluxNm,ts[0])
+
+ 
+ 
+    #####################################  (2b) coordinate conversion magnetic to geographic 
+    #Coordinate conversion MLT to AACGM mlon/lat to geographic coordinates
+    startcoo=time.time()
+    #magnetic coordinates are  mltN mlonN; convert magnetic local time (MLT) to longitude
+    mltN_1D=mltN.reshape(np.size(mltN),1)  
+    mlatN_1D=mlatN.reshape(np.size(mltN),1)  
+    
+    
+    #********extract from mltN_1D first 96, convert and copy to rest
+    
+    mlonN_1D=aacgmv2.convert_mlt(mltN_1D,ts[k],m2a=True)
+    endcoo = time.time()
+    print('Coordinates 1: ', np.round(endcoo-startcoo,2),' sec')
+   
+    #sys.exit()
+   
+    startcoo=time.time()
+    #magnetic coordinates are now mlatN mlonN - this is very fast
+    (glatN_1D, glonN_1D, galtN)= aacgmv2.convert_latlon_arr(mlatN_1D,mlonN_1D, 100,ts[k], code="A2G")
+    endcoo = time.time()
+    print('Coordinates 2: ', np.round(endcoo-startcoo,2),' sec')
+   
+
+
+    #####################################  (2c) interpolate to world map 
+    #geographic coordinates are glatN, glonN, electron flux values are fluxN
+    #change shapes from glatN (80, 96) glonN  (80, 96) to a single array with 7680,2
+    startworld=time.time()
+ 
+    #glatN_1D=glatN.reshape(np.size(fluxN),1)  
+    #glonN_1D=glonN.reshape(np.size(fluxN),1)    
+    geo_2D=np.hstack((glatN_1D,glonN_1D))      #stack 2 (7680,1) arrays to a single 7680,2 arrays
+    fluxN_1D=fluxN.reshape(7680,1)   #also change flux values to 1D array
+
+    #interpolate to world grid, and remove 1 dimension with squeeze
+    aimg=np.squeeze(scipy.interpolate.griddata(geo_2D, fluxN_1D, (wx, wy), method='linear',fill_value=0))
+    #filter
+    aimg = scipy.ndimage.gaussian_filter(aimg,sigma=(5,7))
+    ovation_img[:,:,k]=aimg
+    endworld = time.time()
+    print('World map: ', np.round(endworld-startworld,2),' sec')
+    print()
+    print('---------------------')
+
+
+ 
+
+ 
+end = time.time()
+print()
+print('... end run time clock:  ',np.round(end - start,2),' sec total, per frame: ',np.round((end - start)/np.size(ts),2) )
+print('--------------------------------------------------------------')    
+
+'''
+#for testing conversion and image making - note that the image is upside down with north at bottom
+plt.close('all')
+plt.figure(1)
+plt.imshow(aimg)
+sys.exit()
+'''
+
+ 
+
+'''
+#####################  (2c) Convert to probabilities, smooth etc.
+ 
+# ************* NOT CORRECT -> how to go from erg cm-2 s-1 to probability?
+#Case et al. 2016
+#print('Convert to probabilites, smooth with gaussian,')
+#print('round numbers, trim values < 2, cut at 100 % probability')
+#convert to probabilities from energy flux in erg cm−2 s−1 Case et al. 2016
+ 
+#pimg=8*aimg
+   
+#pimg=10+8*aimg
+
+#smooth out artefacts
+#pimg = scipy.ndimage.gaussian_filter(pimg,sigma=(3,5))
+
+#round probabilities?
+#pimg=np.round(pimg,0)
+
+#trim small values
+#pimg[np.where(pimg <2)]=0
+
+#cut at 100 percent probability
+#pimg[np.where(pimg >100)]=100
+
+#add calibration of probabilities compared to NOAA
+#adhoc_calibration=3
+#ovation_img[:,:,k]=pimg*adhoc_calibration
+ 
+ 
+for testing
+plt.close()
+#16/9 ration for full hd output
+fig = plt.figure(figsize=[10, 5]) 
+ax1 = plt.subplot(1, 1, 1, projection=crs)
+fig.set_facecolor('black') 
+ax1.coastlines()
+ax1.imshow(pimg, vmin=0, vmax=100, transform=crs, extent=mapextent, origin='lower',zorder=3,cmap=aurora_cmap())
+#ax1.set_extent(fullextent)
+'''
+
+
+
+
+
+
 
 
 #####################################  (3) PLOTS  #########################################
@@ -401,27 +384,28 @@ print('------------------------------------------------')
 #comparison with NOAA
 #global_predstorm_noaa(ovation_img)
 
-
-
 #plot the fluxes for direct comparison to ovation prime in IDL
 #for k in np.arange(0,np.size(ts)):
 #    oup.global_predstorm_flux(ovation_img[:,:,k],ts[k],k)
 
 
+#************ optimize frame making
+
 #make images and movie frames for the generated aurora image cube
 for k in np.arange(0,np.size(ts)):
     oup.global_predstorm_north(ovation_img[:,:,k],ts[k],k)
+
+for k in np.arange(0,np.size(ts)):
     oup.europe_canada_predstorm(ovation_img[:,:,k],ts[k],k)
     
-    
-    
+        
     
 #make move with frames 
 os.system('ffmpeg -r 10 -i results/frames_global/aurora_%05d.jpg -b:v 5000k -r 10 results/predstorm_aurora_global.mp4 -y -loglevel quiet')
 os.system('ffmpeg -r 10 -i results/frames_europe_canada/aurora_%05d.jpg -b:v 5000k -r 10 results/predstorm_aurora_europe_canada.mp4 -y -loglevel quiet')
 
-os.system('ffmpeg -r 10 -i results/frames_global/aurora_%05d.jpg -b:v 5000k -r 10 results/predstorm_aurora_global.gif -y -loglevel quiet')
-os.system('ffmpeg -r 10 -i results/frames_europe_canada/aurora_%05d.jpg -b:v 5000k -r 10 results/predstorm_aurora_europe_canada.gif -y -loglevel quiet')
+#os.system('ffmpeg -r 10 -i results/frames_global/aurora_%05d.jpg -b:v 5000k -r 10 results/predstorm_aurora_global.gif -y -loglevel quiet')
+#os.system('ffmpeg -r 10 -i results/frames_europe_canada/aurora_%05d.jpg -b:v 5000k -r 10 results/predstorm_aurora_europe_canada.gif -y -loglevel quiet')
 
     
     

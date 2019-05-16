@@ -4,8 +4,8 @@ Plotting the Aurora 30 min forecast from NOAA
 This is based on this script:
 https://scitools.org.uk/cartopy/docs/latest/gallery/aurora_forecast.html
 
-and serves as a testing ground for different ways to visualize the aurora outputs from 
-the ovation model - driven by predstorm - in python with cartopy
+... and serves as a testing ground for different ways to visualize the aurora outputs from 
+the ovation model in python with cartopy
 
 C. Moestl, IWF-helio, Graz, Austria.
 twitter @chrisoutofspace
@@ -29,10 +29,6 @@ from cartopy.feature.nightshade import Nightshade
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 
-
-from ovationpyme import ovation_prime
-from ovationpyme import ovation_utilities
-from geospacepy import satplottools, special_datetime
 
 
 
@@ -226,7 +222,7 @@ for ax in [ax1, ax2]:
     extent=extent, origin=origin, zorder=3, alpha=0.9,
     cmap=aurora_cmap())
 
-fig.text(0.01,0.92,'NOAA OVATION aurora 30-min forecast   '+dt.strftime('%Y-%m-%d %H:%M UT' ), color='white',fontsize=15)
+fig.text(0.01,0.92,'NOAA OVATION aurora forecast   '+dt.strftime('%Y-%m-%d %H:%M UT' ), color='white',fontsize=15)
 fig.text(0.99,0.02,'C. Möstl / IWF-helio, Austria', color='white',fontsize=8,ha='right')
 
 #exactly full hd resolution with dpi=120 and size 16 9

@@ -13,8 +13,10 @@ in main program to use altered functions in main program
 """
 import datetime
 import numpy as np
+import matplotlib
 import matplotlib.dates as mdates
 from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import ListedColormap
 import matplotlib.pyplot as plt
 import urllib
 from urllib.request import urlopen
@@ -29,6 +31,89 @@ import os
 import pickle	
 import scipy
 import pdb
+
+
+
+
+def global_predstorm_north(wic,dt,colormap_input):
+ '''
+ wic is a world image cube with ovation results 512x1024
+ dt are the datetimes for each frame
+ colormap_input is the colormap
+
+
+ '''
+ 
+  #plotting parameters
+ #-100 for North America, +10 or 0 for Europe
+ #global_plot_longitude=-100
+ global_plot_longitude=0
+ global_plot_latitude=90
+
+ #define extent of the produced world maps - defined as: west east south north
+ mapextent=[-180,180,-90,90]   
+ 
+ 
+ 
+ #need to set alpha linearly increasing in the colormap so that it blends into background for 
+ #small values
+ cmap = plt.get_cmap(colormap_input)  # Choose colormap
+ my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
+ my_cmap[:,-1] = np.linspace(0, 1, cmap.N)  # Set alpha
+ my_cmap = ListedColormap(my_cmap) # Create new colormap
+
+ crs=ccrs.PlateCarree()
+
+ fig = plt.figure(1,figsize=[12, 12],dpi=80) 
+ fig.set_facecolor('black') 
+ fig.text(0.99,0.01,'C. Möstl / IWF-helio, Austria', color='white',fontsize=10,ha='right',va='bottom')
+
+ 
+ ax = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(global_plot_longitude, global_plot_latitude))
+
+ ax.background_patch.set_facecolor('k')    
+ ax.coastlines('50m',color='white',alpha=0.8)
+ gl=ax.gridlines(linestyle='--',alpha=0.5,color='white') #make grid
+ gl.n_steps=100   #make grid finer
+ ax.stock_img()  
+
+ 
+ #these are calls that create the first object to be removed from the plot with each frame
+ txt=fig.text(0.5,0.92,'')
+ border=ax.add_feature(Nightshade(dt[0]))  #add day night border
+ img=ax.imshow(wic[:,:,0], cmap=my_cmap)
+  
+
+ for i in np.arange(0,np.size(dt)):
+
+     print('global movie frame',i)
+ 
+     #plt.cla()  #clear axes
+     txt.set_visible(False)  #clear previous plot title
+     #plot title with time
+     txt=fig.text(0.5,0.92,'PREDSTORM aurora forecast  '+dt[i].strftime('%Y-%m-%d %H:%M UT'), color='white',fontsize=15, ha='center')
+     img.remove()     #remove previous wic
+     border.remove()  #remove previous nightshade
+ 
+     
+     border=ax.add_feature(Nightshade(dt[i]))  #add day night border
+     img=ax.imshow(wic[:,:,i], vmin=0.01, vmax=5, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap)
+  
+     #save as image with timestamp in filename
+     #plot_Nhemi_filename='results/forecast_global/predstorm_aurora_real_Nhemi_'+dt.strftime("%Y_%m_%d_%H%M")  +'.jpg'
+     #fig.savefig(plot_Nhemi_filename,dpi=150,facecolor=fig.get_facecolor())
+
+     #save as movie frame
+     framestr = '%05i' % (i)  
+     fig.savefig('results/frames_global/aurora_'+framestr+'.jpg',dpi=150,facecolor=fig.get_facecolor())
+     
+     #print('Saved image:  ',plot_Nhemi_filename)
+     
+     
+ #matplotlib.use('Qt5Agg')
+
+
+
 
 
 
@@ -523,9 +608,9 @@ def global_ovation_flux(magnetic_latitude,magnetic_local_time,flux,dt):
  
  
  #read in IDL output for comparison
- #idl_file_in='ovation_output/ov_diff_Eflux_2017_1230_2330.txt'
+ idl_file_in='ovation_output/ov_diff_Eflux_2017_1230_2330.txt'
  #idl_file_in='ovation_output/ov_mono_Eflux_2017_1230_2330.txt'
- idl_file_in='ovation_output/ov_wave_Eflux_2017_1230_2330.txt'
+ #idl_file_in='ovation_output/ov_wave_Eflux_2017_1230_2330.txt'
  
  #idl_file_in='ovation_output/ov_diff_Eflux_2017_1129_1300.txt'
  #idl_file_in='ovation_output/ov_mono_Eflux_2017_1129_1300.txt'
@@ -611,20 +696,19 @@ def global_ovation_flux(magnetic_latitude,magnetic_local_time,flux,dt):
 
 
 
-def global_predstorm_north(world_image,dt,counter):
+
+
+
+
+
+
+def europe_canada_predstorm(world_image,dt,counter,colormap_input):
+
 
  plt.close('all')
-
- #plotting parameters
- #-100 for North America, +10 or  for Europe
- #global_plot_longitude=-100
- global_plot_longitude=0
- global_plot_latitude=90
-
-
  #Night map from VIIRS
  #https://wiki.earthdata.nasa.gov/display/GIBS/GIBS+Available+Imagery+Products#expand-EarthatNight4Products
- nightmap = 'https://map1c.vis.earthdata.nasa.gov/wmts-geo/wmts.cgi'
+ #nightmap = 'https://map1c.vis.earthdata.nasa.gov/wmts-geo/wmts.cgi'
 
 
  #define extent of the produced world maps - defined as: west east south north
@@ -633,106 +717,14 @@ def global_predstorm_north(world_image,dt,counter):
 
  #not so good: layer='VIIRS_Black_Marble'
  #better but takes time
- layer = 'VIIRS_CityLights_2012'
+ #layer = 'VIIRS_CityLights_2012'
 
-
-
- land_50m = carfeat.NaturalEarthFeature('physical', 'land', '50m',
-                                        edgecolor='k',
-                                        facecolor=carfeat.COLORS['land'])
- ocean_50m = carfeat.NaturalEarthFeature('physical', 'ocean', '50m',
-                                        edgecolor='k',
-                                        facecolor='steelblue')#carfeat.COLORS['water'])                                        
- provinces_50m = carfeat.NaturalEarthFeature('cultural',
-                                             'admin_1_states_provinces_lines',
-                                             '50m',
-                                             facecolor='none',edgecolor='black')
- crs=ccrs.PlateCarree()
-
- fig = plt.figure(1,figsize=[12, 12],dpi=80) 
- fig.set_facecolor('black') 
- plt.cla()
-
- #axis PREDSTORM + OVATION
- ax = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(global_plot_longitude, global_plot_latitude))
-
-
- #ax.add_feature(carfeat.BORDERS, color='white',alpha=0.5)
- #ax.add_feature(carfeat.LAND,color='darkslategrey')
- #ax.coastlines(alpha=0.5,zorder=3)
- #ax.add_feature(land_50m, color='darkgreen') 
-
- #ax.add_feature(land_50m, color='darkslategrey')
- #ax.add_feature(carfeat.LAKES,color='navy')#,zorder=2,alpha=1)
- #ax.add_feature(carfeat.OCEAN)#,zorder=2,alpha=1)
- #ax.add_feature(ocean_50m,linewidth=0.5, color='navy')
  
- #ax.add_feature(carfeat.COASTLINE,color='white')#,zorder=2,alpha=0.5)
- #ax.add_feature(carfeat.RIVERS)#,zorder=2,alpha=0.8)
- #ax.add_feature(provinces_50m,alpha=0.5)#,zorder=2,alpha=0.8)
-
- #ax.add_feature(carfeat.COASTLINE, alpha=0.5,color='white')#,zorder=2,alpha=0.5)
-
- ax.background_patch.set_facecolor('k')    
- ax.coastlines('50m',color='white',alpha=0.8)
- #ax.add_feature(provinces_50m,alpha=0.5)#,zorder=2,alpha=0.8)
- gl=ax.gridlines(linestyle='--',alpha=0.5,color='white')
- gl.n_steps=100
- #ax.stock_img()#alpha=0.2)
- #ax.add_wmts(nightmap, layer)
-
- ax.imshow(world_image, vmin=0, vmax=5, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.9, cmap=aurora_cmap())
- #ax.add_feature(Nightshade(dt))
-
- #pdb.set_trace()
-   
- fig.text(0.5,0.92,'PREDSTORM aurora forecast  '+dt.strftime('%Y-%m-%d %H:%M UT'), color='white',fontsize=15, ha='center')
- fig.text(0.99,0.03,'C. Möstl / IWF-helio, Austria', color='white',fontsize=10,ha='right')
-
- plt.tight_layout()  
-
- #save as image with timestamp in filename
- plot_Nhemi_filename='results/forecast_global/predstorm_aurora_real_Nhemi_'+dt.strftime("%Y_%m_%d_%H%M")  +'.jpg'
- fig.savefig(plot_Nhemi_filename,dpi=150,facecolor=fig.get_facecolor())
-
- #save as movie frame
- framestr = '%05i' % (counter)  
- fig.savefig('results/frames_global/aurora_'+framestr+'.jpg',dpi=150,facecolor=fig.get_facecolor())
- #plt.show()
- print('Saved image:  ',plot_Nhemi_filename)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def europe_canada_predstorm(world_image,dt,counter):
-
-
- plt.close('all')
- #Night map from VIIRS
- #https://wiki.earthdata.nasa.gov/display/GIBS/GIBS+Available+Imagery+Products#expand-EarthatNight4Products
- nightmap = 'https://map1c.vis.earthdata.nasa.gov/wmts-geo/wmts.cgi'
-
-
- #define extent of the produced world maps - defined as: west east south north
- mapextent=[-180,180,-90,90]   
-
-
- #not so good: layer='VIIRS_Black_Marble'
- #better but takes time
- layer = 'VIIRS_CityLights_2012'
-
+ #need to set alpha linearly increasing in the colormap
+ cmap = plt.get_cmap(colormap_input)  # Choose colormap
+ my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
+ my_cmap[:,-1] = np.linspace(0.3, 1, cmap.N)  # Set alpha
+ my_cmap = ListedColormap(my_cmap) # Create new colormap
 
 
  land_50m = carfeat.NaturalEarthFeature('physical', 'land', '50m',
@@ -752,6 +744,8 @@ def europe_canada_predstorm(world_image,dt,counter):
  #16/9 ration for full hd output
  fig = plt.figure(2,figsize=[16, 9],dpi=100) 
  fig.set_facecolor('black') 
+ plt.cla()
+
  # ax1 Europe
  ax1 = plt.subplot(1, 2, 2, projection=ccrs.Orthographic(0, 60),position=[0.51,0.05,0.48,0.9])#[left, bottom, width, height]
  # ax2 northern America
@@ -779,7 +773,6 @@ def europe_canada_predstorm(world_image,dt,counter):
     #ax.add_feature(land_50m, color='darkgreen')
     #ax.add_feature(land_50m, color='darkslategrey')
     ax.add_feature(land_50m, color='dimgrey')
-    
     ax.add_feature(provinces_50m,alpha=0.5)#,zorder=2,alpha=0.8)
 
   
@@ -798,7 +791,7 @@ def europe_canada_predstorm(world_image,dt,counter):
     
     #ax.add_wmts(nightmap, layer)
   
-    ax.imshow(world_image, vmin=0, vmax=5, transform=crs,extent=mapextent, origin='lower', zorder=3, alpha=0.9, cmap=aurora_cmap2())
+    ax.imshow(world_image, vmin=0.001, vmax=5, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap)
     
     if ax == ax1: ax.set_extent([europe_west, europe_east, europe_south, europe_north])
     if ax == ax2: ax.set_extent([canada_west, canada_east, canada_south, canada_north])
@@ -821,6 +814,118 @@ def europe_canada_predstorm(world_image,dt,counter):
 
 
 
+'''
+
+def global_predstorm_north2(world_image,dt,counter,colormap_input):
+
+
+ #plotting parameters
+ #-100 for North America, +10 or  for Europe
+ #global_plot_longitude=-100
+ global_plot_longitude=0
+ global_plot_latitude=90
+
+
+ #Night map from VIIRS
+ #https://wiki.earthdata.nasa.gov/display/GIBS/GIBS+Available+Imagery+Products#expand-EarthatNight4Products
+ nightmap = 'https://map1c.vis.earthdata.nasa.gov/wmts-geo/wmts.cgi'
+
+
+ #define extent of the produced world maps - defined as: west east south north
+ mapextent=[-180,180,-90,90]   
+ 
+ #need to set alpha linearly increasing in the colormap
+ cmap = plt.get_cmap(colormap_input)  # Choose colormap
+ my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
+ my_cmap[:,-1] = np.linspace(0.3, 1, cmap.N)  # Set alpha
+ my_cmap = ListedColormap(my_cmap) # Create new colormap
+
+
+
+ #not so good: layer='VIIRS_Black_Marble'
+ #better but takes time
+ layer = 'VIIRS_CityLights_2012'
+
+
+
+ land_50m = carfeat.NaturalEarthFeature('physical', 'land', '50m',
+                                        edgecolor='k',
+                                        facecolor=carfeat.COLORS['land'])
+ ocean_50m = carfeat.NaturalEarthFeature('physical', 'ocean', '50m',
+                                        edgecolor='k',
+                                        facecolor='steelblue')#carfeat.COLORS['water'])                                        
+ provinces_50m = carfeat.NaturalEarthFeature('cultural',
+                                             'admin_1_states_provinces_lines',
+                                             '50m',
+                                             facecolor='none',edgecolor='black')
+ crs=ccrs.PlateCarree()
+
+ fig = plt.figure(1,figsize=[12, 12],dpi=80) 
+ fig.set_facecolor('black') 
+ plt.clf()
+ plt.cla()
+
+ #axis PREDSTORM + OVATION
+ ax = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(global_plot_longitude, global_plot_latitude))
+
+
+ #ax.add_feature(carfeat.BORDERS, color='white',alpha=0.5)
+ #ax.add_feature(carfeat.LAND,color='darkslategrey')
+ #ax.coastlines(alpha=0.5,zorder=3)
+ #ax.add_feature(land_50m, color='darkgreen') 
+
+ #ax.add_feature(land_50m, color='darkslategrey')
+ #ax.add_feature(carfeat.LAKES,color='navy')#,zorder=2,alpha=1)
+ #ax.add_feature(carfeat.OCEAN)#,zorder=2,alpha=1)
+ #ax.add_feature(ocean_50m,linewidth=0.5, color='navy')
+ 
+ #ax.add_feature(carfeat.COASTLINE,color='white')#,zorder=2,alpha=0.5)
+ #ax.add_feature(carfeat.RIVERS)#,zorder=2,alpha=0.8)
+ #ax.add_feature(provinces_50m,alpha=0.5)#,zorder=2,alpha=0.8)
+
+ #ax.add_feature(carfeat.COASTLINE, alpha=0.5,color='white')#,zorder=2,alpha=0.5)
+
+ ax.background_patch.set_facecolor('k')    
+ ax.coastlines('50m',color='white',alpha=0.8)
+ #ax.add_feature(provinces_50m,alpha=0.8,color='white')#,zorder=2,alpha=0.8)
+
+ #ax.add_feature(provinces_50m,alpha=0.5)#,zorder=2,alpha=0.8)
+
+
+ gl=ax.gridlines(linestyle='--',alpha=0.5,color='white') #make grid
+ gl.n_steps=100   #make grid finer
+ 
+ ax.add_feature(Nightshade(dt))  #add day night border
+
+ 
+ ax.stock_img()
+ #ax.add_wmts(nightmap, layer)
+ 
+  
+
+ #ax.imshow(world_image, vmin=0, vmax=5, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.9, cmap=aurora_cmap())
+ ax.imshow(world_image, vmin=0.01, vmax=5, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap)
+
+
+ 
+ fig.text(0.5,0.92,'PREDSTORM aurora forecast  '+dt.strftime('%Y-%m-%d %H:%M UT'), color='white',fontsize=15, ha='center')
+ fig.text(0.99,0.01,'C. Möstl / IWF-helio, Austria', color='white',fontsize=10,ha='right',va='bottom')
+
+ #plt.tight_layout()  
+
+ #save as image with timestamp in filename
+ plot_Nhemi_filename='results/forecast_global/predstorm_aurora_real_Nhemi_'+dt.strftime("%Y_%m_%d_%H%M")  +'.jpg'
+ fig.savefig(plot_Nhemi_filename,dpi=150,facecolor=fig.get_facecolor())
+
+ #save as movie frame
+ framestr = '%05i' % (counter)  
+ fig.savefig('results/frames_global/aurora_'+framestr+'.jpg',dpi=150,facecolor=fig.get_facecolor())
+ #plt.show()
+ print('Saved image:  ',plot_Nhemi_filename)
+
+
+
+'''
 
 
 

@@ -377,6 +377,15 @@ class SeasonalFluxEstimator(object):
 
         valid_interp_mlat_bins = np.logical_and(mlatgridN[:, 0]>=x_mlat_min, mlatgridN[:, 0]<=x_mlat_max)
         #inwedge = np.zeros(fluxgridN.shape, dtype=bool) #Store where we did interpolation
+        
+        
+        #Change all mlts from 0-24 MLT to -12 to 12 MLT, so that there is no discontinuity at midnight when we interpolate
+
+        #for i_mlat_bin in np.arange(80):
+        
+        #    this_mlt = mltgridN[i_mlat_bin, :]
+        #    this_mlt[this_mlt>12.] = this_mlt[this_mlt>12.]-24.
+
        
         #go through all rings of constant latitude
         for i_mlat_bin in np.flatnonzero(valid_interp_mlat_bins):

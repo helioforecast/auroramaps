@@ -1,8 +1,9 @@
 '''
-Plotting an aurora forecast based on the PREDSTORM solar wind prediction method
+Plotting an aurora forecast/hindcast based on the PREDSTORM solar wind prediction method
 
-using a rewritten version of 
-ovationpyme by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
+using a rewritten version of the ovationpyme aurora model 
+by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
+and the cartopy package
 
 by C. Moestl, IWF-helio group, Graz, Austria.
 twitter @chrisoutofspace
@@ -10,29 +11,35 @@ https://www.iwf.oeaw.ac.at/user-site/christian-moestl/
 
 last update May 2019
 
---------------------------
+-----------------------------------------------------------------------------------
+
+TO DO: 
+
+- add equatorial auroral boundary Case et al. 2016
+- all with > 1 min time resolution from PREDSTORM real time file, adapt calc_solarwind...
+- add colorbars for probabilites, 
+  colormap should fade into background but oval should also visible for small values
+- check bugs in ovation in comparison to IDL version
+  make nowcast better, direct comparison with NOAA global images
+- how to get probabilites correctly? ask Nathan Case
+- transparent to white colormap so that it looks like viirs images for direct comparison
+- split land on dayside / night lights on night side 
+  this should work in global_predstorm_north by loading background only once
+  need to figure out how to get pixels from nightshade day/night and how to plot 
+  only specific pixels (but then each background image must be updated)
+- code optimizen further - bottlenecks with numba; 
+  and use normal numpy arrays and check for optimization
+- Newell solar wind coupling als parameter in plot
+- auroral power on plot directly from ovation integrated (add function in opp)
+- indicate moon phase with astropy
+- cloud cover how? https://pypi.org/project/weather-api/ ? at least for locations
+
 
 test bottlenecks: 
 >> python -m cProfile -s tottime aurora_forecast.py
 
 or use in ipython
 >> %prun function_name 
-
-TO DO: 
-
-- check errors in ovation? how to get probabilites correctly? as Nathan Case
-- add colorbars for probabilites, colormap better?
-- VIIRS night mode - takes too long for each frame, delete image and replace when making movie?
-- split land on dayside / night lights on night side
-- historic mode with OMNI2 data (1 hour)
-- code optimizen, insbesondere ovation, coordinate conversion take 2 functions used
-- Newell solar wind coupling als parameter in plot
-- auroral power on plot directly from predstorm_real.txt or from ovationpyme
-- indicate moon phase with astropy
-- cloud cover how? https://pypi.org/project/weather-api/ ?
-- higher time resolution than 1 hour - use 1 min real time file, adapt calc_solarwind...
-- black white colormap so that it looks like viirs images for direct comparison
-- add equatorial auroral boundary case et al. 2016
 
 
 
@@ -66,7 +73,7 @@ import numba as nb
 import importlib
   
   
-# get own modules; make sure they are 
+# make sure own modules are 
 # automatically reloaded every time when using ipython
   
 #ovation model
@@ -99,7 +106,6 @@ from aurora_forecast_input import *
 plt.close('all')
 
 
-
 print()
 print('Making aurora forecasts with OVATION')
 print('From the PREDSTORM solar wind predictions or OMNI2 data')
@@ -118,8 +124,8 @@ if real_time_mode:
     #take time now + 1hour forecast and take nearest hour (as PREDSTORM is 1 hour resolution)
     t0=oup.round_to_hour(datetime.datetime.utcnow()+datetime.timedelta(hours=1))
     #or force to given time
-    t0_real_forced_str='2019-May-14 00:00'
-    t0 = parse_time(t0_real_forced_str)
+    #t0_real_forced_str='2019-May-14 03:00'
+    #t0 = parse_time(t0_real_forced_str)
   
 
 if historic_mode:
@@ -256,6 +262,8 @@ for k in np.arange(0,np.size(ts)): #go through all times
     fluxN=fluxNd+fluxNm#+fluxNw
     endflux=time.time()
     print('OVATION: ', np.round(endflux-startflux,2),' sec')
+    
+   
 
     #for debugging
     #making flux images for comparison to OVATION IDL output
@@ -263,31 +271,26 @@ for k in np.arange(0,np.size(ts)): #go through all times
     #oup.global_ovation_flux(mlatN,mltN,fluxNw,ts[0])
     #oup.global_ovation_flux(mlatN,mltN,fluxNd+fluxNm,ts[0])
 
- 
+
  
     #####################################  (2b) coordinate conversion magnetic to geographic 
     #Coordinate conversion MLT to AACGM mlon/lat to geographic coordinates
     startcoo=time.time()
-    #magnetic coordinates are  mltN mlonN; convert magnetic local time (MLT) to longitude
-    mltN_1D=mltN.reshape(np.size(mltN),1)  
-    mlatN_1D=mlatN.reshape(np.size(mltN),1)  
-    
-    
-    #********extract from mltN_1D first 96, convert and copy to rest
-    
-    mlonN_1D=aacgmv2.convert_mlt(mltN_1D,ts[k],m2a=True)
-    endcoo = time.time()
-    print('Coordinates 1: ', np.round(endcoo-startcoo,2),' sec')
+    #magnetic coordinates are  mltN mlonN in 2D grids
+    #so we need to convert magnetic local time (MLT) to longitude first
+    #extract from mltN first 96 MLTs for 1 latitude bin convert to magnetic longitude 
+    mlonN_1D_small=aacgmv2.convert_mlt(mltN[0],ts[k],m2a=True)
+    #copy result rest 80 times because MLT is same for all latitudes
+    mlonN_1D=np.tile(mlonN_1D_small,mlatN.shape[0])
+
+    #this will make a 1D array for the latitudes compatible with the 1D array created above    
+    mlatN_1D=np.squeeze(mlatN.reshape(np.size(mltN),1))
    
-    #sys.exit()
-   
-    startcoo=time.time()
-    #magnetic coordinates are now mlatN mlonN - this is very fast
+    #magnetic coordinates are now mlatN mlonN, convert to geographic
     (glatN_1D, glonN_1D, galtN)= aacgmv2.convert_latlon_arr(mlatN_1D,mlonN_1D, 100,ts[k], code="A2G")
     endcoo = time.time()
-    print('Coordinates 2: ', np.round(endcoo-startcoo,2),' sec')
+    print('Coordinates: ', np.round(endcoo-startcoo,2),' sec')
    
-
 
     #####################################  (2c) interpolate to world map 
     #geographic coordinates are glatN, glonN, electron flux values are fluxN
@@ -296,7 +299,7 @@ for k in np.arange(0,np.size(ts)): #go through all times
  
     #glatN_1D=glatN.reshape(np.size(fluxN),1)  
     #glonN_1D=glonN.reshape(np.size(fluxN),1)    
-    geo_2D=np.hstack((glatN_1D,glonN_1D))      #stack 2 (7680,1) arrays to a single 7680,2 arrays
+    geo_2D=np.vstack((glatN_1D,glonN_1D)).T      #stack 2 (7680,) arrays to a single 7680,2 arrays, .T is needed
     fluxN_1D=fluxN.reshape(7680,1)   #also change flux values to 1D array
 
     #interpolate to world grid, and remove 1 dimension with squeeze
@@ -381,6 +384,29 @@ ax1.imshow(pimg, vmin=0, vmax=100, transform=crs, extent=mapextent, origin='lowe
 
 ############################ (3a) Make global aurora plot for comparison with NOAA nowcast
 
+start = time.time()
+print()
+#make images and movie frames for the generated aurora image cube ovation_img
+#for k in np.arange(0,np.size(ts)):
+    #oup.global_predstorm_north(ovation_img[:,:,k],ts[k],k,'magma')
+#    oup.global_predstorm_north(ovation_img[:,:,k],ts[k],k,'hot')
+    #oup.global_predstorm_north(ovation_img[:,:,k],ts[k],k,oup.aurora_cmap2())
+
+
+#eliminate noise when plotting
+#ovation_img[ovation_img < 0.1]=np.nan  
+
+#better use color map that starts with some basic green color
+oup.global_predstorm_north(ovation_img,ts,'hot')
+#oup.global_predstorm_north(ovation_img,ts,'YlGn')
+end = time.time()
+print('All movie frames took ',np.round(end - start,2),'sec, per frame',np.round((end - start)/np.size(ts),2),' sec.')
+
+
+
+
+
+
 #comparison with NOAA
 #global_predstorm_noaa(ovation_img)
 
@@ -389,14 +415,9 @@ ax1.imshow(pimg, vmin=0, vmax=100, transform=crs, extent=mapextent, origin='lowe
 #    oup.global_predstorm_flux(ovation_img[:,:,k],ts[k],k)
 
 
-#************ optimize frame making
 
-#make images and movie frames for the generated aurora image cube
-for k in np.arange(0,np.size(ts)):
-    oup.global_predstorm_north(ovation_img[:,:,k],ts[k],k)
-
-for k in np.arange(0,np.size(ts)):
-    oup.europe_canada_predstorm(ovation_img[:,:,k],ts[k],k)
+#for k in np.arange(0,np.size(ts)):
+#    oup.europe_canada_predstorm(ovation_img[:,:,k],ts[k],k, 'hot')
     
         
     

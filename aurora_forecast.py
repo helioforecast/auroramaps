@@ -124,8 +124,10 @@ if real_time_mode:
     #take time now + 1hour forecast and take nearest hour (as PREDSTORM is 1 hour resolution)
     t0=oup.round_to_hour(datetime.datetime.utcnow()+datetime.timedelta(hours=1))
     #or force to given time
-    #t0_real_forced_str='2019-May-14 03:00'
-    #t0 = parse_time(t0_real_forced_str)
+    
+    #May 14 aurora event due to CME
+    t0_real_forced_str='2019-May-14 03:00'
+    t0 = parse_time(t0_real_forced_str)
   
 
 if historic_mode:
@@ -136,8 +138,11 @@ if historic_mode:
 
 
 #make array of hours starting with t0 for which auroramaps are produced
-ts = [t0 + datetime.timedelta(hours=i) for i in range(0, n_hours,1)]
+#1hour time resolution
+#ts = [t0 + datetime.timedelta(hours=i) for i in range(0, n_hours,1)]
 
+#time resolution as set in input
+ts = [t0 + datetime.timedelta(minutes=i) for i in range(0, n_hours*60,time_res)]
 
 print()
 print('Start time:',ts[0].strftime('%Y-%m-%d %H:%M UT' ))
@@ -171,11 +176,12 @@ if real_time_mode:
         print(predstorm_online_url_1hour)
       except urllib.error.URLError as e:
         print('Failed downloading ', predstorm_online_url_1hour,' ',e.reason)
-    
    else:
-     inputfile=local_input_file
+     if predstorm_time_resolution == 1:   inputfile=local_input_file_1min
+     if predstorm_time_resolution == 0:   inputfile=local_input_file_1hour
      print('use solar wind input from local file: ')
      print(inputfile)
+
 
 if historic_mode:
      #make txt file in similar format as predstorm
@@ -256,6 +262,7 @@ for k in np.arange(0,np.size(ts)): #go through all times
     print('Bxyz =',sw.bx[0],sw.by[0],sw.bz[0],' nT   V =',int(sw.v[0]), 'km/s')
     print('Newell coupling to average: ',np.round(sw.ec[0]/4421,1), ' Ec =',int(sw.ec[0]))    #for the coupling Ec, a cycle average is 4421
     #get fluxes for northern hemisphere and sum them
+    
     mlatN, mltN, fluxNd=de.get_flux_for_time(ts[k],inputfile, hemi='N')
     mlatN, mltN, fluxNm=me.get_flux_for_time(ts[k],inputfile, hemi='N')
     #mlatN, mltN, fluxNw=we.get_flux_for_time(ts[k],inputfile, hemi='N')     #wave flux not correct yet
@@ -422,10 +429,10 @@ print('All movie frames took ',np.round(end - start,2),'sec, per frame',np.round
         
     
 #make move with frames 
-os.system('ffmpeg -r 10 -i results/frames_global/aurora_%05d.jpg -b:v 5000k -r 10 results/predstorm_aurora_global.mp4 -y -loglevel quiet')
-os.system('ffmpeg -r 10 -i results/frames_europe_canada/aurora_%05d.jpg -b:v 5000k -r 10 results/predstorm_aurora_europe_canada.mp4 -y -loglevel quiet')
+os.system('ffmpeg -r 25 -i results/frames_global/aurora_%05d.jpg -b:v 5000k -r 25 results/predstorm_aurora_global.mp4 -y -loglevel quiet')
+os.system('ffmpeg -r 25 -i results/frames_europe_canada/aurora_%05d.jpg -b:v 5000k -r 25 results/predstorm_aurora_europe_canada.mp4 -y -loglevel quiet')
 
-#os.system('ffmpeg -r 10 -i results/frames_global/aurora_%05d.jpg -b:v 5000k -r 10 results/predstorm_aurora_global.gif -y -loglevel quiet')
+os.system('ffmpeg -r 25 -i results/frames_global/aurora_%05d.jpg -b:v 5000k -r 25 results/predstorm_aurora_global.gif -y -loglevel quiet')
 #os.system('ffmpeg -r 10 -i results/frames_europe_canada/aurora_%05d.jpg -b:v 5000k -r 10 results/predstorm_aurora_europe_canada.gif -y -loglevel quiet')
 
     

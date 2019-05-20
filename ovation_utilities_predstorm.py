@@ -35,6 +35,115 @@ import pdb
 
 
 
+
+
+def calc_avg_solarwind_predstorm(dt, filein):
+    """
+    Calculates a weighted average of speed and magnetic field
+    ave_hours (4 by default) backward
+    in time from the closest hour in the predstorm forecast
+    rewritten from https://github.com/lkilcommons/OvationPyme ovation_utilities.py
+    because there the weighting was linearly decreasing, but in Newell et al. 2010
+    its 1 0.65 0.65*0.65 ...
+    
+    new version for 1 min data (strict; if other time res, interpolate first)
+
+    
+    input: 
+    - datetime object dt, 1min resolution
+       
+    - filein filename and path of solar wind input file
+    real time  file
+    file='/Users/chris/python/predstorm/predstorm_real.txt'
+    contains:
+    time    matplotlib_time B[nT] Bx   By     Bz   N[ccm-3] V[km/s] Dst[nT]   Kp   aurora [GW]
+    """
+
+    #hours previous to integrate over, usually 4
+    ave_hours=4  
+    
+    l1wind = np.loadtxt(filein)
+    
+    # Read forecast date and time as matplotlib date number
+    l1wind_time=l1wind[:,6] 
+    
+    #get with input dt to hour start and continute with matplotlib times
+    dt_mat_hour=mdates.date2num(round_to_hour_start(dt))
+    #find index of closest time to dt_mat_hour
+    closest_time_ind_hour=np.argmin(abs(l1wind_time-dt_mat_hour))
+    
+    dt_mat=mdates.date2num(dt)
+    #find index of closest time to dt
+    closest_time_ind=np.argmin(abs(l1wind_time-dt_mat))
+    
+   
+    bx, by, bz = l1wind[:,8],l1wind[:,9],l1wind[:,10]
+    v,den = l1wind[:,12],l1wind[:,11]
+    ec = calc_coupling_predstorm(bx, by, bz, v)
+
+    
+    #make array for weights, current hour 1, then go down     
+    prev_hour_weight = 0.65    # reduce weighting by factor of wh each hour back
+    #make array with weights according to Newell et al. 2010, par 25
+    weights=np.ones(1)
+    for k in np.arange(1,ave_hours+1,1):
+         weights = np.append(weights,weights[k-1]*prev_hour_weight) 
+      
+    #the weight for current time comes in at the beginning of the weights array      
+    #difference between hour start and actual time, in hours between 0 and 1; this 
+    #is the weight for the current hour (check IDL code for averaging)***
+    weights[0]=(dt_mat-dt_mat_hour)*24
+   
+    #now define the times for the weights to get bxyz; or extract 5 average values for bxyz v first? **
+    times_for_weight_ind=np.zeros(5,dtype=int)
+    times_for_weight_ind[0]=closest_time_ind
+    times_for_weight_ind[1:5] = np.arange(closest_time_ind_hour, closest_time_ind_hour-ave_hours*60,-60)
+   
+   
+    '''    
+    print('input time ',dt)
+    print('hour start in predstorm',mdates.num2date(l1wind_time[closest_time_ind_hour])     )
+    print('all weights are  ', weights)    
+    print('time indices for weights are',times_for_weight_ind)
+    '''    
+    
+
+    #******* HERE NEEDS TO BE AN AVERAGING FOR the FULL HOURS LIKE OMNI2
+    
+    
+    #make array of average solar wind variables
+    avgsw=np.recarray(1,dtype=[('bx', float), ('by', float),('bz', float),('v', float),('ec', float)])
+    
+    #print(bx[times_for_weight_ind])
+    #print(v[times_for_weight_ind])
+    
+    #sum over last 4 hours with weighting
+    avgsw.bx = np.round(np.nansum(bx[times_for_weight_ind]*weights)/ np.nansum(weights),2)
+    avgsw.by = np.round(np.nansum(by[times_for_weight_ind]*weights)/ np.nansum(weights),2)
+    avgsw.bz = np.round(np.nansum(bz[times_for_weight_ind]*weights)/ np.nansum(weights),2)
+    avgsw.v = np.round(np.nansum(v[times_for_weight_ind]*weights)/ np.nansum(weights),1)
+    avgsw.ec = np.round(np.nansum(ec[times_for_weight_ind]*weights)/ np.nansum(weights),1)
+    
+        
+   
+    return avgsw
+ 
+
+
+
+
+
+
+
+
+def get_wind():
+  '''
+  get 1 min resolution Wind data from pickle file
+  '''
+  
+
+
+
 def global_predstorm_north(wic,dt,colormap_input):
  '''
  wic is a world image cube with ovation results 512x1024
@@ -117,7 +226,23 @@ def global_predstorm_north(wic,dt,colormap_input):
 
 
 
-def calc_avg_solarwind_predstorm(dt, filein):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#version for 1 hour data
+def calc_avg_solarwind_predstorm2(dt, filein):
     """
     Calculates a weighted average of speed and magnetic field
     ave_hours (4 by default) backward
@@ -163,7 +288,7 @@ def calc_avg_solarwind_predstorm(dt, filein):
     #print(weights)  
     #print(closest_time_ind)
     times_for_weight_ind = np.arange(closest_time_ind, closest_time_ind-ave_hours,-1)
-    #print(times_for_weight_ind)
+    print(times_for_weight_ind)
     
     #make array of average solar wind variables
     avgsw=np.recarray(1,dtype=[('bx', float), ('by', float),('bz', float),('v', float),('ec', float)])
@@ -310,6 +435,15 @@ def round_to_hour(dt):
     
     
  
+def round_to_hour_start(dt):
+    '''
+    round datetime objects to start of the current hour
+    '''
+    dt_start_of_hour = dt.replace(minute=0, second=0, microsecond=0)
+    return dt_start_of_hour
+        
+    
+    
 
 def global_predstorm_noaa(world_image):
 

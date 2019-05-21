@@ -1,5 +1,6 @@
 '''
 Plotting an aurora forecast/hindcast based on the PREDSTORM solar wind prediction method
+or OMNI2/Wind data for historic events
 
 using a rewritten version of the ovationpyme aurora model 
 by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
@@ -8,6 +9,7 @@ and the cartopy package
 by C. Moestl, IWF-helio group, Graz, Austria.
 twitter @chrisoutofspace
 https://www.iwf.oeaw.ac.at/user-site/christian-moestl/
+published under MIT license
 
 last update May 2019
 
@@ -42,6 +44,25 @@ or use in ipython
 >> %prun function_name 
 
 
+
+------------------------------------------------------------------------------------
+MIT LICENSE
+Copyright 2019, Christian Moestl
+Permission is hereby granted, free of charge, to any person obtaining a copy of this
+software and associated documentation files (the "Software"), to deal in the Software
+without restriction, including without limitation the rights to use, copy, modify,
+merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to the following
+conditions:
+The above copyright notice and this permission notice shall be included in all copies
+or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+------------------------------------------------------------------------------------
 
 '''
 
@@ -103,12 +124,22 @@ from aurora_forecast_input import *
 ##################################### Main ############################################
 #######################################################################################
 
+
+
+
+
+############### (0) get input data, get PREDSTORM solar wind files mode ###############
+
 plt.close('all')
 
+#get current time in UTC
+utcnow=oup.round_to_minute(datetime.datetime.utcnow())
 
 print()
 print('Making aurora forecasts with OVATION')
-print('From the PREDSTORM solar wind predictions or OMNI2 data')
+print('From the PREDSTORM solar wind predictions (DSCOVR), OMNI2 or Wind data')
+print('UTC time now (rounded to 10 minutes)')
+print(utcnow.strftime(format="%Y-%m-%d %H:%M") )
 print()
 
 if mode ==0: 
@@ -117,40 +148,41 @@ if mode ==0:
 if mode ==1: 
     historic_mode=True
     real_time_mode=False
-
     
 if real_time_mode:
-    print('running in real time mode using DSCOVR data')
-    #take time now + 1hour forecast and take nearest hour (as PREDSTORM is 1 hour resolution)
-    t0=oup.round_to_hour(datetime.datetime.utcnow()+datetime.timedelta(hours=1))
-    #or force to given time
-    
-    #May 14 aurora event due to CME
-    t0_real_forced_str='2019-May-14 03:00'
-    t0 = parse_time(t0_real_forced_str)
-  
+    print('mode: real time')
+    #round t
+    t0=utcnow #+datetime.timedelta(hours=1))
 
+    #or force to given time  
+    if forced_time: 
+        t0 = parse_time(t0_real_forced_str)
+        print('using forced time ')
+        print(t0.strftime(format="%Y-%m-%d %H:%M"))
+  
 if historic_mode:
-    print('running in historic mode using OMNI2 data')
+    print('mode: historic')
     #parse start time from string to datetime
     t0 = parse_time(t0_historic_str)
 
 
-
-#make array of hours starting with t0 for which auroramaps are produced
+#old: make array of hours starting with t0 for which auroramaps are produced
 #1hour time resolution
 #ts = [t0 + datetime.timedelta(hours=i) for i in range(0, n_hours,1)]
 
-#time resolution as set in input
-ts = [t0 + datetime.timedelta(minutes=i) for i in range(0, n_hours*60,time_res)]
+#time resolution as set in input, highest allowed is 1 minute
+if time_res < 1: print('Time resolution for producing auroramaps must be >= 1 minute.'), sys.exit()
+ts = [t0 + datetime.timedelta(minutes=i) for i in range(0, n_hours*60+1,time_res)]
 
 print()
-print('Start time:',ts[0].strftime('%Y-%m-%d %H:%M UT' ))
-print('End time:  ',ts[-1].strftime('%Y-%m-%d %H:%M UT' ))
-print('Number of hourly time steps: ',n_hours)
-print()
-print()
+print('auroramaps timerange',n_hours, 'hours')
+print('start time:',ts[0].strftime('%Y-%m-%d %H:%M UT' ))
+print('end time:  ',ts[-1].strftime('%Y-%m-%d %H:%M UT' ))
+print('time resolution',time_res,'minutes')
+print('nr of movie frames', int(n_hours*60/time_res) )
 
+print()
+print()
 
 
 #check if output directories are there
@@ -161,10 +193,6 @@ if os.path.isdir('results/forecast_europe_canada') == False: os.mkdir('results/f
 if os.path.isdir('results/forecast_global') == False: os.mkdir('results/forecast_global')
 
  
-
-
-
-############### (0) get PREDSTORM solar wind input files, depending on mode ##############
 
 if real_time_mode:
    ###########   get online file or local file from predstorm
@@ -194,6 +222,14 @@ if historic_mode:
 
 print()
 
+
+
+
+
+
+
+
+
 ########################## (1) Initialize OVATION ########################################
 
 print()
@@ -219,21 +255,18 @@ me = opp.FluxEstimator('mono', jtype)
 #we = opp.FluxEstimator('wave', jtype)
 end = time.time()
 print('done, took ',np.round(end - start,2),' seconds.')
-
-print()
-
- 
- 
-print('OVATION uses ',jtype, ' with diffuse and monoenergetic aurora types')
+print('OVATION uses',jtype,'with diffuse + monoenergetic aurora')
 print('Fluxes for southern hemisphere are currently not calculated.')
 
 print()
 
 
+
+
+
 ###################### (2) RUN OVATION FOR EACH FRAME TIME ##############################
 
 print('Now make the aurora flux data cubes for all timesteps.')
-
 
 #make a world map grid in latitude 512 pixels, longitude 1024 pixel like NOAA
 wx,wy=np.mgrid[-90:90:180/512,-180:180:360/1024]
@@ -251,7 +284,6 @@ print()
 
 for k in np.arange(0,np.size(ts)): #go through all times
  
-    
     print('Frame number and time:', k, '  ',ts[k])
 
     #########################################  (2a) get solar wind 

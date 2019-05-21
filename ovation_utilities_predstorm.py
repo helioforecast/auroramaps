@@ -40,29 +40,20 @@ import pdb
 def calc_avg_solarwind_predstorm(dt, filein):
     """
     Calculates a weighted average of speed and magnetic field
-    ave_hours (4 by default) backward
-    in time from the closest hour in the predstorm forecast
-    rewritten from https://github.com/lkilcommons/OvationPyme ovation_utilities.py
-    because there the weighting was linearly decreasing, but in Newell et al. 2010
-    its 1 0.65 0.65*0.65 ...
-    
-    new version for 1 min data (strict; if other time res, interpolate first)
-
+    ave_hours (4 by default) backward, for 1 minute data time resolution in filein
     
     input: 
     - datetime object dt, 1min resolution
        
     - filein filename and path of solar wind input file
-    real time  file
-    file='/Users/chris/python/predstorm/predstorm_real.txt'
     contains:
     time    matplotlib_time B[nT] Bx   By     Bz   N[ccm-3] V[km/s] Dst[nT]   Kp   aurora [GW]
     """
 
-    #hours previous to integrate over, usually 4
-    ave_hours=4  
-    
-    l1wind = np.loadtxt(filein)
+    ave_hours=4                #hours previous to integrate over, usually 4
+    prev_hour_weight = 0.65    # reduce weighting by factor of wh each hour back
+
+    l1wind = np.loadtxt(filein) #*******save as pickle mit matplotlib times? dauert viel zu lange, gleich datacube übergeben
     
     # Read forecast date and time as matplotlib date number
     l1wind_time=l1wind[:,6] 
@@ -72,18 +63,13 @@ def calc_avg_solarwind_predstorm(dt, filein):
     #find index of closest time to dt_mat_hour
     closest_time_ind_hour=np.argmin(abs(l1wind_time-dt_mat_hour))
     
-    dt_mat=mdates.date2num(dt)
-    #find index of closest time to dt
-    closest_time_ind=np.argmin(abs(l1wind_time-dt_mat))
-    
-   
-    bx, by, bz = l1wind[:,8],l1wind[:,9],l1wind[:,10]
-    v,den = l1wind[:,12],l1wind[:,11]
+    dt_mat=mdates.date2num(dt) #convert to matplotlib time
+    closest_time_ind=np.argmin(abs(l1wind_time-dt_mat))  #find index of closest time to dt
+
+    bx, by, bz, v = l1wind[:,8],l1wind[:,9],l1wind[:,10],l1wind[:,12]
     ec = calc_coupling_predstorm(bx, by, bz, v)
 
-    
     #make array for weights, current hour 1, then go down     
-    prev_hour_weight = 0.65    # reduce weighting by factor of wh each hour back
     #make array with weights according to Newell et al. 2010, par 25
     weights=np.ones(1)
     for k in np.arange(1,ave_hours+1,1):
@@ -108,7 +94,7 @@ def calc_avg_solarwind_predstorm(dt, filein):
     '''    
     
 
-    #******* HERE NEEDS TO BE AN AVERAGING FOR the FULL HOURS LIKE OMNI2
+    #******* HERE NEEDS TO BE AN AVERAGING FOR the FULL HOURS LIKE OMNI2, before! 1 time only
     
     
     #make array of average solar wind variables
@@ -130,6 +116,25 @@ def calc_avg_solarwind_predstorm(dt, filein):
  
 
 
+@njit
+def calc_coupling_predstorm(Bx, By, Bz, V):
+    """
+    Empirical Formula for dF/dt - i.e. the Newell coupling
+    e.g. paragraph 25 in Newell et al. 2010 doi:10.1029/2009JA014805
+    slightly rewritten from https://github.com/lkilcommons/OvationPyme
+    """
+    Ec = np.zeros_like(Bx)
+    Ec.fill(np.nan)
+    B = np.sqrt(Bx**2 + By**2 + Bz**2)
+    BT = np.sqrt(By**2 + Bz**2)
+    #no 0s allowed in Bz
+    bztemp = Bz
+    bztemp[Bz == 0] = 0.001
+    #Caculate clock angle (theta_c = t_c)
+    tc = np.abs(np.arctan2(By,bztemp))
+    sintc = np.sin(tc/2.)
+    Ec = (V**1.33333)*(sintc**2.66667)*(BT**0.66667)
+    return Ec
 
 
 
@@ -306,25 +311,6 @@ def calc_avg_solarwind_predstorm2(dt, filein):
  
     
 
-@njit
-def calc_coupling_predstorm(Bx, By, Bz, V):
-    """
-    Empirical Formula for dF/dt - i.e. the Newell coupling
-    e.g. paragraph 25 in Newell et al. 2010 doi:10.1029/2009JA014805
-    taken from https://github.com/lkilcommons/OvationPyme
-    """
-    Ec = np.zeros_like(Bx)
-    Ec.fill(np.nan)
-    B = np.sqrt(Bx**2 + By**2 + Bz**2)
-    BT = np.sqrt(By**2 + Bz**2)
-    #no 0s allowed in Bz?
-    bztemp = Bz
-    bztemp[Bz == 0] = 0.001
-    #Caculate clock angle (theta_c = t_c)
-    tc = np.abs(np.arctan2(By,bztemp))
-    sintc = np.sin(tc/2.)
-    Ec = (V**1.33333)*(sintc**2.66667)*(BT**0.66667)
-    return Ec
    
 
 
@@ -432,7 +418,22 @@ def round_to_hour(dt):
         dt = dt_start_of_hour
     return dt    
     
-    
+ 
+
+def round_to_minute(dt):
+    '''
+    round datetime objects to nearest minute
+    '''
+    dt_start_of_min = dt.replace(second=0, microsecond=0)
+    dt_half_min = dt.replace(second=30, microsecond=0)
+
+    if dt >= dt_half_min:
+        # round up
+        dt = dt_start_of_min + datetime.timedelta(minutes=1)
+    else:
+        # round down
+        dt = dt_start_of_min
+    return dt        
     
  
 def round_to_hour_start(dt):

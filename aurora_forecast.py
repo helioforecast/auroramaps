@@ -17,20 +17,28 @@ last update May 2019
 
 TO DO: 
 
+core:
+- read in premodel parameters in pickle file
+- sum both hemispheres as in IDL ovation and ovationpyme
+
+- check further bugs in ovation in comparison to IDL version
+- code optimize - bottlenecks with numba (where grids are calculated); 
+  and use normal numpy arrays and check for optimization (functions often used, grids...)
+- interp_wedge not correct for small flux values (needed if colormap better?)
+
+new features:
 - add equatorial auroral boundary Case et al. 2016
-- all with > 1 min time resolution from PREDSTORM real time file, adapt calc_solarwind...
-- add colorbars for probabilites, 
-  colormap should fade into background but oval should also visible for small values
-- check bugs in ovation in comparison to IDL version
-  make nowcast better, direct comparison with NOAA global images
 - how to get probabilites correctly? ask Nathan Case
+
+
+plotting:
+- add colorbars for probabilites, colormap should fade into background but oval should also visible for small values
+- make nowcast better check with direct comparison with NOAA global images
 - transparent to white colormap so that it looks like viirs images for direct comparison
 - split land on dayside / night lights on night side 
   this should work in global_predstorm_north by loading background only once
   need to figure out how to get pixels from nightshade day/night and how to plot 
   only specific pixels (but then each background image must be updated)
-- code optimizen further - bottlenecks with numba; 
-  and use normal numpy arrays and check for optimization
 - Newell solar wind coupling als parameter in plot
 - auroral power on plot directly from ovation integrated (add function in opp)
 - indicate moon phase with astropy
@@ -41,7 +49,7 @@ test bottlenecks:
 >> python -m cProfile -s tottime aurora_forecast.py
 
 or use in ipython
->> %prun function_name 
+>> %timeit function_name 
 
 
 
@@ -138,7 +146,7 @@ utcnow=oup.round_to_minute(datetime.datetime.utcnow())
 print()
 print('Making aurora forecasts with OVATION')
 print('From the PREDSTORM solar wind predictions (DSCOVR), OMNI2 or Wind data')
-print('UTC time now (rounded to 10 minutes)')
+print('UTC time now:')
 print(utcnow.strftime(format="%Y-%m-%d %H:%M") )
 print()
 
@@ -172,7 +180,7 @@ if historic_mode:
 
 #time resolution as set in input, highest allowed is 1 minute
 if time_res < 1: print('Time resolution for producing auroramaps must be >= 1 minute.'), sys.exit()
-ts = [t0 + datetime.timedelta(minutes=i) for i in range(0, n_hours*60+1,time_res)]
+ts = [t0 + datetime.timedelta(minutes=i) for i in range(0, int(n_hours*60+1),time_res)]
 
 print()
 print('auroramaps timerange',n_hours, 'hours')
@@ -248,6 +256,7 @@ jtype - int or str
 jtype = 'electron energy flux'
 
 
+# **********+ still slow - load txt files into pickle first, get from there
 print('Initialize OVATION')
 start = time.time()
 de = opp.FluxEstimator('diff', jtype)
@@ -262,6 +271,10 @@ print()
 
 
 
+#load input solar wind
+l1wind=oup.load_predstorm_wind(inputfile)
+print('Solar wind data loaded from PREDSTORM input file.')
+
 
 
 ###################### (2) RUN OVATION FOR EACH FRAME TIME ##############################
@@ -275,40 +288,42 @@ wx,wy=np.mgrid[-90:90:180/512,-180:180:360/1024]
 ovation_img=np.zeros([512,1024,np.size(ts)])
 
 #this is the array with the flux grid in magnetic coordinates for each timestep
-flux_img=np.zeros([80,96,np.size(ts)])
+#flux_img=np.zeros([80,96,np.size(ts)])
 
+#time measure indicator start
 start = time.time()
 print('--------------------------------------------------------------')
 print('Clock run time start ...')
 print()
+
 
 for k in np.arange(0,np.size(ts)): #go through all times
  
     print('Frame number and time:', k, '  ',ts[k])
 
     #########################################  (2a) get solar wind 
-    
     startflux=time.time()
-    sw=oup.calc_avg_solarwind_predstorm(ts[k],inputfile)   #make solarwind with averaging over last 4 hours 
-    #print('solar wind input last 4 hours with weights: ')
-    print('Bxyz =',sw.bx[0],sw.by[0],sw.bz[0],' nT   V =',int(sw.v[0]), 'km/s')
-    print('Newell coupling to average: ',np.round(sw.ec[0]/4421,1), ' Ec =',int(sw.ec[0]))    #for the coupling Ec, a cycle average is 4421
-    #get fluxes for northern hemisphere and sum them
+   
+    sw=oup.calc_avg_solarwind_predstorm(ts[k],l1wind)   #make solarwind with averaging over last 4 hours 
+    print('Byz =',sw.by[0],sw.bz[0],' nT   V =',int(sw.v[0]), 'km/s')
+    #for the Newell coupling Ec, a cycle average is 4421
+    print('Ec to cycle average: ',np.round(sw.ec[0]/4421,1), ' Ec =',int(sw.ec[0]))  
     
-    mlatN, mltN, fluxNd=de.get_flux_for_time(ts[k],inputfile, hemi='N')
-    mlatN, mltN, fluxNm=me.get_flux_for_time(ts[k],inputfile, hemi='N')
-    #mlatN, mltN, fluxNw=we.get_flux_for_time(ts[k],inputfile, hemi='N')     #wave flux not correct yet
+    #get fluxes for northern hemisphere and sum them **check -> do averages and sum both
+
+    mlatN, mltN, fluxNd=de.get_flux_for_time(ts[k],l1wind, hemi='N')
+    mlatN, mltN, fluxNm=me.get_flux_for_time(ts[k],l1wind, hemi='N')
+    #mlatN, mltN, fluxNw=we.get_flux_for_time(ts[k],inputfile, hemi='N')  #wave flux not correct yet
     fluxN=fluxNd+fluxNm#+fluxNw
     endflux=time.time()
     print('OVATION: ', np.round(endflux-startflux,2),' sec')
     
-   
-
     #for debugging
     #making flux images for comparison to OVATION IDL output
     #change IDL file in this function for flux comparison
     #oup.global_ovation_flux(mlatN,mltN,fluxNw,ts[0])
-    #oup.global_ovation_flux(mlatN,mltN,fluxNd+fluxNm,ts[0])
+    #oup.global_ovation_flux(mlatN,mltN,fluxNd,ts[k])
+    #sys.exit()
 
 
  
@@ -321,12 +336,12 @@ for k in np.arange(0,np.size(ts)): #go through all times
     mlonN_1D_small=aacgmv2.convert_mlt(mltN[0],ts[k],m2a=True)
     #copy result rest 80 times because MLT is same for all latitudes
     mlonN_1D=np.tile(mlonN_1D_small,mlatN.shape[0])
-
+    
     #this will make a 1D array for the latitudes compatible with the 1D array created above    
     mlatN_1D=np.squeeze(mlatN.reshape(np.size(mltN),1))
    
     #magnetic coordinates are now mlatN mlonN, convert to geographic
-    (glatN_1D, glonN_1D, galtN)= aacgmv2.convert_latlon_arr(mlatN_1D,mlonN_1D, 100,ts[k], code="A2G")
+    (glatN_1D, glonN_1D, galtN) = aacgmv2.convert_latlon_arr(mlatN_1D,mlonN_1D, 100,ts[k], code="A2G")
     endcoo = time.time()
     print('Coordinates: ', np.round(endcoo-startcoo,2),' sec')
    
@@ -339,20 +354,24 @@ for k in np.arange(0,np.size(ts)): #go through all times
     #glatN_1D=glatN.reshape(np.size(fluxN),1)  
     #glonN_1D=glonN.reshape(np.size(fluxN),1)    
     geo_2D=np.vstack((glatN_1D,glonN_1D)).T      #stack 2 (7680,) arrays to a single 7680,2 arrays, .T is needed
+    #smooth small array first - but strange results!
+    #fluxN=scipy.ndimage.gaussian_filter(fluxN,sigma=(5,5))
     fluxN_1D=fluxN.reshape(7680,1)   #also change flux values to 1D array
 
     #interpolate to world grid, and remove 1 dimension with squeeze
     aimg=np.squeeze(scipy.interpolate.griddata(geo_2D, fluxN_1D, (wx, wy), method='linear',fill_value=0))
-    #filter
-    aimg = scipy.ndimage.gaussian_filter(aimg,sigma=(5,7))
+    #filter large array
+    aimg = scipy.ndimage.gaussian_filter(aimg,sigma=(5,9))
     ovation_img[:,:,k]=aimg
     endworld = time.time()
     print('World map: ', np.round(endworld-startworld,2),' sec')
+    
+
     print()
     print('---------------------')
 
 
- 
+
 
  
 end = time.time()
@@ -384,7 +403,7 @@ sys.exit()
 #pimg=10+8*aimg
 
 #smooth out artefacts
-#pimg = scipy.ndimage.gaussian_filter(pimg,sigma=(3,5))
+pimg = scipy.ndimage.gaussian_filter(pimg,sigma=(3,5))
 
 #round probabilities?
 #pimg=np.round(pimg,0)
@@ -436,12 +455,16 @@ print()
 #ovation_img[ovation_img < 0.1]=np.nan  
 
 #better use color map that starts with some basic green color
-oup.global_predstorm_north(ovation_img,ts,'hot')
+oup.ovation_global_north(ovation_img,ts,'hot',1.5)
 #oup.global_predstorm_north(ovation_img,ts,'YlGn')
 end = time.time()
 print('All movie frames took ',np.round(end - start,2),'sec, per frame',np.round((end - start)/np.size(ts),2),' sec.')
 
 
+
+#flux plot of last timestep
+
+#oup.global_ovation_flux(mlatN,mltN,fluxNd,ts[k])
 
 
 

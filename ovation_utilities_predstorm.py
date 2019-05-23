@@ -1,8 +1,7 @@
 """
 ovation_utilities for predstorm
 
-
-modified source code taken originally from https://github.com/lkilcommons/OvationPyme
+includes a few functions taken from https://github.com/lkilcommons/OvationPyme
 
 if you change this do 
 >> import importlib
@@ -25,8 +24,7 @@ import datetime
 import cartopy.crs as ccrs
 import cartopy.feature as carfeat
 from cartopy.feature.nightshade import Nightshade
-import numba as nb
-from numba import njit
+from numba import njit, jit
 import os
 import pickle	
 import scipy
@@ -34,127 +32,118 @@ import pdb
 
 
 
-
-
-
-def calc_avg_solarwind_predstorm(dt, filein):
+def calc_avg_solarwind_predstorm(dt,l1wind):
     """
-    Calculates a weighted average of speed and magnetic field
-    ave_hours (4 by default) backward, for 1 minute data time resolution in filein
+    Calculates a weighted average of speed and magnetic field bx, by, bz and the Newell coupling ec
+    for a number of ave_hours (4 by default) back in time
+    input data time resolution in the l1wind array is 1 hour
+    aurora output time resolution as given by dt can be higher
+    corresponds roughly to ap_inter_sol.pro in IDL ovation
     
     input: 
-    - datetime object dt, 1min resolution
-       
-    - filein filename and path of solar wind input file
-    contains:
-    time    matplotlib_time B[nT] Bx   By     Bz   N[ccm-3] V[km/s] Dst[nT]   Kp   aurora [GW]
-    """
-
-    ave_hours=4                #hours previous to integrate over, usually 4
-    prev_hour_weight = 0.65    # reduce weighting by factor of wh each hour back
-
-    l1wind = np.loadtxt(filein) #*******save as pickle mit matplotlib times? dauert viel zu lange, gleich datacube übergeben
-    
-    # Read forecast date and time as matplotlib date number
-    l1wind_time=l1wind[:,6] 
-    
-    #get with input dt to hour start and continute with matplotlib times
-    dt_mat_hour=mdates.date2num(round_to_hour_start(dt))
-    #find index of closest time to dt_mat_hour
-    closest_time_ind_hour=np.argmin(abs(l1wind_time-dt_mat_hour))
-    
-    dt_mat=mdates.date2num(dt) #convert to matplotlib time
-    closest_time_ind=np.argmin(abs(l1wind_time-dt_mat))  #find index of closest time to dt
-
-    bx, by, bz, v = l1wind[:,8],l1wind[:,9],l1wind[:,10],l1wind[:,12]
-    ec = calc_coupling_predstorm(bx, by, bz, v)
-
-    #make array for weights, current hour 1, then go down     
-    #make array with weights according to Newell et al. 2010, par 25
-    weights=np.ones(1)
-    for k in np.arange(1,ave_hours+1,1):
-         weights = np.append(weights,weights[k-1]*prev_hour_weight) 
+    - datetime object dt (single value)
+    - l1wind: the solar wind input is a recarray containing time 
+      (in matplotlib format), bx, by, bz, v, ec
       
-    #the weight for current time comes in at the beginning of the weights array      
-    #difference between hour start and actual time, in hours between 0 and 1; this 
-    #is the weight for the current hour (check IDL code for averaging)***
-    weights[0]=(dt_mat-dt_mat_hour)*24
-   
-    #now define the times for the weights to get bxyz; or extract 5 average values for bxyz v first? **
-    times_for_weight_ind=np.zeros(5,dtype=int)
-    times_for_weight_ind[0]=closest_time_ind
-    times_for_weight_ind[1:5] = np.arange(closest_time_ind_hour, closest_time_ind_hour-ave_hours*60,-60)
-   
-   
-    '''    
-    print('input time ',dt)
-    print('hour start in predstorm',mdates.num2date(l1wind_time[closest_time_ind_hour])     )
-    print('all weights are  ', weights)    
-    print('time indices for weights are',times_for_weight_ind)
-    '''    
+    test run time after running aurora_forecast.py with 
+    %timeit oup.calc_avg_solarwind_predstorm(ts[0],l1wind)         
+    """
+    ave_hours=4                # hours previous to integrate over, usually 4
+    prev_hour_weight = 0.65    # reduce weighting by factor with each hour back
     
+    dt_mat_hour=mdates.date2num(round_to_hour_start(dt))  #get with input dt to hour start and continute with matplotlib times
+    closest_time_ind_hour=np.argmin(abs(l1wind.time-dt_mat_hour))  #find index of closest time to dt_mat_hour
+           
+    dt_mat=mdates.date2num(dt)  #convert input datetimte dt to matplotlib time
+    closest_time_ind=np.argmin(abs(l1wind.time-dt_mat)) #find index of closest time to dt
+    
+    weights=np.ones(ave_hours)  #make array with weights     
+    for k in np.arange(1,ave_hours,1):  weights[k] = weights[k-1]*prev_hour_weight
 
-    #******* HERE NEEDS TO BE AN AVERAGING FOR the FULL HOURS LIKE OMNI2, before! 1 time only
+    #first entry in weights depends on square root of fraction of hour elapsed 
+    a=(dt_mat-dt_mat_hour)*24 # fraction of hour elapsed
+    #weights[0]=np.sqrt(a)  #the current fraction of hour is weighted as square root (IDL ap_inter_sol.pro)
+    weights[0]=a  #the current fraction of hour is weighted as linear
+
+    times_for_weight_ind = np.arange(closest_time_ind_hour, closest_time_ind_hour-ave_hours,-1)
     
-    
-    #make array of average solar wind variables
+    #initiate array of averaged solar wind variables
     avgsw=np.recarray(1,dtype=[('bx', float), ('by', float),('bz', float),('v', float),('ec', float)])
-    
-    #print(bx[times_for_weight_ind])
-    #print(v[times_for_weight_ind])
-    
-    #sum over last 4 hours with weighting
-    avgsw.bx = np.round(np.nansum(bx[times_for_weight_ind]*weights)/ np.nansum(weights),2)
-    avgsw.by = np.round(np.nansum(by[times_for_weight_ind]*weights)/ np.nansum(weights),2)
-    avgsw.bz = np.round(np.nansum(bz[times_for_weight_ind]*weights)/ np.nansum(weights),2)
-    avgsw.v = np.round(np.nansum(v[times_for_weight_ind]*weights)/ np.nansum(weights),1)
-    avgsw.ec = np.round(np.nansum(ec[times_for_weight_ind]*weights)/ np.nansum(weights),1)
-    
         
+    #sum last hours with each weight and normalize    
+    avgsw.bx = np.round(np.nansum(l1wind.bx[times_for_weight_ind]*weights)/ np.nansum(weights),2)
+    avgsw.by = np.round(np.nansum(l1wind.by[times_for_weight_ind]*weights)/ np.nansum(weights),2)
+    avgsw.bz = np.round(np.nansum(l1wind.bz[times_for_weight_ind]*weights)/ np.nansum(weights),2)
+    avgsw.v = np.round(np.nansum(l1wind.v[times_for_weight_ind]*weights)/ np.nansum(weights),1)
+    avgsw.ec = np.round(np.nansum(l1wind.ec[times_for_weight_ind]*weights)/ np.nansum(weights),1)
+
+    ''' #for debugging
+    #print(weights)
+    #print(mdates.num2date(l1wind.time[times_for_weight_ind]))
+ 
+    print('input wind')
+    print('by',l1wind.by[times_for_weight_ind])
+    print('bz',l1wind.bz[times_for_weight_ind])
+    print('v',np.round(l1wind.v[times_for_weight_ind]))
+    print('ec',np.round(l1wind.ec[times_for_weight_ind]))
+    print()
+   
+    print('output wind')
+    print('by',avgsw.by[0])
+    print('bz',avgsw.bz[0])
+    print('v',avgsw.v[0])
+    print('ec',avgsw.ec[0])
+    print()
+    print('---------------')
+    '''
    
     return avgsw
  
 
-
 @njit
-def calc_coupling_predstorm(Bx, By, Bz, V):
-    """
-    Empirical Formula for dF/dt - i.e. the Newell coupling
+def calc_coupling_newell(by, bz, v):
+    '''    
+    Empirical Formula for dFlux/dt - the Newell coupling
     e.g. paragraph 25 in Newell et al. 2010 doi:10.1029/2009JA014805
-    slightly rewritten from https://github.com/lkilcommons/OvationPyme
-    """
-    Ec = np.zeros_like(Bx)
-    Ec.fill(np.nan)
-    B = np.sqrt(Bx**2 + By**2 + Bz**2)
-    BT = np.sqrt(By**2 + Bz**2)
-    #no 0s allowed in Bz
-    bztemp = Bz
-    bztemp[Bz == 0] = 0.001
-    #Caculate clock angle (theta_c = t_c)
-    tc = np.abs(np.arctan2(By,bztemp))
-    sintc = np.sin(tc/2.)
-    Ec = (V**1.33333)*(sintc**2.66667)*(BT**0.66667)
-    return Ec
+    IDL ovation: sol_coup.pro
+    input: needs arrays for by, bz, v    
+    ''' 
+    bt = np.sqrt(by**2 + bz**2)
+    bztemp = bz
+    bztemp[bz == 0] = 0.001
+    tc = np.arctan2(by,bztemp)     #Caculate clock angle (theta_c = t_c)
+    neg_tc = bt*np.cos(tc)*bz < 0  #similar to IDL code sol_coup.pro
+    tc[neg_tc] = tc[neg_tc] + np.pi
+    sintc = np.abs(np.sin(tc/2.))
+    ec = (v**1.33333)*(sintc**2.66667)*(bt**0.66667)
+    
+    return ec
+   
 
 
+def load_predstorm_wind(file_in):
+    '''
+    loads the predstorm input file
+    and makes a recarray of matplotlib time, Bxyz, speed and the Newell coupling
+    calls calc_coupling_predstorm
+    '''
+    l1 = np.loadtxt(file_in)       # load data file
+    # define array
+    wind_array=np.recarray(len(l1),dtype=[('time', float),('bx', float), ('by', float),('bz', float),('v', float),('ec', float)])
+    # load parameters from file into recarray
+    wind_array.time, wind_array.bx, wind_array.by, wind_array.bz, wind_array.v = l1[:,6],l1[:,8],l1[:,9],l1[:,10],l1[:,12]
+    # get Newell coupling, only by, bz needed 
+    wind_array.ec = calc_coupling_newell(wind_array.by, wind_array.bz, wind_array.v)    
+    
+    return wind_array     #return array of average solar wind variables
+    
 
-
-
-
-def get_wind():
-  '''
-  get 1 min resolution Wind data from pickle file
-  '''
-  
-
-
-
-def global_predstorm_north(wic,dt,colormap_input):
+def ovation_global_north(wic,dt,colormap_input,max_level):
  '''
  wic is a world image cube with ovation results 512x1024
  dt are the datetimes for each frame
  colormap_input is the colormap
-
+ max_level is the maximum level for the colorbar
 
  '''
  
@@ -211,7 +200,7 @@ def global_predstorm_north(wic,dt,colormap_input):
  
      
      border=ax.add_feature(Nightshade(dt[i]))  #add day night border
-     img=ax.imshow(wic[:,:,i], vmin=0.01, vmax=5, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap)
+     img=ax.imshow(wic[:,:,i], vmin=0.01, vmax=max_level, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap)
   
      #save as image with timestamp in filename
      #plot_Nhemi_filename='results/forecast_global/predstorm_aurora_real_Nhemi_'+dt.strftime("%Y_%m_%d_%H%M")  +'.jpg'
@@ -246,72 +235,6 @@ def global_predstorm_north(wic,dt,colormap_input):
 
 
 
-#version for 1 hour data
-def calc_avg_solarwind_predstorm2(dt, filein):
-    """
-    Calculates a weighted average of speed and magnetic field
-    ave_hours (4 by default) backward
-    in time from the closest hour in the predstorm forecast
-    rewritten from https://github.com/lkilcommons/OvationPyme ovation_utilities.py
-    because there the weighting was linearly decreasing, but in Newell et al. 2010
-    its 1 0.65 0.65*0.65 ...
-    
-    input: 
-    - datetime object dt
-       
-    - filein filename and path of solar wind input file
-    real time  file
-    file='/Users/chris/python/predstorm/predstorm_real.txt'
-    contains:
-    time    matplotlib_time B[nT] Bx   By     Bz   N[ccm-3] V[km/s] Dst[nT]   Kp   aurora [GW]
-    """
-    #hours previous to integrate over, usually 4
-    ave_hours=4  
-    
-    l1wind = np.loadtxt(filein)
-    
-    # Read forecast date and time as matplotlib date number
-    l1wind_time=l1wind[:,6] 
-
-    dt_mat=mdates.date2num(dt)  
-    #find index of closest time to dt
-    closest_time_ind=np.argmin(abs(l1wind_time-dt_mat))
-    
-    #print('input time ',dt)
-    #print('closest time in predstorm',mdates.num2date(l1wind_time[closest_time_ind])     )
-
-    bx, by, bz = l1wind[:,8],l1wind[:,9],l1wind[:,10]
-    v,n = l1wind[:,12],l1wind[:,11]
-    ec = calc_coupling_predstorm(bx, by, bz, v)
-
-    prev_hour_weight = 0.65    # reduce weighting by factor of wh each hour back
-    #make array with weights according to Newell et al. 2010, par 25
-    weights=np.ones(1)
-    for k in np.arange(1,ave_hours,1):
-      weights = np.append(weights,weights[k-1]*prev_hour_weight) 
-
-    #print(weights)  
-    #print(closest_time_ind)
-    times_for_weight_ind = np.arange(closest_time_ind, closest_time_ind-ave_hours,-1)
-    print(times_for_weight_ind)
-    
-    #make array of average solar wind variables
-    avgsw=np.recarray(1,dtype=[('bx', float), ('by', float),('bz', float),('v', float),('ec', float)])
-    
-    #print(bx[times_for_weight_ind])
-    #print(v[times_for_weight_ind])
-    
-    avgsw.bx = np.round(np.nansum(bx[times_for_weight_ind]*weights)/ np.nansum(weights),2)
-    avgsw.by = np.round(np.nansum(by[times_for_weight_ind]*weights)/ np.nansum(weights),2)
-    avgsw.bz = np.round(np.nansum(bz[times_for_weight_ind]*weights)/ np.nansum(weights),2)
-    avgsw.v = np.round(np.nansum(v[times_for_weight_ind]*weights)/ np.nansum(weights),1)
-    avgsw.ec = np.round(np.nansum(ec[times_for_weight_ind]*weights)/ np.nansum(weights),1)
-   
-    return avgsw
- 
-    
-
-   
 
 
       
@@ -732,7 +655,6 @@ def get_omni_data():
 
 def global_ovation_flux(magnetic_latitude,magnetic_local_time,flux,dt):
 
-
  
  #cmap_name='hot'
  cmap_name='jet'
@@ -825,7 +747,7 @@ def global_ovation_flux(magnetic_latitude,magnetic_local_time,flux,dt):
  print('Maximum flux IDL',np.round(np.max(flux_idl),2))
  
  plt.tight_layout()
- plt.savefig('flux_test.png')
+ plt.savefig('results/flux_test.png')
 
 
 
@@ -1060,6 +982,79 @@ def global_predstorm_north2(world_image,dt,counter,colormap_input):
 
 
 
+
+
+   
+
+#@njit    
+#def calc_avg_solarwind_predstorm(dt_mat_hour,dt_mat, l1wind):
+def calc_avg_solarwind_predstorm_1min(dt,l1wind):
+
+    """
+    Calculates a weighted average of speed and magnetic field
+    ave_hours (4 by default) backward, for 1 minute data time resolution in input recarray l1wind
+    
+    input: 
+    - datetime object dt, 1min resolution, for the times the auroramaps are produced
+    - l1wind is the solar l1wind input is a recarray containing time (in matplotlib format), bx, by, bz, v, ec
+    test run time with %timeit oup.calc_avg_solarwind_predstorm(ts[0],l1wind)    
+    """
+    ave_hours=4                #hours previous to integrate over, usually 4
+    prev_hour_weight = 0.65    # reduce weighting by factor of wh each hour back
+    
+    dt_mat_hour=mdates.date2num(round_to_hour_start(dt))  #get with input dt to hour start and continute with matplotlib times
+    closest_time_ind_hour=np.argmin(abs(l1wind.time-dt_mat_hour))     #find index of closest time to dt_mat_hour
+   
+    dt_mat=mdates.date2num(dt) #convert all dates to input matplotlib time
+    closest_time_ind=np.argmin(abs(l1wind.time-dt_mat))  #find index of closest time to dt
+
+    weights=np.ones(5)     #make array for weights, most recent hour is 1, then go down by 0.65, 0.65*0.65 ...
+    #make array with weights according to Newell et al. 2010, par 25
+    for k in np.arange(2,ave_hours+1,1):  weights[k] = weights[k-1]*prev_hour_weight
+      
+    #the weight for current time comes in at the beginning of the weights array      
+    #difference between hour start and actual time, in hours between 0 and 1; this 
+    #is the weight for the current hour (check IDL real time code for this)***
+    weights[0]=(dt_mat-dt_mat_hour)*24
+   
+    #now define the times for the weights to sum bxyz, v and ec
+    times_for_weight_ind=np.zeros(5,dtype=int)
+    times_for_weight_ind[0]=closest_time_ind
+    
+    #time resolution 1 hour
+    if l1wind.time[1]-l1wind.time[0] > 0.01:
+        times_for_weight_ind[1:5] = np.arange(closest_time_ind_hour, closest_time_ind_hour-ave_hours,-1)
+    else: #time resolution 1 minute	
+        times_for_weight_ind[1:5] = np.arange(closest_time_ind_hour, closest_time_ind_hour-ave_hours*60,-60)
+   
+
+    #for debugging
+    print('--')
+    print('input time ',dt)
+    print('hour start in predstorm',mdates.num2date(l1wind.time[closest_time_ind_hour])     )
+    print('all weights are  ', weights)    
+    print('time indices for weights are',times_for_weight_ind)
+    weight_times=mdates.num2date(l1wind.time[times_for_weight_ind])
+    print('times are',weight_times[0],weight_times[1], weight_times[2], weight_times[3], weight_times[4] )
+    print('--')
+
+   
+    #******* HERE NEEDS TO BE AN AVERAGING FOR the FULL HOURS LIKE OMNI2, before! 1 time only?    
+    #all l1wind.bx, ... need to be averaged 
+    
+    #make array of average solar l1wind variables
+    avgsw=np.recarray(1,dtype=[('bx', float), ('by', float),('bz', float),('v', float),('ec', float)])
+    
+    #sum over last 4 hours with weighting
+    avgsw.bx = np.round(np.nansum(l1wind.bx[times_for_weight_ind]*weights) / np.nansum(weights),2)
+    avgsw.by = np.round(np.nansum(l1wind.by[times_for_weight_ind]*weights) / np.nansum(weights),2)
+    avgsw.bz = np.round(np.nansum(l1wind.bz[times_for_weight_ind]*weights) / np.nansum(weights),2)
+    avgsw.v  = np.round(np.nansum(l1wind.v [times_for_weight_ind]*weights) / np.nansum(weights),1)
+    avgsw.ec = np.round(np.nansum(l1wind.ec[times_for_weight_ind]*weights) / np.nansum(weights),1)
+            
+    #return averaged solar l1wind for the input time dt
+    return avgsw
+ 
 '''
 
 

@@ -229,15 +229,44 @@ class SeasonalFluxEstimator(object):
         file_suffix = '_n' if (jtype in [3, 4] or 'number flux' in jtype) else ''
         self.afile = premodel_directory+'{0}_{1}{2}.txt'.format(season, atype, file_suffix)
         self.pfile = premodel_directory+'{0}_prob_b_{1}.txt'.format(season, atype)
+        print(self.afile)
+        print()
+        print(self.pfile)
+        print('....')
         
         #load file for flux coefficients
+        
+        '''
+        data/premodel/spring_diff.txt
+        data/premodel/spring_prob_b_diff.txt
+        data/premodel/summer_diff.txt
+        data/premodel/summer_prob_b_diff.txt
+        data/premodel/fall_diff.txt
+        data/premodel/fall_prob_b_diff.txt
+        data/premodel/winter_diff.txt
+        data/premodel/winter_prob_b_diff.txt
+        
+        data/premodel/spring_mono.txt
+        data/premodel/spring_prob_b_mono.txt
+        data/premodel/summer_mono.txt
+        data/premodel/summer_prob_b_mono.txt
+        data/premodel/fall_mono.txt
+        data/premodel/fall_prob_b_mono.txt
+        data/premodel/winter_mono.txt
+        data/premodel/winter_prob_b_mono.txt
+        '''
+               
+        #load afile
         adata=np.loadtxt(self.afile,skiprows=1)
-
+        
         self.b1a, self.b2a = np.zeros((nmlt, nmlat)), np.zeros((nmlt, nmlat))
         mlt_bin_inds, mlat_bin_inds = adata[:, 0].astype(int), adata[:, 1].astype(int)
         self.b1a[mlt_bin_inds, mlat_bin_inds] = adata[:, 2]
         self.b2a[mlt_bin_inds, mlat_bin_inds] = adata[:, 3]
+        
+        
 
+        #load pfile
         self.b1p, self.b2p = np.zeros((nmlt, nmlat)), np.zeros((nmlt, nmlat))
         self.prob = np.zeros((nmlt, nmlat, ndF))
         #pdata has 2 columns, b1, b2 for first 15361 rows

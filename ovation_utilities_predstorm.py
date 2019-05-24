@@ -152,6 +152,20 @@ def round_to_hour_start(dt):
         
 
 
+def round_to_minute(dt):
+	    '''
+	    round datetime objects to nearest minute
+	    '''
+	    dt_start_of_min = dt.replace(second=0, microsecond=0)
+	    dt_half_min = dt.replace(second=30, microsecond=0)
+	
+	    if dt >= dt_half_min:
+	        # round up
+	        dt = dt_start_of_min + datetime.timedelta(minutes=1)
+	    else:
+	        # round down
+	        dt = dt_start_of_min
+	    return dt        
 
 
 
@@ -426,6 +440,14 @@ def ovation_global_north(wic,dt,colormap_input,max_level, outputdir):
  #global_plot_longitude=0
  global_plot_latitude=90
 
+
+ provinces_50m = carfeat.NaturalEarthFeature('cultural',
+                                             'admin_1_states_provinces_lines',
+                                             '50m',
+                                             facecolor='none',edgecolor='black')
+
+
+
  #define extent of the produced world maps - defined as: west east south north
  mapextent=[-180,180,-90,90]   
  
@@ -445,10 +467,17 @@ def ovation_global_north(wic,dt,colormap_input,max_level, outputdir):
  ax = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(global_plot_longitude, global_plot_latitude))
 
  ax.background_patch.set_facecolor('k')    
- ax.coastlines('50m',color='white',alpha=0.8)
+ 
+ 
  gl=ax.gridlines(linestyle='--',alpha=0.5,color='white') #make grid
  gl.n_steps=100   #make grid finer
  ax.stock_img()  
+ 
+ #ax.coastlines('50m',color='black',alpha=0.5)
+ ax.coastlines('50m',color='white',alpha=0.9)
+ ax.add_feature(provinces_50m,alpha=0.2)    #,zorder=2,alpha=0.8)
+ ax.add_feature(carfeat.BORDERS, alpha=0.2) #,zorder=2,alpha=0.5)
+  
 
  
  #these are calls that create the first object to be removed from the plot with each frame

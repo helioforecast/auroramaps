@@ -30,7 +30,6 @@ new features:
 - add equatorial auroral boundary Case et al. 2016
 - how to get probabilites correctly? ask Nathan Case
 
-
 plotting:
 - add colorbars for probabilites, colormap should fade into background but oval should also visible for small values
 - make nowcast better check with direct comparison with NOAA global images
@@ -134,106 +133,82 @@ from aurora_forecast_input import *
 
 
 
-
-
 ############### (0) get input data, get PREDSTORM solar wind files mode ###############
 
 plt.close('all')
 
-#get current time in UTC
-utcnow=oup.round_to_minute(datetime.datetime.utcnow())
+utcnow=oup.round_to_minute(datetime.datetime.utcnow()) #get current time as datetime object in UTC
 
 print()
 print('Making aurora forecasts with OVATION')
-print('From the PREDSTORM solar wind predictions (DSCOVR), OMNI2 or Wind data')
+print('From the PREDSTORM solar wind predictions (DSCOVR/STEREO-A) or OMNI2 data')
 print('UTC time now:')
 print(utcnow.strftime(format="%Y-%m-%d %H:%M") )
 print()
-
-if mode ==0: 
-    real_time_mode=True
-    historic_mode=False
-if mode ==1: 
-    historic_mode=True
-    real_time_mode=False
     
-if real_time_mode:
-    print('mode: real time')
-    #round t
-    t0=utcnow #+datetime.timedelta(hours=1))
+if mode==0:
+    print('mode',mode,': PREDSTORM real time')
+    t0     = utcnow - datetime.timedelta(hours=abs(past_hours))
+    tend   = utcnow + datetime.timedelta(hours=future_hours)
+    
+if mode==1:
+    print('mode',mode,': PREDSTORM local file')
+    t0   = parse_time(start_time)   #parse start time from string to datetime
+    tend = parse_time(end_time)     
 
-    #or force to given time  
-    if forced_time: 
-        t0 = parse_time(t0_real_forced_str)
-        print('using forced time ')
-        print(t0.strftime(format="%Y-%m-%d %H:%M"))
-  
-if historic_mode:
-    print('mode: historic')
-    #parse start time from string to datetime
-    t0 = parse_time(t0_historic_str)
+if mode==2:
+    print('mode',mode,': OMNI2 data')
+    t0   = parse_time(start_time)   #parse start time from string to datetime
+    tend = parse_time(end_time)     
 
+tdiff=(tend-t0)     #difference between start and end time
+n_hours=int(tdiff.total_seconds()/3600)  #for how many hours the model runs
 
-#old: make array of hours starting with t0 for which auroramaps are produced
-#1hour time resolution
-#ts = [t0 + datetime.timedelta(hours=i) for i in range(0, n_hours,1)]
-
-#time resolution as set in input, highest allowed is 1 minute
-if time_res < 1: print('Time resolution for producing auroramaps must be >= 1 minute.'), sys.exit()
-ts = [t0 + datetime.timedelta(minutes=i) for i in range(0, int(n_hours*60+1),time_res)]
+#time resolution as set in input - smallest time resolution allowed is 1 second
+ts = [t0 + datetime.timedelta(seconds=i) for i in range(0, int(tdiff.total_seconds())+1,int(time_resolution*60))]
 
 print()
-print('auroramaps timerange',n_hours, 'hours')
 print('start time:',ts[0].strftime('%Y-%m-%d %H:%M UT' ))
+if mode==0: print('now time:  ',utcnow.strftime('%Y-%m-%d %H:%M UT' ))
 print('end time:  ',ts[-1].strftime('%Y-%m-%d %H:%M UT' ))
-print('time resolution',time_res,'minutes')
-print('nr of movie frames', int(n_hours*60/time_res) )
-
+print('timerange          ',n_hours, 'hours')
+print('time resolution    ',time_resolution,'minutes')
+print('nr of movie frames ', len(ts) )
 print()
-print()
 
-
-#check if output directories are there
+#check if all needed directories are there
 if os.path.isdir('results') == False: os.mkdir('results')
-if os.path.isdir('results/frames_global') == False: os.mkdir('results/frames_global')
-if os.path.isdir('results/frames_europe_canada') == False: os.mkdir('results/frames_europe_canada')
-if os.path.isdir('results/forecast_europe_canada') == False: os.mkdir('results/forecast_europe_canada')
-if os.path.isdir('results/forecast_global') == False: os.mkdir('results/forecast_global')
+if os.path.isdir('results/'+output_directory) == False: os.mkdir('results/'+output_directory)
+if os.path.isdir('results/'+output_directory+'/frames_global') == False: os.mkdir('results/'+output_directory+'/frames_global')
+if os.path.isdir('results/'+output_directory+'/frames_europe_canada') == False: os.mkdir('results/'+output_directory+'/frames_europe_canada')
+if os.path.isdir('results/'+output_directory+'/forecast_europe_canada') == False: os.mkdir('results/'+output_directory+'/forecast_europe_canada')
+if os.path.isdir('results/'+output_directory+'/forecast_global') == False: os.mkdir('results/'+output_directory+'/forecast_global')
 
- 
-
-if real_time_mode:
-   ###########   get online file or local file from predstorm
-   if use_predstorm_online_file:
-      try: 
-        urllib.request.urlretrieve(predstorm_online_url_1hour,'predstorm_real.txt')
-        inputfile='predstorm_real.txt'
-        print('use solar wind input from url:')
-        print(predstorm_online_url_1hour)
-      except urllib.error.URLError as e:
-        print('Failed downloading ', predstorm_online_url_1hour,' ',e.reason)
-   else:
-     if predstorm_time_resolution == 1:   inputfile=local_input_file_1min
-     if predstorm_time_resolution == 0:   inputfile=local_input_file_1hour
-     print('use solar wind input from local file: ')
-     print(inputfile)
+if os.path.isdir('data') == False: os.mkdir('data')
+if os.path.isdir('data/predstorm') == False: os.mkdir('data/predstorm')
 
 
-if historic_mode:
-     #make txt file in similar format as predstorm
-     oup.omni_txt_generator(ts)     
-     inputfile='predstorm_omni.txt'
-     print('txt file with solar wind parameters generated from OMNI2 data: ')
-     print(inputfile)
-     #print('starting 24 hours earlier than ovation start time to make solar wind averages')
+# get or set input files
+if mode==0:    
+   try: 
+       inputfile='data/predstorm/predstorm_real.txt'
+       urllib.request.urlretrieve(predstorm_url,inputfile)
+       print('loaded from', predstorm_url)
+   except urllib.error.URLError as e:
+       print('Failed downloading ', predstorm_url,' ',e.reason)
+
+if mode==1:     
+     inputfile=local_input_file
+
+if mode==2:     
+     oup.omni_txt_generator(ts)   #make txt file from OMNI2 data in similar format as predstorm
+     inputfile='data/predstorm/predstorm_omni.txt'
     
+print('input data file:',inputfile)
 
 print()
-
-
-
-
-
+print('output directory: results/'+output_directory)
+print('------------------------')
 
 
 
@@ -277,6 +252,7 @@ print('Solar wind data loaded from PREDSTORM input file.')
 
 
 
+
 ###################### (2) RUN OVATION FOR EACH FRAME TIME ##############################
 
 print('Now make the aurora flux data cubes for all timesteps.')
@@ -297,7 +273,7 @@ print('Clock run time start ...')
 print()
 
 
-for k in np.arange(0,np.size(ts)): #go through all times
+for k in np.arange(0,len(ts)): #go through all times
  
     print('Frame number and time:', k, '  ',ts[k])
 
@@ -455,7 +431,7 @@ print()
 #ovation_img[ovation_img < 0.1]=np.nan  
 
 #better use color map that starts with some basic green color
-oup.ovation_global_north(ovation_img,ts,'hot',1.5)
+oup.ovation_global_north(ovation_img,ts,'hot',1.5,output_directory)
 #oup.global_predstorm_north(ovation_img,ts,'YlGn')
 end = time.time()
 print('All movie frames took ',np.round(end - start,2),'sec, per frame',np.round((end - start)/np.size(ts),2),' sec.')
@@ -484,10 +460,10 @@ print('All movie frames took ',np.round(end - start,2),'sec, per frame',np.round
         
     
 #make move with frames 
-os.system('ffmpeg -r 25 -i results/frames_global/aurora_%05d.jpg -b:v 5000k -r 25 results/predstorm_aurora_global.mp4 -y -loglevel quiet')
-os.system('ffmpeg -r 25 -i results/frames_europe_canada/aurora_%05d.jpg -b:v 5000k -r 25 results/predstorm_aurora_europe_canada.mp4 -y -loglevel quiet')
+os.system('ffmpeg -r 25 -i results/'+output_directory+'/frames_global/aurora_%05d.jpg -b:v 5000k -r 25 results/'+output_directory+'/predstorm_aurora_global.mp4 -y -loglevel quiet')
+#os.system('ffmpeg -r 25 -i results/frames_europe_canada/aurora_%05d.jpg -b:v 5000k -r 25 results/predstorm_aurora_europe_canada.mp4 -y -loglevel quiet')
 
-os.system('ffmpeg -r 25 -i results/frames_global/aurora_%05d.jpg -b:v 5000k -r 25 results/predstorm_aurora_global.gif -y -loglevel quiet')
+os.system('ffmpeg -r 25 -i results/'+output_directory+'/frames_global/aurora_%05d.jpg -b:v 5000k -r 25 results/'+output_directory+'/predstorm_aurora_global.gif -y -loglevel quiet')
 #os.system('ffmpeg -r 10 -i results/frames_europe_canada/aurora_%05d.jpg -b:v 5000k -r 10 results/predstorm_aurora_europe_canada.gif -y -loglevel quiet')
 
     

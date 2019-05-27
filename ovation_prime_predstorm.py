@@ -10,9 +10,6 @@ This module contains the main model routines for
 Ovation Prime (historically called season_epoch.pro in the IDL version)
 
 
-ideas:
--  load parameters not from files but from pickle file with all variables? (much faster)
-
 """
 import os
 import datetime
@@ -21,6 +18,7 @@ from scipy import interpolate
 from numba import njit, jit, jitclass
 import pdb
 import sys
+import pickle
 
 import ovation_utilities_predstorm as oup
 
@@ -183,10 +181,13 @@ class SeasonalFluxEstimator(object):
     A class to calculate predictions from the regression coeffecients
     which are tabulated in the data/premodel/{season}_{atype}_*.txt
     files.
+    A function is included that loads these files into a single array that 
+    is dumped in the python pickle file data/premodel/all_premodel_python.p
 
     Given a particular season, type of aurora ( one of ['diff','mono','wave','ions'])
-    and type of flux, returns
+    and type of flux, extracts all fit parameters upon initialization
     """
+    
     def __init__(self, season, atype, jtype):
         """
         season - str,['winter','spring','summer','fall']
@@ -204,14 +205,13 @@ class SeasonalFluxEstimator(object):
             6:"ion average energy"
         """
 
-        premodel_directory='data/premodel/'         #define premodel directory
+        self.premodel_directory='data/premodel/'         #define premodel directory
         nmlt = 96              #number of mag local times in arrays (resolution of 15 minutes)
         nmlat = 160            #number of mag latitudes in arrays (resolution of 0.5 degree, for two hemispheres))
         ndF = 12               #number of coupling strength bins
         self.jtype, self.atype = jtype, atype
-
         self.n_mlt_bins, self.n_mlat_bins, self.n_dF_bins = nmlt, nmlat, ndF
-
+        
         #The mlat bins are organized like -50:-dlat:-90, 50:dlat:90
         self.mlats = np.concatenate([np.linspace(-90., -50., self.n_mlat_bins//2)[::-1],
                                      np.linspace(50., 90., self.n_mlat_bins//2)])
@@ -224,71 +224,194 @@ class SeasonalFluxEstimator(object):
                           4:"ion number flux",
                           5:"electron average energy",
                           6:"ion average energy"}
-   
+ 
+        #check whether premodel data has been loaded from the txts into one pickle file, do if not
+        if os.path.isfile('data/premodel/all_premodel_python.p') == False:
+            self.make_premodel_pickle()          
+      
+        #load pickle file       
+        ov=pickle.load(open('data/premodel/all_premodel_python.p', 'rb' ))
+        #print('loaded pickle')
+        #print(atype)
+        #print(season)    
+
+        #get current position in array for this type and season
+        ov_ind=np.where(np.logical_and(ov['season']==season, ov['type']==atype))  
+        
+        #extract parameters at correct position; squeeze to remove first dimension
+        self.b1a = np.squeeze(ov['b1a'][ov_ind])
+        self.b2a = np.squeeze(ov['b2a'][ov_ind])
+                
+        #Determine if suffix is there
+        file_suffix = '_n' if (jtype in [3, 4] or 'number flux' in jtype) else ''
+        # if yes replace b1a b2a with b1an b2an
+        if file_suffix == '_n':
+            self.b1a = np.squeeze(ov['b1an'][ov_ind])
+            self.b2a = np.squeeze(ov['b2an'][ov_ind])
+        
+        self.b1p = np.squeeze(ov['b1p'][ov_ind])
+        self.b2p = np.squeeze(ov['b2p'][ov_ind])
+        self.prob= np.squeeze(ov['prob'][ov_ind])
+
+
+
+        '''
+        ########### directly loading from txt for comparison
+               
         #Determine file names
         file_suffix = '_n' if (jtype in [3, 4] or 'number flux' in jtype) else ''
         self.afile = premodel_directory+'{0}_{1}{2}.txt'.format(season, atype, file_suffix)
         self.pfile = premodel_directory+'{0}_prob_b_{1}.txt'.format(season, atype)
-        print(self.afile)
-        print()
-        print(self.pfile)
-        print('....')
+        #print(self.afile)
+        #print()
+        #print(self.pfile)
+        #print('....')
         
-        #load file for flux coefficients
-        
-        '''
-        data/premodel/spring_diff.txt
-        data/premodel/spring_prob_b_diff.txt
-        data/premodel/summer_diff.txt
-        data/premodel/summer_prob_b_diff.txt
-        data/premodel/fall_diff.txt
-        data/premodel/fall_prob_b_diff.txt
-        data/premodel/winter_diff.txt
-        data/premodel/winter_prob_b_diff.txt
-        
-        data/premodel/spring_mono.txt
-        data/premodel/spring_prob_b_mono.txt
-        data/premodel/summer_mono.txt
-        data/premodel/summer_prob_b_mono.txt
-        data/premodel/fall_mono.txt
-        data/premodel/fall_prob_b_mono.txt
-        data/premodel/winter_mono.txt
-        data/premodel/winter_prob_b_mono.txt
-        '''
+      
                
         #load afile
         adata=np.loadtxt(self.afile,skiprows=1)
-        
         self.b1a, self.b2a = np.zeros((nmlt, nmlat)), np.zeros((nmlt, nmlat))
+        #column 0 refers to mlt bins, column 1 to mlat bins
         mlt_bin_inds, mlat_bin_inds = adata[:, 0].astype(int), adata[:, 1].astype(int)
+        #data is in column 2 and 3
         self.b1a[mlt_bin_inds, mlat_bin_inds] = adata[:, 2]
         self.b2a[mlt_bin_inds, mlat_bin_inds] = adata[:, 3]
         
-        
-
-        #load pfile
-        self.b1p, self.b2p = np.zeros((nmlt, nmlat)), np.zeros((nmlt, nmlat))
-        self.prob = np.zeros((nmlt, nmlat, ndF))
-        #pdata has 2 columns, b1, b2 for first 15361 rows
-        #pdata has nmlat*nmlt rows (one for each positional bin)
-        
+          
         #if one of three type where prob data files are available:
         if atype in ['diff', 'mono', 'wave']:
                 
-            #load file into 2 arrays   
-            pdata_b = np.loadtxt(self.pfile,skiprows=1,max_rows=nmlt*nmlat) 
-            pdata_p = np.loadtxt(self.pfile, skiprows=nmlt*nmlat+1)#max_rows=nmlt*nmlat) 
-            
-            #in the file the probability is stored with coupling strength bin
-            #varying fastest (this is Fortran indexing order)
-            pdata_p_column_dFbin = pdata_p.reshape((-1, ndF), order='F')
-
-            #mlt is first dimension
+            #load first part of this file into 2 arrays   
+            #pdata has 2 columns, b1, b2 for first 15360 rows
+            pdata_b = np.loadtxt(self.pfile, skiprows=1,max_rows=nmlt*nmlat) 
+            #write into b1p array, shape is 96 * 160; format is similar to the afile
+            #load pfile
+            self.b1p, self.b2p = np.zeros((nmlt, nmlat)), np.zeros((nmlt, nmlat))
             self.b1p[mlt_bin_inds, mlat_bin_inds]=pdata_b[:, 0]
             self.b2p[mlt_bin_inds, mlat_bin_inds]=pdata_b[:, 1]
-            for idF in range(ndF):
-                self.prob[mlt_bin_inds, mlat_bin_inds, idF]=pdata_p_column_dFbin[:, idF]
 
+
+            #load 2nd part of the file 
+            #184320 rows in 1 column = 160 latitude bins *96 localtime bins *12 ndF
+            pdata_p = np.loadtxt(self.pfile, skiprows=nmlt*nmlat+1) 
+                        
+            #in the file the probability is stored with coupling strength bin
+            #varying fastest (this is Fortran indexing order)
+            #reshape from 184320, to 15360,12
+            self.pdata_p2 = pdata_p.reshape((-1, ndF), order='F')
+
+            #self.prob has shape  (96, 160, 12)
+            self.prob = np.zeros((nmlt, nmlat, ndF))
+            for idF in range(ndF):
+                self.prob[mlt_bin_inds, mlat_bin_inds, idF]=self.pdata_p2[:, idF]
+         
+         
+        #print(np.array_equal(self.b1a,self.xb1a))
+        #print(np.array_equal(self.b2a,self.xb2a))
+        #print(np.array_equal(self.b1p,self.xb1p))
+        #print(np.array_equal(self.b2p,self.xb2p))
+        #print(np.array_equal(self.prob,self.prob))
+
+        print()
+        '''
+        
+        
+        
+    def make_premodel_pickle(self):        
+    
+            print('load all premodel files and put into pickle file')
+            
+            self.seasons = ['spring', 'summer', 'fall', 'winter']
+            self.types   = ['diff','mono','wave','ions']
+
+            nx=self.n_mlt_bins
+            ny=self.n_mlat_bins
+            
+            #define structured array for ovation data from premodel files    season type b1a b2a b1an b2an b1p b2p prob          
+            #4*4 =16 because of 4 types and 4 seasons in total
+            self.ov = np.zeros(16,dtype=[('season', 'U6'),('type', 'U4'), ('b1a', 'f8',(nx,ny)),('b2a', 'f8',(nx,ny)),
+                                    ('b1an', 'f8',(nx,ny)),('b2an', 'f8',(nx,ny)),('b1p', 'f8',(nx,ny)),
+                                    ('b2p', 'f8',(nx,ny)),('prob', 'f8',(nx, ny, self.n_dF_bins)) ] )
+
+            counter=0
+            
+            
+            #go through all seasons and types and load all files
+            for season_counter in self.seasons:
+                for flux_counter in self.types:
+                
+                    self.ov['season'][counter]=season_counter        
+                    self.ov['type'][counter]=flux_counter        
+                    print(self.ov['season'][counter])
+                    print(self.ov['type'][counter])
+                              
+                    afile = self.premodel_directory+'{0}_{1}.txt'.format(season_counter, flux_counter)
+                    adata=np.loadtxt(afile,skiprows=1)
+                    b1a, b2a = np.zeros((self.n_mlt_bins, self.n_mlat_bins)), np.zeros((self.n_mlt_bins, self.n_mlat_bins))
+
+                    #column 0 refers to mlt bins, column 1 to mlat bins
+                    mlt_bin_inds, mlat_bin_inds = adata[:, 0].astype(int), adata[:, 1].astype(int)
+                    #data is in column 2 and 3
+                    b1a[mlt_bin_inds, mlat_bin_inds] = adata[:, 2]
+                    b2a[mlt_bin_inds, mlat_bin_inds] = adata[:, 3]
+     
+                    anfile = self.premodel_directory+'{0}_{1}_n.txt'.format(season_counter, flux_counter)
+                    andata=np.loadtxt(anfile,skiprows=1)
+                    b1an, b2an = np.zeros((self.n_mlt_bins, self.n_mlat_bins)), np.zeros((self.n_mlt_bins, self.n_mlat_bins))
+                    b1an[mlt_bin_inds, mlat_bin_inds] = andata[:, 2]
+                    b2an[mlt_bin_inds, mlat_bin_inds] = andata[:, 3]
+                     
+                    print(afile)
+                    print(anfile)
+                    self.ov['b1a'][counter]=b1a
+                    self.ov['b2a'][counter]=b2a
+                    self.ov['b1an'][counter]=b1an
+                    self.ov['b2an'][counter]=b2an
+
+                    #if one of three type where prob data files are available:
+                    if flux_counter in ['diff', 'mono', 'wave']:
+           
+                        pfile = self.premodel_directory+'{0}_prob_b_{1}.txt'.format(season_counter, flux_counter)       
+                        #load first part of this file into 2 arrays   
+                        #pdata has 2 columns, b1, b2 for first 15360 rows
+                        pdata_b = np.loadtxt(pfile, skiprows=1,max_rows=self.n_mlt_bins*self.n_mlat_bins) 
+                        print(pfile)
+                        #write into b1p array, shape is 96 * 160; format is similar to the afile
+                        #load pfile
+                        b1p, b2p = np.zeros((self.n_mlt_bins, self.n_mlat_bins)), np.zeros((self.n_mlt_bins, self.n_mlat_bins))
+                        b1p[mlt_bin_inds, mlat_bin_inds]=pdata_b[:, 0]
+                        b2p[mlt_bin_inds, mlat_bin_inds]=pdata_b[:, 1]
+
+                        #load 2nd part of the file 
+                        #184320 rows in 1 column = 160 latitude bins *96 localtime bins *12 ndF
+                        pdata_p = np.loadtxt(pfile, skiprows=self.n_mlt_bins*self.n_mlat_bins+1) 
+                        
+                        #in the file the probability is stored with coupling strength bin
+                        #varying fastest (this is Fortran indexing order)
+                        #reshape from 184320, to 15360,12
+                        pdata_p2 = pdata_p.reshape((-1, self.n_dF_bins), order='F')
+
+                        #self.prob has shape  (96, 160, 12)
+                        prob = np.zeros((self.n_mlt_bins,self.n_mlat_bins, self.n_dF_bins))
+                        for idF in range(self.n_dF_bins):
+                            prob[mlt_bin_inds, mlat_bin_inds, idF]=pdata_p2[:, idF]
+
+                        #write to ov array
+                        self.ov['b1p'][counter]=b1p
+                        self.ov['b2p'][counter]=b2p
+                        self.ov['prob'][counter]=prob
+
+                    print(counter)
+                    counter=counter+1
+                    print()                    
+
+            pickle.dump(self.ov,open(self.premodel_directory+'all_premodel_python.p', 'wb' ))
+            print('done.')     
+        
+               
+        
+        
         
         
 
@@ -396,7 +519,11 @@ class SeasonalFluxEstimator(object):
         #print(p, b1, b2, dF)
         flux = (self.b1a[i_mlt_bin, i_mlat_bin]+self.b2a[i_mlt_bin, i_mlat_bin]*dF)*p
         return self.correct_flux(flux)
-        
+   
+   
+   
+   
+       
         
     def interp_wedge(self, mlatgridN, mltgridN, fluxgridN):
         """

@@ -21,22 +21,17 @@ last update May 2019
 TO DO: 
 
 core:
-- calculate average Ec first, smooth? and then use in get_flux_for_time
-- sum both hemispheres as in IDL ovation and ovationpyme
-- add southern hemisphere complete
-- code optimize - bottlenecks with numba (where grids are calculated); 
+- sum both hemispheres as in IDL ovation, - comparison to IDL version of gridded flux
+- code optimize - bottlenecks with numba (where grids are calculated); get_gridded_flux
   and use normal numpy arrays and check for optimization (functions often used, grids...)
-- check bugs in ovation in comparison to IDL version
-- 180° longitude on world map better interpolation (interpolate on mlatgrid before?)
-
-new features:
+- add southern hemisphere complete later (coordinate conversion etc.)
 - add equatorial auroral boundary Case et al. 2016
 - how to get probabilites correctly? ask Nathan Case
 
 plotting:
-
 - add colorbars for probabilites, colormap should fade into background but oval should also visible for small values
 - make nowcast better check with direct comparison with NOAA global images
+- 180° longitude on world map better interpolation (interpolate on mlatgrid before? or own way to do it instead of wrap?)
 - transparent to white colormap so that it looks like viirs images for direct comparison
 - split land on dayside / night lights on night side 
   this should work in global_predstorm_north by loading background only once
@@ -53,7 +48,6 @@ test bottlenecks:
 
 or use in ipython for functions
 >> %timeit function_name 
-
 '''
 
 import matplotlib
@@ -299,12 +293,12 @@ for k in np.arange(0,len(ts)): #go through all times
    
     sw=oup.calc_avg_solarwind_predstorm(ts[k],l1wind)   #make solarwind with averaging over last 4 hours, only for command line 
     print('Byz =',sw.by[0],sw.bz[0],' nT   V =',int(sw.v[0]), 'km/s')
-    #for the Newell coupling Ec, normalized to cycle average
-    print('Ec to cycle average: ',np.round(sw.ec[0]/coup_cycle,1), ' Ec =',int(sw.ec[0]))  
+    #for the Newell coupling Ec, normalized to cycle average, smoothed for high time resolution
+    print('Ec to cycle average: ',np.round(sw.ec[0]/coup_cycle,1), ' Ec =',int(swav.ec[0]))  
     
     #get fluxes for northern hemisphere and sum them **check -> do averages and sum both
-    mlatN, mltN, fluxNd=de.get_flux_for_time(ts[k],swav.ec[k], hemi='N')
-    mlatN, mltN, fluxNm=me.get_flux_for_time(ts[k],swav.ec[k], hemi='N')
+    mlatN, mltN, fluxNd=de.get_flux_for_time(ts[k],swav.ec[k])
+    mlatN, mltN, fluxNm=me.get_flux_for_time(ts[k],swav.ec[k])
     #mlatN, mltN, fluxNw=we.get_flux_for_time(ts[k],inputfile, hemi='N')  #wave flux not correct yet
     fluxN=fluxNd+fluxNm #+fluxNw
     endflux=time.time()
@@ -317,7 +311,7 @@ for k in np.arange(0,len(ts)): #go through all times
     #oup.global_ovation_flux(mlatN,mltN,fluxNd,ts[k])
     #sys.exit()
 
-
+    sys.exit()
  
     #####################################  (2b) coordinate conversion magnetic to geographic 
     #Coordinate conversion MLT to AACGM mlon/lat to geographic coordinates

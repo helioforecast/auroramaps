@@ -66,11 +66,12 @@ def calc_avg_solarwind_predstorm(dt,l1wind):
     if np.size(dt) == 1: dt=[dt] 
 
     avgsw.time = mdates.date2num(dt)
+    
 
    
     #go through all dt times:
     for i in np.arange(0,np.size(dt)):
-    
+
         dt_mat_hour = mdates.date2num(round_to_hour_start(dt[i]))  #get with input dt to hour start and continute with matplotlib times
         closest_time_ind_hour = np.argmin(abs(l1wind.time-dt_mat_hour))  #find index of closest time to dt_mat_hour
         dt_mat = mdates.date2num(dt[i])  #convert input datetimte dt to matplotlib time

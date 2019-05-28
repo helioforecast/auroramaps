@@ -41,6 +41,8 @@ class FluxEstimator(object):
     The coefficients for all 4 seasons are loaded from txt files
     Later, each season is given a weight, those seasons with weight > 0 are evaluated
     and the fluxes are summed with the weight for each season
+    
+    time: 334 ms
         
     """
     def __init__(self, atype, jtype):
@@ -69,29 +71,56 @@ class FluxEstimator(object):
 
   
 
-    def get_flux_for_time(self, dt, ec_average, hemi):
+    def get_flux_for_time(self, dt, ec_average):
         """
         returns grid_mlats, grid_mlts, gridflux for 
         given time, predstorm_input file, and hemisphere 
         only works for northern hemisphere at the moment
         
         dt: time of auroramap
-        wind: recarray, made with oup.load_predstorm_wind()
-        hemisphere: 'N' 
+        ec_average: Newell coupling for this timestep    
         
+        calls: season_weights(), seasonal_flux_estimator.get_gridded_flux
+        
+        %time: 87 ms    
         """
-    
-      
+          
         doy = dt.timetuple().tm_yday        #get doy of current date dt which is a datetime object
         weightsN = self.season_weights(doy) #get weights for northern hemisphere
+        weightsS = self.season_weights(365.-doy) #weights for southern hemisphere are simply phase-shifted by half a year
+   
+        #print(weightsN)
+        #print(weightsS)
+    
         
         #determines size of the grid - 40° latitude 50° to 90°, in 0.5° steps, and 24 hours time in 0.25h steps
         #taken from the SeasonalFluxEstimator class where this is defined
         n_mlat_bins = list(self.seasonal_flux_estimators.items())[0][1].n_mlat_bins//2 #div by 2 because combined N&S hemispheres 
         n_mlt_bins= list(self.seasonal_flux_estimators.items())[0][1].n_mlt_bins
         gridflux = np.zeros((n_mlat_bins, n_mlt_bins))         #makes the flux grid in magnetic coordinates with all values 0
-
+        
+        #this works only for N hemisphere at the moment
         #go through each season        
+        for season in self.seasons:
+            #if the weight for a season is greater 0, go on (otherwise the flux from this season stays 0)
+            if np.logical_or(weightsN[season] > 0, weightsS[season] > 0):
+                #print(season)
+                flux_estimator = self.seasonal_flux_estimators[season]          #get one of the four SeasonalFluxEstimator objects, defined when calling the FluxEstimator class           
+                #calculate fluxes for season and solar wind coupling ec average and for both hemispheres
+                #grid_mlatsN, grid_mltsN, grid_fluxN, gridmlatsS, grid_mltsS, grid_fluxS = flux_estimator.get_gridded_flux(ec_average)
+                grid_mlatsN, grid_mltsN, grid_fluxN = flux_estimator.get_gridded_flux(ec_average)                
+                #add for this doy each season with weights
+                gridflux = gridflux + grid_fluxN*weightsN[season][0]
+                #gridflux = gridflux + grid_fluxN*float(weightsN[season])+grid_fluxS*float(weightsS[season])
+        
+        return grid_mlatsN, grid_mltsN, gridflux
+
+
+
+
+
+
+        '''
         for season in self.seasons:
             #if the weight for a season is greater 0, go on (otherwise the flux from this season stays 0)
             if weightsN[season] > 0:
@@ -101,10 +130,10 @@ class FluxEstimator(object):
                 grid_mlatsN, grid_mltsN, grid_fluxN = flux_estimator.get_gridded_flux(ec_average)                
                 #add for this doy each season with weights
                 gridflux = gridflux+ grid_fluxN*float(weightsN[season])
+                
         
         return grid_mlatsN, grid_mltsN, gridflux
-
-
+        '''
 
         #older code
         #get season weights for current time dt
@@ -133,6 +162,9 @@ class FluxEstimator(object):
         #    grid_mlats = -1.*grid_mlats #by default returns positive latitudes
 
 
+
+
+
         
      
     def season_weights(self,doy):
@@ -143,10 +175,11 @@ class FluxEstimator(object):
 
         Returns:
         A numpy structured array with a key for each season, values between 0 and 1
+        
+        #time: 3.3 microsec
         """
         weight = np.zeros(1,dtype=[('winter', float), ('spring', float),('summer', float),('fall', float)])        
         
-        #*******************check
         if doy >= 79. and doy < 171:
             weight['summer'] = 1. - (171.-doy)/92.
             weight['spring'] = 1. - weight['summer']
@@ -169,6 +202,32 @@ class FluxEstimator(object):
         return weight
   
      
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
  
         
 
@@ -312,103 +371,62 @@ class SeasonalFluxEstimator(object):
 
         print()
         '''
+  
+  
+  
+  
+  
+   
+    def get_gridded_flux(self, dF, combined_N_and_S=False, interp_N=True):
+        """
+        Return the flux interpolated onto arbitrary locations
+        in mlats and mlts for a given Newell coupling (dF)
+
+        combined_N_and_S, bool, optional
+            Average the fluxes for northern and southern hemisphere
+            and use them for both hemispheres (this is what standard
+            ovation prime does always I think, so I've made it default)
+            The original code says that this result is appropriate for 
+            the northern hemisphere, and to use 365 - actual doy to
+            get a combined result appropriate for the southern hemisphere
+
+        interp_N, bool, optional
+            Interpolate flux linearly for each latitude ring in the wedge
+            of low coverage in northern hemisphere dawn/midnight region
+        """
+
+        #make arrays for northern hemisphere
+        fluxgridN = np.zeros((self.n_mlat_bins//2, self.n_mlt_bins)) #// means results is integer
+        #Make grid coordinates
+        mlatgridN, mltgridN = np.meshgrid(self.mlats[self.n_mlat_bins//2:], self.mlts, indexing='ij')
+
+        #make arrays for southern hemisphere
+        #fluxgridS = np.zeros((self.n_mlat_bins//2, self.n_mlt_bins))
+        #Make grid coordinates
+        #mlatgridS, mltgridS = np.meshgrid(self.mlats[:self.n_mlat_bins//2], self.mlts, indexing='ij')
         
+        #go through each grid point of both hemispheres to get the flux with estimate_auroral_flux
+        for i_mlt in np.arange(self.n_mlt_bins):         #all magnetic local times
+            for j_mlat in np.arange(self.n_mlat_bins//2):     #all magnetic latitudes
+                #The mlat bins for the northern hemisphere start at 80, southern at 0
+                fluxgridN[j_mlat, i_mlt] = self.estimate_auroral_flux(dF, i_mlt, self.n_mlat_bins//2+j_mlat)
+                #for southern hemisphere do
+                #fluxgridS[j_mlat, i_mlt] = self.estimate_auroral_flux(dF, i_mlt, j_mlat)
+
         
-        
-    def make_premodel_pickle(self):        
+        #interpolate wedge
+        if interp_N: fluxgridN = self.interp_wedge(mlatgridN, mltgridN, fluxgridN)
     
-            print('load all premodel files and put into pickle file')
-            
-            self.seasons = ['spring', 'summer', 'fall', 'winter']
-            self.types   = ['diff','mono','wave','ions']
+        return mlatgridN, mltgridN, fluxgridN
 
-            nx=self.n_mlt_bins
-            ny=self.n_mlat_bins
+        #if not combined_N_and_S:
+        #    return mlatgridN, mltgridN, fluxgridN, mlatgridS, mltgridS, fluxgridS
+        #else:
+        #    return mlatgridN, mltgridN, (fluxgridN+fluxgridS)/2.
+      
             
-            #define structured array for ovation data from premodel files    season type b1a b2a b1an b2an b1p b2p prob          
-            #4*4 =16 because of 4 types and 4 seasons in total
-            self.ov = np.zeros(16,dtype=[('season', 'U6'),('type', 'U4'), ('b1a', 'f8',(nx,ny)),('b2a', 'f8',(nx,ny)),
-                                    ('b1an', 'f8',(nx,ny)),('b2an', 'f8',(nx,ny)),('b1p', 'f8',(nx,ny)),
-                                    ('b2p', 'f8',(nx,ny)),('prob', 'f8',(nx, ny, self.n_dF_bins)) ] )
-
-            counter=0
-            
-            
-            #go through all seasons and types and load all files
-            for season_counter in self.seasons:
-                for flux_counter in self.types:
-                
-                    self.ov['season'][counter]=season_counter        
-                    self.ov['type'][counter]=flux_counter        
-                    print(self.ov['season'][counter])
-                    print(self.ov['type'][counter])
-                              
-                    afile = self.premodel_directory+'{0}_{1}.txt'.format(season_counter, flux_counter)
-                    adata=np.loadtxt(afile,skiprows=1)
-                    b1a, b2a = np.zeros((self.n_mlt_bins, self.n_mlat_bins)), np.zeros((self.n_mlt_bins, self.n_mlat_bins))
-
-                    #column 0 refers to mlt bins, column 1 to mlat bins
-                    mlt_bin_inds, mlat_bin_inds = adata[:, 0].astype(int), adata[:, 1].astype(int)
-                    #data is in column 2 and 3
-                    b1a[mlt_bin_inds, mlat_bin_inds] = adata[:, 2]
-                    b2a[mlt_bin_inds, mlat_bin_inds] = adata[:, 3]
+        
      
-                    anfile = self.premodel_directory+'{0}_{1}_n.txt'.format(season_counter, flux_counter)
-                    andata=np.loadtxt(anfile,skiprows=1)
-                    b1an, b2an = np.zeros((self.n_mlt_bins, self.n_mlat_bins)), np.zeros((self.n_mlt_bins, self.n_mlat_bins))
-                    b1an[mlt_bin_inds, mlat_bin_inds] = andata[:, 2]
-                    b2an[mlt_bin_inds, mlat_bin_inds] = andata[:, 3]
-                     
-                    print(afile)
-                    print(anfile)
-                    self.ov['b1a'][counter]=b1a
-                    self.ov['b2a'][counter]=b2a
-                    self.ov['b1an'][counter]=b1an
-                    self.ov['b2an'][counter]=b2an
-
-                    #if one of three type where prob data files are available:
-                    if flux_counter in ['diff', 'mono', 'wave']:
-           
-                        pfile = self.premodel_directory+'{0}_prob_b_{1}.txt'.format(season_counter, flux_counter)       
-                        #load first part of this file into 2 arrays   
-                        #pdata has 2 columns, b1, b2 for first 15360 rows
-                        pdata_b = np.loadtxt(pfile, skiprows=1,max_rows=self.n_mlt_bins*self.n_mlat_bins) 
-                        print(pfile)
-                        #write into b1p array, shape is 96 * 160; format is similar to the afile
-                        #load pfile
-                        b1p, b2p = np.zeros((self.n_mlt_bins, self.n_mlat_bins)), np.zeros((self.n_mlt_bins, self.n_mlat_bins))
-                        b1p[mlt_bin_inds, mlat_bin_inds]=pdata_b[:, 0]
-                        b2p[mlt_bin_inds, mlat_bin_inds]=pdata_b[:, 1]
-
-                        #load 2nd part of the file 
-                        #184320 rows in 1 column = 160 latitude bins *96 localtime bins *12 ndF
-                        pdata_p = np.loadtxt(pfile, skiprows=self.n_mlt_bins*self.n_mlat_bins+1) 
-                        
-                        #in the file the probability is stored with coupling strength bin
-                        #varying fastest (this is Fortran indexing order)
-                        #reshape from 184320, to 15360,12
-                        pdata_p2 = pdata_p.reshape((-1, self.n_dF_bins), order='F')
-
-                        #self.prob has shape  (96, 160, 12)
-                        prob = np.zeros((self.n_mlt_bins,self.n_mlat_bins, self.n_dF_bins))
-                        for idF in range(self.n_dF_bins):
-                            prob[mlt_bin_inds, mlat_bin_inds, idF]=pdata_p2[:, idF]
-
-                        #write to ov array
-                        self.ov['b1p'][counter]=b1p
-                        self.ov['b2p'][counter]=b2p
-                        self.ov['prob'][counter]=prob
-
-                    print(counter)
-                    counter=counter+1
-                    print()                    
-
-            pickle.dump(self.ov,open(self.premodel_directory+'all_premodel_python.p', 'wb' ))
-            print('done.')     
-        
-               
-        
-        
         
         
 
@@ -586,62 +604,113 @@ class SeasonalFluxEstimator(object):
 
         return fluxgridN      
       
+      
+      
+      
+      
 
+   
+    def make_premodel_pickle(self):        
+            """
+            takes the premodel txt files and makes a pickle file for much faster initialization
+            """
+            print('load all premodel files and put into pickle file')
+            
+            self.seasons = ['spring', 'summer', 'fall', 'winter']
+            self.types   = ['diff','mono','wave','ions']
 
+            nx=self.n_mlt_bins
+            ny=self.n_mlat_bins
+            
+            #define structured array for ovation data from premodel files    season type b1a b2a b1an b2an b1p b2p prob          
+            #4*4 =16 because of 4 types and 4 seasons in total
+            self.ov = np.zeros(16,dtype=[('season', 'U6'),('type', 'U4'), ('b1a', 'f8',(nx,ny)),('b2a', 'f8',(nx,ny)),
+                                    ('b1an', 'f8',(nx,ny)),('b2an', 'f8',(nx,ny)),('b1p', 'f8',(nx,ny)),
+                                    ('b2p', 'f8',(nx,ny)),('prob', 'f8',(nx, ny, self.n_dF_bins)) ] )
+
+            counter=0
+            
+            
+            #go through all seasons and types and load all files
+            for season_counter in self.seasons:
+                for flux_counter in self.types:
+                
+                    self.ov['season'][counter]=season_counter        
+                    self.ov['type'][counter]=flux_counter        
+                    print(self.ov['season'][counter])
+                    print(self.ov['type'][counter])
+                              
+                    afile = self.premodel_directory+'{0}_{1}.txt'.format(season_counter, flux_counter)
+                    adata=np.loadtxt(afile,skiprows=1)
+                    b1a, b2a = np.zeros((self.n_mlt_bins, self.n_mlat_bins)), np.zeros((self.n_mlt_bins, self.n_mlat_bins))
+
+                    #column 0 refers to mlt bins, column 1 to mlat bins
+                    mlt_bin_inds, mlat_bin_inds = adata[:, 0].astype(int), adata[:, 1].astype(int)
+                    #data is in column 2 and 3
+                    b1a[mlt_bin_inds, mlat_bin_inds] = adata[:, 2]
+                    b2a[mlt_bin_inds, mlat_bin_inds] = adata[:, 3]
+     
+                    anfile = self.premodel_directory+'{0}_{1}_n.txt'.format(season_counter, flux_counter)
+                    andata=np.loadtxt(anfile,skiprows=1)
+                    b1an, b2an = np.zeros((self.n_mlt_bins, self.n_mlat_bins)), np.zeros((self.n_mlt_bins, self.n_mlat_bins))
+                    b1an[mlt_bin_inds, mlat_bin_inds] = andata[:, 2]
+                    b2an[mlt_bin_inds, mlat_bin_inds] = andata[:, 3]
+                     
+                    print(afile)
+                    print(anfile)
+                    self.ov['b1a'][counter]=b1a
+                    self.ov['b2a'][counter]=b2a
+                    self.ov['b1an'][counter]=b1an
+                    self.ov['b2an'][counter]=b2an
+
+                    #if one of three type where prob data files are available:
+                    if flux_counter in ['diff', 'mono', 'wave']:
+           
+                        pfile = self.premodel_directory+'{0}_prob_b_{1}.txt'.format(season_counter, flux_counter)       
+                        #load first part of this file into 2 arrays   
+                        #pdata has 2 columns, b1, b2 for first 15360 rows
+                        pdata_b = np.loadtxt(pfile, skiprows=1,max_rows=self.n_mlt_bins*self.n_mlat_bins) 
+                        print(pfile)
+                        #write into b1p array, shape is 96 * 160; format is similar to the afile
+                        #load pfile
+                        b1p, b2p = np.zeros((self.n_mlt_bins, self.n_mlat_bins)), np.zeros((self.n_mlt_bins, self.n_mlat_bins))
+                        b1p[mlt_bin_inds, mlat_bin_inds]=pdata_b[:, 0]
+                        b2p[mlt_bin_inds, mlat_bin_inds]=pdata_b[:, 1]
+
+                        #load 2nd part of the file 
+                        #184320 rows in 1 column = 160 latitude bins *96 localtime bins *12 ndF
+                        pdata_p = np.loadtxt(pfile, skiprows=self.n_mlt_bins*self.n_mlat_bins+1) 
+                        
+                        #in the file the probability is stored with coupling strength bin
+                        #varying fastest (this is Fortran indexing order)
+                        #reshape from 184320, to 15360,12
+                        pdata_p2 = pdata_p.reshape((-1, self.n_dF_bins), order='F')
+
+                        #self.prob has shape  (96, 160, 12)
+                        prob = np.zeros((self.n_mlt_bins,self.n_mlat_bins, self.n_dF_bins))
+                        for idF in range(self.n_dF_bins):
+                            prob[mlt_bin_inds, mlat_bin_inds, idF]=pdata_p2[:, idF]
+
+                        #write to ov array
+                        self.ov['b1p'][counter]=b1p
+                        self.ov['b2p'][counter]=b2p
+                        self.ov['prob'][counter]=prob
+
+                    print(counter)
+                    counter=counter+1
+                    print()                    
+
+            pickle.dump(self.ov,open(self.premodel_directory+'all_premodel_python.p', 'wb' ))
+            print('done.')     
+        
+               
+        
+        
     
 
 
    
-   
-    def get_gridded_flux(self, dF, combined_N_and_S=False, interp_N=True):
-        """
-        Return the flux interpolated onto arbitrary locations
-        in mlats and mlts for a given Newell coupling (dF)
-
-        combined_N_and_S, bool, optional
-            Average the fluxes for northern and southern hemisphere
-            and use them for both hemispheres (this is what standard
-            ovation prime does always I think, so I've made it default)
-            The original code says that this result is appropriate for 
-            the northern hemisphere, and to use 365 - actual doy to
-            get a combined result appropriate for the southern hemisphere
-
-        interp_N, bool, optional
-            Interpolate flux linearly for each latitude ring in the wedge
-            of low coverage in northern hemisphere dawn/midnight region
-        """
-
-        #make arrays for northern hemisphere
-        fluxgridN = np.zeros((self.n_mlat_bins//2, self.n_mlt_bins)) #// means results is integer
-        #Make grid coordinates
-        mlatgridN, mltgridN = np.meshgrid(self.mlats[self.n_mlat_bins//2:], self.mlts, indexing='ij')
-
-        #make arrays for southern hemisphere
-        #fluxgridS = np.zeros((self.n_mlat_bins//2, self.n_mlt_bins))
-        #Make grid coordinates
-        #mlatgridS, mltgridS = np.meshgrid(self.mlats[:self.n_mlat_bins//2], self.mlts, indexing='ij')
-        
-        #go through each grid point of both hemispheres to get the flux with estimate_auroral_flux
-        for i_mlt in np.arange(self.n_mlt_bins):         #all magnetic local times
-            for j_mlat in np.arange(self.n_mlat_bins//2):     #all magnetic latitudes
-                #The mlat bins for the northern hemisphere start at 80, southern at 0
-                fluxgridN[j_mlat, i_mlt] = self.estimate_auroral_flux(dF, i_mlt, self.n_mlat_bins//2+j_mlat)
-                #for southern hemisphere do
-                #fluxgridS[j_mlat, i_mlt] = self.estimate_auroral_flux(dF, i_mlt, j_mlat)
-
-        
-        #interpolate wedge
-        if interp_N: fluxgridN = self.interp_wedge(mlatgridN, mltgridN, fluxgridN)
-    
-        return mlatgridN, mltgridN, fluxgridN
-
-        #if not combined_N_and_S:
-        #    return mlatgridN, mltgridN, fluxgridN, mlatgridS, mltgridS, fluxgridS
-        #else:
-        #    return mlatgridN, mltgridN, (fluxgridN+fluxgridS)/2.
-      
-      
-      
+'''    
       
 # functions to optimize with numba      
       
@@ -723,4 +792,4 @@ def interp_wedge2(mlatgridN, mltgridN, fluxgridN):
                 fluxgridN[i_mlat_bin, interp_bins_missing_flux] = flux_interp(this_mlt[interp_bins_missing_flux])
 
         return fluxgridN      
-      
+ '''

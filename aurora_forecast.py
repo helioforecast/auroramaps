@@ -21,12 +21,13 @@ last update May 2019
 TO DO: 
 
 core:
+- calculate average Ec first, smooth? and then use in get_flux_for_time
 - sum both hemispheres as in IDL ovation and ovationpyme
 - add southern hemisphere complete
-- calculate average Ec first, smooth and then use in get_flux_for_time
 - code optimize - bottlenecks with numba (where grids are calculated); 
   and use normal numpy arrays and check for optimization (functions often used, grids...)
 - check bugs in ovation in comparison to IDL version
+- 180° longitude on world map better interpolation (interpolate on mlatgrid before?)
 
 new features:
 - add equatorial auroral boundary Case et al. 2016
@@ -200,6 +201,9 @@ print('------------------------')
 
 ########################## (1) Initialize OVATION ########################################
 
+
+########## load ovation for different types of aurora
+
 print()
 '''
 atype - str, ['diff','mono','wave','ions']
@@ -227,9 +231,43 @@ print('Fluxes for southern hemisphere are currently not calculated.')
 print()
 
 
-#load input solar wind
+###################### load input solar wind
 l1wind=oup.load_predstorm_wind(inputfile)
 print('Solar wind data loaded from PREDSTORM input file.')
+
+
+swav=oup.calc_avg_solarwind_predstorm(ts,l1wind)  # calculate average solar wind for Newell coupling 
+
+window=int(window_minutes/time_resolution)	#when time resolution < averaging window in minutes, do moving averages
+
+coup_cycle=4421 #average coupling for solar cycle (see e.g. Newell et al. 2010)
+
+#plot current coupling, the driver behind the ovation model
+fig, ax = plt.subplots(figsize=[12, 5])
+plt.plot_date(swav.time,np.ones(np.size(swav.time)),'k-.',label='cycle average')
+plt.plot_date(l1wind.time,l1wind.ec/coup_cycle,'k-', label='input wind')   
+plt.plot_date(swav.time,swav.ec/coup_cycle,'r-',label='weighted averages',markersize=2)   
+plt.title('Newell coupling')
+
+#plot moving averages and make them 
+if window > 0:
+   print('running mean used for Ec with time window +/- ',window_minutes,'minutes')
+   ec_run_mean=swav.ec
+   for i in np.arange(window,np.size(ts)-window): ec_run_mean[i]=np.mean(swav.ec[i-window:i+window])  
+   plt.plot_date(swav.time,ec_run_mean/coup_cycle,'b--',label='running mean of weighted averages' )   
+   #replace Ec average by running mean
+   swav.ec=ec_run_mean
+     
+ax.set_xlim([swav.time[0]-4/24,swav.time[-1]])
+plt.legend()
+#save plot in outputdirectory
+fig.savefig('results/'+output_directory+'/coupling.png',dpi=150,facecolor=fig.get_facecolor())
+
+
+
+
+
+
 
 
 ###################### (2) RUN OVATION FOR EACH FRAME TIME ##############################
@@ -259,14 +297,14 @@ for k in np.arange(0,len(ts)): #go through all times
     #########################################  (2a) get solar wind 
     startflux=time.time()
    
-    sw=oup.calc_avg_solarwind_predstorm(ts[k],l1wind)   #make solarwind with averaging over last 4 hours 
+    sw=oup.calc_avg_solarwind_predstorm(ts[k],l1wind)   #make solarwind with averaging over last 4 hours, only for command line 
     print('Byz =',sw.by[0],sw.bz[0],' nT   V =',int(sw.v[0]), 'km/s')
-    #for the Newell coupling Ec, a cycle average is 4421
-    print('Ec to cycle average: ',np.round(sw.ec[0]/4421,1), ' Ec =',int(sw.ec[0]))  
+    #for the Newell coupling Ec, normalized to cycle average
+    print('Ec to cycle average: ',np.round(sw.ec[0]/coup_cycle,1), ' Ec =',int(sw.ec[0]))  
     
     #get fluxes for northern hemisphere and sum them **check -> do averages and sum both
-    mlatN, mltN, fluxNd=de.get_flux_for_time(ts[k],l1wind, hemi='N')
-    mlatN, mltN, fluxNm=me.get_flux_for_time(ts[k],l1wind, hemi='N')
+    mlatN, mltN, fluxNd=de.get_flux_for_time(ts[k],swav.ec[k], hemi='N')
+    mlatN, mltN, fluxNm=me.get_flux_for_time(ts[k],swav.ec[k], hemi='N')
     #mlatN, mltN, fluxNw=we.get_flux_for_time(ts[k],inputfile, hemi='N')  #wave flux not correct yet
     fluxN=fluxNd+fluxNm #+fluxNw
     endflux=time.time()
@@ -315,7 +353,7 @@ for k in np.arange(0,len(ts)): #go through all times
     #interpolate to world grid, and remove 1 dimension with squeeze
     aimg=np.squeeze(scipy.interpolate.griddata(geo_2D, fluxN_1D, (wx, wy), method='linear',fill_value=0))
     #filter large array
-    aimg = scipy.ndimage.gaussian_filter(aimg,sigma=(5,7),mode='wrap')
+    aimg = scipy.ndimage.gaussian_filter(aimg,sigma=(5,7),mode='wrap') #wrap means wrapping at the 180 degree edge
     ovation_img[:,:,k]=aimg
     endworld = time.time()
     print('World map: ', np.round(endworld-startworld,2),' sec')
@@ -343,6 +381,98 @@ sys.exit()
 '''
 
  
+
+#####################################  (3) PLOTS  #########################################
+
+
+############################ (3a) Make global aurora plot for comparison with NOAA nowcast
+
+start = time.time()
+#better use color map that starts with some basic green color
+oup.ovation_global_north(ovation_img,ts,'hot',1.5,output_directory)
+end = time.time()
+print('All movie frames took ',np.round(end - start,2),'sec, per frame',np.round((end - start)/np.size(ts),2),' sec.')
+
+#make move with frames 
+print()
+print('Make movies')
+os.system('ffmpeg -r 25 -i results/'+output_directory+'/frames_global/aurora_%05d.jpg -b:v 5000k -r 25 results/'+output_directory+'/predstorm_aurora_global.mp4 -y -loglevel quiet')
+os.system('ffmpeg -r 25 -i results/'+output_directory+'/frames_global/aurora_%05d.jpg -b:v 5000k -r 25 results/'+output_directory+'/predstorm_aurora_global.gif -y -loglevel quiet')
+print()
+end_all=time.time()
+print('Run time for everything:  ',np.round((end_all - start_all)/60,2),' min; per frame: ',np.round((end_all - start_all)/np.size(ts),2),'sec' )
+
+print()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#####################################
+
+
+#make images and movie frames for the generated aurora image cube ovation_img
+#for k in np.arange(0,np.size(ts)):
+    #oup.global_predstorm_north(ovation_img[:,:,k],ts[k],k,'magma')
+    #oup.global_predstorm_north(ovation_img[:,:,k],ts[k],k,'hot')
+    #oup.global_predstorm_north(ovation_img[:,:,k],ts[k],k,oup.aurora_cmap2())
+
+#eliminate noise when plotting
+#ovation_img[ovation_img < 0.1]=np.nan  
+
+#flux plot of last timestep
+#oup.global_ovation_flux(mlatN,mltN,fluxNd,ts[k])
+
+#comparison with NOAA
+#global_predstorm_noaa(ovation_img)
+
+#plot the fluxes for direct comparison to ovation prime in IDL
+#for k in np.arange(0,np.size(ts)):
+#    oup.global_predstorm_flux(ovation_img[:,:,k],ts[k],k)
+
+#for k in np.arange(0,np.size(ts)):
+#    oup.europe_canada_predstorm(ovation_img[:,:,k],ts[k],k, 'hot')
+
+#os.system('ffmpeg -r 25 -i results/frames_europe_canada/aurora_%05d.jpg -b:v 5000k -r 25 results/predstorm_aurora_europe_canada.mp4 -y -loglevel quiet')
+#os.system('ffmpeg -r 10 -i results/frames_europe_canada/aurora_%05d.jpg -b:v 5000k -r 10 results/predstorm_aurora_europe_canada.gif -y -loglevel quiet')
+
+
+############################ (3b) zoom North America and Europe ############################################
+
+#europe_canada_predstorm(ovation_img)
+
+
 
 '''
 #####################  (2c) Convert to probabilities, smooth etc.
@@ -384,67 +514,6 @@ ax1.coastlines()
 ax1.imshow(pimg, vmin=0, vmax=100, transform=crs, extent=mapextent, origin='lower',zorder=3,cmap=aurora_cmap())
 #ax1.set_extent(fullextent)
 '''
-
-
-
-
-
-
-
-
-#####################################  (3) PLOTS  #########################################
-
-
-############################ (3a) Make global aurora plot for comparison with NOAA nowcast
-
-start = time.time()
-#better use color map that starts with some basic green color
-oup.ovation_global_north(ovation_img,ts,'hot',1.5,output_directory)
-end = time.time()
-print('All movie frames took ',np.round(end - start,2),'sec, per frame',np.round((end - start)/np.size(ts),2),' sec.')
-
-#make move with frames 
-print()
-print('Make movies')
-os.system('ffmpeg -r 25 -i results/'+output_directory+'/frames_global/aurora_%05d.jpg -b:v 5000k -r 25 results/'+output_directory+'/predstorm_aurora_global.mp4 -y -loglevel quiet')
-os.system('ffmpeg -r 25 -i results/'+output_directory+'/frames_global/aurora_%05d.jpg -b:v 5000k -r 25 results/'+output_directory+'/predstorm_aurora_global.gif -y -loglevel quiet')
-print()
-end_all=time.time()
-print('Run time for everything:  ',np.round((end_all - start_all)/60,2),' min; per frame: ',np.round((end_all - start_all)/np.size(ts),2),'sec' )
-
-print()
-
-
-
-#make images and movie frames for the generated aurora image cube ovation_img
-#for k in np.arange(0,np.size(ts)):
-    #oup.global_predstorm_north(ovation_img[:,:,k],ts[k],k,'magma')
-    #oup.global_predstorm_north(ovation_img[:,:,k],ts[k],k,'hot')
-    #oup.global_predstorm_north(ovation_img[:,:,k],ts[k],k,oup.aurora_cmap2())
-
-#eliminate noise when plotting
-#ovation_img[ovation_img < 0.1]=np.nan  
-
-#flux plot of last timestep
-#oup.global_ovation_flux(mlatN,mltN,fluxNd,ts[k])
-
-#comparison with NOAA
-#global_predstorm_noaa(ovation_img)
-
-#plot the fluxes for direct comparison to ovation prime in IDL
-#for k in np.arange(0,np.size(ts)):
-#    oup.global_predstorm_flux(ovation_img[:,:,k],ts[k],k)
-
-#for k in np.arange(0,np.size(ts)):
-#    oup.europe_canada_predstorm(ovation_img[:,:,k],ts[k],k, 'hot')
-
-#os.system('ffmpeg -r 25 -i results/frames_europe_canada/aurora_%05d.jpg -b:v 5000k -r 25 results/predstorm_aurora_europe_canada.mp4 -y -loglevel quiet')
-#os.system('ffmpeg -r 10 -i results/frames_europe_canada/aurora_%05d.jpg -b:v 5000k -r 10 results/predstorm_aurora_europe_canada.gif -y -loglevel quiet')
-
-
-############################ (3b) zoom North America and Europe ############################################
-
-#europe_canada_predstorm(ovation_img)
 
 
 

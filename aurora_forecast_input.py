@@ -1,16 +1,23 @@
 #CONFIGURATION PARAMETERS for aurora_forecast.py 
 
-mode=0                          # select mode: 0 for real time mode, 1 for local file, 2 for OMNI2 data
+mode=0                        # select mode: 0 for real time mode, 1 for local file, 2 for OMNI2 data
 
-time_resolution =  2             # time resolution of resulting auroramaps in minutes
+time_resolution =  2           # time resolution of resulting auroramaps in minutes
 
-output_directory='run_now_test'            #specify output directory of frames and movies under "results/"
+output_directory='run_now_test_1'            #specify output directory of frames and movies under "results/"
+
+
+
+#-------------------------------
+
+window_minutes=20                #window in minutes for smoothing the coupling with a running mean; ignored if time_resolution larger than window_minutes
+
 
 # --------------------------- mode 0 settings
 
                                    # in real time mode, start time is always now in UTC
 past_hours      =  0               # in real time mode, start time with previous hours
-future_hours    =  3              # in real time mode, number of hours into future
+future_hours    =  5             # in real time mode, number of hours into future, 0 for one frame only
 
 #online source file for real time mode
 predstorm_url='https://www.iwf.oeaw.ac.at/fileadmin//staff/SP/cmoestl/readtime/predstorm_real.txt'
@@ -21,8 +28,8 @@ predstorm_url='https://www.iwf.oeaw.ac.at/fileadmin//staff/SP/cmoestl/readtime/p
 #start_time = '2019-May-14 05:00'  # in mode 1/2, set start and end times manually
 #end_time   = '2019-May-14 10:00'
 
-start_time = '2017-Nov-29 13:00' 
-end_time   = '2017-Nov-29 14:00'
+start_time = '2017-Sep-1 13:00' 
+end_time   = '2017-Sep-10 14:00'
 
 
 # --------------------------  mode 2 settings

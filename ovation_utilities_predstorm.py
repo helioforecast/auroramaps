@@ -37,6 +37,8 @@ import pdb
 #################################### MATH ##########################################################
 
 
+
+
 def calc_avg_solarwind_predstorm(dt,l1wind):
     """
     Calculates a weighted average of speed and magnetic field bx, by, bz and the Newell coupling ec
@@ -56,31 +58,39 @@ def calc_avg_solarwind_predstorm(dt,l1wind):
     ave_hours=4                # hours previous to integrate over, usually 4
     prev_hour_weight = 0.65    # reduce weighting by factor with each hour back
     
-    dt_mat_hour=mdates.date2num(round_to_hour_start(dt))  #get with input dt to hour start and continute with matplotlib times
-    closest_time_ind_hour=np.argmin(abs(l1wind.time-dt_mat_hour))  #find index of closest time to dt_mat_hour
-           
-    dt_mat=mdates.date2num(dt)  #convert input datetimte dt to matplotlib time
-    closest_time_ind=np.argmin(abs(l1wind.time-dt_mat)) #find index of closest time to dt
     
-    weights=np.ones(ave_hours)  #make array with weights     
-    for k in np.arange(1,ave_hours,1):  weights[k] = weights[k-1]*prev_hour_weight
-
-    #first entry in weights depends on square root of fraction of hour elapsed 
-    a=(dt_mat-dt_mat_hour)*24 # fraction of hour elapsed
-    #weights[0]=np.sqrt(a)  #the current fraction of hour is weighted as square root (IDL ap_inter_sol.pro)
-    weights[0]=a  #the current fraction of hour is weighted as linear
-
-    times_for_weight_ind = np.arange(closest_time_ind_hour, closest_time_ind_hour-ave_hours,-1)
+    #initiate array of averaged solar wind variables with size of dt
+    avgsw=np.recarray(np.size(dt),dtype=[('time', float),('bx', float), ('by', float),('bz', float),('v', float),('ec', float)])
     
-    #initiate array of averaged solar wind variables
-    avgsw=np.recarray(1,dtype=[('bx', float), ('by', float),('bz', float),('v', float),('ec', float)])
+    #make array out of dt if its scalar so subscripts work
+    if np.size(dt) == 1: dt=[dt] 
+
+    avgsw.time = mdates.date2num(dt)
+
+   
+    #go through all dt times:
+    for i in np.arange(0,np.size(dt)):
+    
+        dt_mat_hour = mdates.date2num(round_to_hour_start(dt[i]))  #get with input dt to hour start and continute with matplotlib times
+        closest_time_ind_hour = np.argmin(abs(l1wind.time-dt_mat_hour))  #find index of closest time to dt_mat_hour
+        dt_mat = mdates.date2num(dt[i])  #convert input datetimte dt to matplotlib time
+        closest_time_ind = np.argmin(abs(l1wind.time-dt_mat)) #find index of closest time to dt
+    
+        weights = np.ones(ave_hours)  #make array with weights     
+        for k in np.arange(1,ave_hours,1):  weights[k] = weights[k-1]*prev_hour_weight
+
+        a = (dt_mat-dt_mat_hour)*24 # fraction of hour elapsed
+        #weights[0]=np.sqrt(a)  #the current fraction of hour is weighted as square root (IDL ap_inter_sol.pro)
+        weights[0] = a  #the current fraction of hour is weighted as linear
+
+        times_for_weight_ind = np.arange(closest_time_ind_hour, closest_time_ind_hour-ave_hours,-1)
         
-    #sum last hours with each weight and normalize    
-    avgsw.bx = np.round(np.nansum(l1wind.bx[times_for_weight_ind]*weights)/ np.nansum(weights),2)
-    avgsw.by = np.round(np.nansum(l1wind.by[times_for_weight_ind]*weights)/ np.nansum(weights),2)
-    avgsw.bz = np.round(np.nansum(l1wind.bz[times_for_weight_ind]*weights)/ np.nansum(weights),2)
-    avgsw.v = np.round(np.nansum(l1wind.v[times_for_weight_ind]*weights)/ np.nansum(weights),1)
-    avgsw.ec = np.round(np.nansum(l1wind.ec[times_for_weight_ind]*weights)/ np.nansum(weights),1)
+        #sum last hours with each weight and normalize    
+        avgsw[i].bx = np.round(np.nansum(l1wind.bx[times_for_weight_ind]*weights)/ np.nansum(weights),2)
+        avgsw[i].by = np.round(np.nansum(l1wind.by[times_for_weight_ind]*weights)/ np.nansum(weights),2)
+        avgsw[i].bz = np.round(np.nansum(l1wind.bz[times_for_weight_ind]*weights)/ np.nansum(weights),2)
+        avgsw[i].v  = np.round(np.nansum(l1wind.v[times_for_weight_ind]*weights)/ np.nansum(weights),1)
+        avgsw[i].ec = np.round(np.nansum(l1wind.ec[times_for_weight_ind]*weights)/ np.nansum(weights),1)
 
     ''' #for debugging
     #print(weights)
@@ -103,6 +113,7 @@ def calc_avg_solarwind_predstorm(dt,l1wind):
     '''
    
     return avgsw
+
 
 
 
@@ -170,6 +181,18 @@ def round_to_minute(dt):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 ########################################### DATA HANDLING ######################################
 
 
@@ -203,13 +226,13 @@ def omni_txt_generator(dt):
    o=omni_loader()     #load all omni data
         
    dt_mat=mdates.date2num(dt) #convert to matplotlib time    
+   
           
    #starting index of dt start time in all omni data - 24 hours 
    #needed for averaging solar wind before time dt[0]
    inds=np.argmin(abs(o.time-dt_mat[0]))-24
-   
-   inde=inds+48+np.size(dt)   #end index for dt in omni data, add +24 hours to end
-   
+   inde=np.argmin(abs(o.time-dt_mat[-1]))+24 #end index for dt in omni data, add +24 hours to end
+    
    o_time=o.time[inds:inde]
    
    vartxtout=np.zeros([inde-inds,13])
@@ -233,11 +256,12 @@ def omni_txt_generator(dt):
    #vartxtout[:,13]=dst_temerin_li
    #vartxtout[:,14]=kp_newell
    #vartxtout[:,15]=aurora_power
+   
 
    #description
    #np.savetxt(filename_save, ['time     Dst [nT]     Kp     aurora [GW]   B [nT]    Bx [nT]     By [nT]     Bz [nT]    N [ccm-3]   V [km/s]    '])
    filename_save='data/predstorm/predstorm_omni.txt'
-   np.savetxt(filename_save, vartxtout,  delimiter='',fmt='%4i %2i %2i %2i %2i %2i %10.6f %5.1f %5.1f %5.1f %5.1f   %7.0i %7.0i ', \
+   np.savetxt(filename_save, vartxtout,  delimiter='',fmt='%4i %2i %2i %2i %2i %2i %10.6f %5.1f %5.1f %5.1f %5.1f   %7.0f %7.0f ',\
                header='        time      matplotlib_time B[nT] Bx   By     Bz   N[ccm-3] V[km/s] ')
 
    #with last 3 variables
@@ -460,7 +484,7 @@ def ovation_global_north(wic,dt,colormap_input,max_level, outputdir):
 
  crs=ccrs.PlateCarree()
 
- fig = plt.figure(1,figsize=[12, 12],dpi=80) 
+ fig = plt.figure(2,figsize=[12, 12],dpi=80) 
  fig.set_facecolor('black') 
  fig.text(0.99,0.01,'C. Möstl / IWF-helio, Austria', color='white',fontsize=10,ha='right',va='bottom')
  

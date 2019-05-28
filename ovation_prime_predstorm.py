@@ -69,7 +69,7 @@ class FluxEstimator(object):
 
   
 
-    def get_flux_for_time(self, dt, wind, hemi):
+    def get_flux_for_time(self, dt, ec_average, hemi):
         """
         returns grid_mlats, grid_mlts, gridflux for 
         given time, predstorm_input file, and hemisphere 
@@ -80,10 +80,7 @@ class FluxEstimator(object):
         hemisphere: 'N' 
         
         """
-        #calculates the average solar wind of the last 4 hours with weighting as
-        #described in Newell et al. 2010 JGR Seasonal variations, paragraph 25     
-        #time dt, file with predstorm output; only avgsw.ec is used later
-        avgsw = oup.calc_avg_solarwind_predstorm(dt,wind)
+    
       
         doy = dt.timetuple().tm_yday        #get doy of current date dt which is a datetime object
         weightsN = self.season_weights(doy) #get weights for northern hemisphere
@@ -101,7 +98,7 @@ class FluxEstimator(object):
                 flux_estimator = self.seasonal_flux_estimators[season]          #get one of the four SeasonalFluxEstimator objects, defined when calling the FluxEstimator class           
                 #calculate fluxes for season and solar wind coupling avgsw.ec and for both hemispheres
                 #grid_mlatsN, grid_mltsN, grid_fluxN, gridmlatsS, grid_mltsS, grid_fluxS = flux_estimator.get_gridded_flux(avgsw.ec)
-                grid_mlatsN, grid_mltsN, grid_fluxN = flux_estimator.get_gridded_flux(avgsw.ec[0])                
+                grid_mlatsN, grid_mltsN, grid_fluxN = flux_estimator.get_gridded_flux(ec_average)                
                 #add for this doy each season with weights
                 gridflux = gridflux+ grid_fluxN*float(weightsN[season])
         
@@ -633,7 +630,6 @@ class SeasonalFluxEstimator(object):
                 #fluxgridS[j_mlat, i_mlt] = self.estimate_auroral_flux(dF, i_mlt, j_mlat)
 
         
-        #******check why mlts < 0 happen here
         #interpolate wedge
         if interp_N: fluxgridN = self.interp_wedge(mlatgridN, mltgridN, fluxgridN)
     

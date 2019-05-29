@@ -4,7 +4,7 @@ mode=0                        # select mode: 0 for real time mode, 1 for local f
 
 time_resolution =  30           # time resolution of resulting auroramaps in minutes
 
-output_directory='run_now_test_1'            #specify output directory of frames and movies under "results/"
+output_directory='run_now_test_4'            #specify output directory of frames and movies under "results/"
 
 
 
@@ -17,7 +17,7 @@ window_minutes=20                #window in minutes for smoothing the coupling w
 
                                    # in real time mode, start time is always now in UTC
 past_hours      =  0               # in real time mode, start time with previous hours
-future_hours    =  1             # in real time mode, number of hours into future, 0 for one frame only
+future_hours    =  24             # in real time mode, number of hours into future, 0 for one frame only
 
 #online source file for real time mode
 predstorm_url='https://www.iwf.oeaw.ac.at/fileadmin//staff/SP/cmoestl/readtime/predstorm_real.txt'

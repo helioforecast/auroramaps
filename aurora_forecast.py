@@ -21,16 +21,17 @@ last update May 2019
 TO DO: 
 
 core:
-- sum both hemispheres as in IDL ovation, - comparison to IDL version of gridded flux
-- code optimize - bottlenecks with numba (where grids are calculated); get_gridded_flux
-  and use normal numpy arrays and check for optimization (functions often used, grids...)
-- add southern hemisphere complete later (coordinate conversion etc.)
-- add equatorial auroral boundary Case et al. 2016
-- how to get probabilites correctly? ask Nathan Case
+- code optimize - interp wedge with numba
+- get flux for time -> weights for both seasons? how correctly?
+- compare further with ovationpyme and IDL version
+- add wave flux
+- add southern hemisphere on world map later (with coordinate conversion etc.) maybe optimize run times here? with own function
+- add equatorial auroral boundary Case et al. 2016, how to get probabilites correctly? ask Nathan Case
 
 plotting:
+- europe and north america with style like global, higher res background image
 - add colorbars for probabilites, colormap should fade into background but oval should also visible for small values
-- make nowcast better check with direct comparison with NOAA global images
+- make check with direct comparison with NOAA global images nowcast
 - 180° longitude on world map better interpolation (interpolate on mlatgrid before? or own way to do it instead of wrap?)
 - transparent to white colormap so that it looks like viirs images for direct comparison
 - split land on dayside / night lights on night side 
@@ -46,8 +47,9 @@ plotting:
 test bottlenecks: 
 >> python -m cProfile -s tottime aurora_forecast.py
 
-or use in ipython for functions
->> %timeit function_name 
+or use in ipython for function run times:
+>> %timeit function_name()
+>> %time  function_name()
 '''
 
 import matplotlib
@@ -294,9 +296,9 @@ for k in np.arange(0,len(ts)): #go through all times
     sw=oup.calc_avg_solarwind_predstorm(ts[k],l1wind)   #make solarwind with averaging over last 4 hours, only for command line 
     print('Byz =',sw.by[0],sw.bz[0],' nT   V =',int(sw.v[0]), 'km/s')
     #for the Newell coupling Ec, normalized to cycle average, smoothed for high time resolution
-    print('Ec to cycle average: ',np.round(sw.ec[0]/coup_cycle,1), ' Ec =',int(swav.ec[0]))  
+    print('Ec to cycle average: ',np.round(swav.ec[k]/coup_cycle,1), ' <Ec> =',int(swav.ec[k]))  
     
-    #get fluxes for northern hemisphere and sum them **check -> do averages and sum both
+    #get fluxes for northern hemisphere 
     mlatN, mltN, fluxNd=de.get_flux_for_time(ts[k],swav.ec[k])
     mlatN, mltN, fluxNm=me.get_flux_for_time(ts[k],swav.ec[k])
     #mlatN, mltN, fluxNw=we.get_flux_for_time(ts[k],inputfile, hemi='N')  #wave flux not correct yet
@@ -310,8 +312,10 @@ for k in np.arange(0,len(ts)): #go through all times
     #oup.global_ovation_flux(mlatN,mltN,fluxNw,ts[0])
     #oup.global_ovation_flux(mlatN,mltN,fluxNd,ts[k])
     #sys.exit()
+  
+  
+    #if k==3: sys.exit()
 
-    sys.exit()
  
     #####################################  (2b) coordinate conversion magnetic to geographic 
     #Coordinate conversion MLT to AACGM mlon/lat to geographic coordinates
@@ -320,7 +324,7 @@ for k in np.arange(0,len(ts)): #go through all times
     #so we need to convert magnetic local time (MLT) to longitude first
     #extract from mltN first 96 MLTs for 1 latitude bin convert to magnetic longitude 
     mlonN_1D_small=aacgmv2.convert_mlt(mltN[0],ts[k],m2a=True)
-    #copy result rest 80 times because MLT is same for all latitudes
+    #copy result  80 times because MLT is same for all latitudes
     mlonN_1D=np.tile(mlonN_1D_small,mlatN.shape[0])
     
     #this will make a 1D array for the latitudes compatible with the 1D array created above    

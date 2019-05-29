@@ -81,8 +81,7 @@ class FluxEstimator(object):
         ec_average: Newell coupling for this timestep    
         
         calls: season_weights(), seasonal_flux_estimator.get_gridded_flux
-        
-        %time: 87 ms    
+  
         """
           
         doy = dt.timetuple().tm_yday        #get doy of current date dt which is a datetime object
@@ -119,7 +118,7 @@ class FluxEstimator(object):
 
 
 
-
+        #older code
         '''
         for season in self.seasons:
             #if the weight for a season is greater 0, go on (otherwise the flux from this season stays 0)
@@ -264,9 +263,9 @@ class SeasonalFluxEstimator(object):
         self.premodel_directory='data/premodel/'         #define premodel directory
         nmlt = 96              #number of mag local times in arrays (resolution of 15 minutes)
         nmlat = 160            #number of mag latitudes in arrays (resolution of 0.5 degree, for two hemispheres))
-        ndF = 12               #number of coupling strength bins
+        nEc = 12               #number of coupling strength bins
         self.jtype, self.atype = jtype, atype
-        self.n_mlt_bins, self.n_mlat_bins, self.n_dF_bins = nmlt, nmlat, ndF
+        self.n_mlt_bins, self.n_mlat_bins, self.n_Ec_bins = nmlt, nmlat, nEc
         
         #The mlat bins are organized like -50:-dlat:-90, 50:dlat:90
         self.mlats = np.concatenate([np.linspace(-90., -50., self.n_mlat_bins//2)[::-1],
@@ -282,11 +281,11 @@ class SeasonalFluxEstimator(object):
                           6:"ion average energy"}
  
         #check whether premodel data has been loaded from the txts into one pickle file, do if not
-        if os.path.isfile('data/premodel/all_premodel_python.p') == False:
+        if os.path.isfile(self.premodel_directory+'/all_premodel_python.p') == False:
             self.make_premodel_pickle()          
       
         #load pickle file       
-        ov=pickle.load(open('data/premodel/all_premodel_python.p', 'rb' ))
+        ov=pickle.load(open(self.premodel_directory+'all_premodel_python.p', 'rb' ))
         #print('loaded pickle')
         #print(atype)
         #print(season)    
@@ -377,121 +376,86 @@ class SeasonalFluxEstimator(object):
   
   
    
-    def get_gridded_flux(self, dF, combined_N_and_S=False, interp_N=True):
+    def get_gridded_flux(self, Ec):
         """
         Return the flux interpolated onto arbitrary locations
         in mlats and mlts for a given Newell coupling (dF)
 
-        combined_N_and_S, bool, optional
-            Average the fluxes for northern and southern hemisphere
-            and use them for both hemispheres (this is what standard
-            ovation prime does always I think, so I've made it default)
-            The original code says that this result is appropriate for 
-            the northern hemisphere, and to use 365 - actual doy to
-            get a combined result appropriate for the southern hemisphere
-
-        interp_N, bool, optional
-            Interpolate flux linearly for each latitude ring in the wedge
-            of low coverage in northern hemisphere dawn/midnight region
+        Average the fluxes for northern and southern hemisphere
+        and use them for both hemispheres (this is what standard
+        ovation prime does always I think, so I've made it default)
+        The original code says that this result is appropriate for 
+        the northern hemisphere, and to use 365 - actual doy to
+        get a combined result appropriate for the southern hemisphere
+        
+        calls: 
+        - classic version: estimate_auroral_flux() interp_wedge() 
+        - optimized version: make_flux_fast_N, make_flux_fast_S (4 ms)
+        
         """
 
-        #make arrays for northern hemisphere
-        fluxgridN = np.zeros((self.n_mlat_bins//2, self.n_mlt_bins)) #// means results is integer
-        #Make grid coordinates
+        #make grid and flux array for both hemispheres
+        #north latitudes from +50 to +90 MLT from 0 to 24
         mlatgridN, mltgridN = np.meshgrid(self.mlats[self.n_mlat_bins//2:], self.mlts, indexing='ij')
+        #south latitudes from -50 to -90, MLT from 0 to 24
+        mlatgridS, mltgridS = np.meshgrid(self.mlats[:self.n_mlat_bins//2], self.mlts, indexing='ij')
+         
+   
+        fluxgridN = np.zeros((self.n_mlat_bins//2, self.n_mlt_bins)) #// means results is integer
+        fluxgridS = np.zeros((self.n_mlat_bins//2, self.n_mlt_bins)) #// means results is integer
 
-        #make arrays for southern hemisphere
-        #fluxgridS = np.zeros((self.n_mlat_bins//2, self.n_mlt_bins))
-        #Make grid coordinates
-        #mlatgridS, mltgridS = np.meshgrid(self.mlats[:self.n_mlat_bins//2], self.mlts, indexing='ij')
-        
-        #go through each grid point of both hemispheres to get the flux with estimate_auroral_flux
-        for i_mlt in np.arange(self.n_mlt_bins):         #all magnetic local times
-            for j_mlat in np.arange(self.n_mlat_bins//2):     #all magnetic latitudes
+        #numba optimized version for electron energy flux; key for using numba is to not define arrays but pass all of them to the function
+        fluxgridN,fluxgridS = make_flux_fast(fluxgridN, fluxgridS, self.n_mlt_bins, self.n_mlat_bins, Ec,self.b1a,self.b2a,self.b1p,self.b2p,self.prob,self.n_Ec_bins)
+ 
+        '''  
+        #classic (slow) version:
+        fluxgridN = np.zeros((self.n_mlat_bins//2, self.n_mlt_bins)) #// means results is integer
+        fluxgridS = np.zeros((self.n_mlat_bins//2, self.n_mlt_bins))
+        #go through each grid point of both hemispheres 
+        #to get the flux for this bin with estimate_auroral_flux        
+        for i_mlt in np.arange(self.n_mlt_bins):         #all magnetic local times 96
+            for j_mlat in np.arange(self.n_mlat_bins//2):     #all magnetic latitudes 80
                 #The mlat bins for the northern hemisphere start at 80, southern at 0
-                fluxgridN[j_mlat, i_mlt] = self.estimate_auroral_flux(dF, i_mlt, self.n_mlat_bins//2+j_mlat)
-                #for southern hemisphere do
-                #fluxgridS[j_mlat, i_mlt] = self.estimate_auroral_flux(dF, i_mlt, j_mlat)
+                fluxgridN[j_mlat, i_mlt] = self.estimate_auroral_flux(Ec, i_mlt, self.n_mlat_bins//2+j_mlat)
+                #for southern hemisphere               
+                #fluxgridS2[j_mlat, i_mlt] = self.estimate_auroral_flux(Ec, i_mlt, j_mlat)
 
+        a=np.mean(fluxgridN2-fluxgridN)
+        print(np.array_equal(fluxgridN2,fluxgridN))
+        print(a)      
+        '''
         
-        #interpolate wedge
-        if interp_N: fluxgridN = self.interp_wedge(mlatgridN, mltgridN, fluxgridN)
-    
-        return mlatgridN, mltgridN, fluxgridN
-
-        #if not combined_N_and_S:
-        #    return mlatgridN, mltgridN, fluxgridN, mlatgridS, mltgridS, fluxgridS
-        #else:
-        #    return mlatgridN, mltgridN, (fluxgridN+fluxgridS)/2.
+        #interpolate wedge  *** to do optimize with numba, what about southern hemisphere?
+        fluxgridN = interp_wedge_fast(mlatgridN, mltgridN, fluxgridN)
+  
+        #return mlatgridN, mltgridN, fluxgridN
+        return mlatgridN, mltgridN, (fluxgridN+fluxgridS)/2.
       
-            
-        
-     
-        
-        
-
-    def which_dF_bin(self, dF):
-        """
-        Given a coupling strength value, finds the bin it falls into
-        """
-        #4421 is is a solar cycle average of the Ec coupling parameter, e.g. Newell et al. 2009
-        i_dFbin = np.round(dF/(4421./8.))
-        if i_dFbin < 0: i_dFbin = 0
-        if i_dFbin > 0: i_dFbin = self.n_dF_bins-1
-    
-        return int(i_dFbin)
-        
-     
-        
-
-    def prob_estimate(self, dF, i_mlt_bin, i_mlat_bin): ########### ****** OPTIMIZE
-        """
-        Estimate probability of <something> by using tabulated
-        linear regression coefficients ( from prob_b files )
-        WRT coupling strength dF (which are different for each position bin)
-
-        If p doesn't come out sensible by the initial regression,
-        (i.e both regression coefficients are zero)
-        then tries loading from the probability array. If the value
-        in the array is zero, then estimates a value using adjacent
-        coupling strength bins in the probability array
-        """
-
-        #Look up the regression coefficients
-        b1, b2 = self.b1p[i_mlt_bin, i_mlat_bin], self.b2p[i_mlt_bin, i_mlat_bin]
-
-        p1 = b1 + b2*dF #What is this the probability of?
-        
-        #pdb.set_trace()
-        
-        #check if p1 is in correct range 0 to 1, otherwise correct    
-        if p1 < 0.: p1 = 0.
-        if p1 > 1.: p1 = 1.
-
-        if b1 == 0. and b2 == 0.:
-            i_dFbin = self.which_dF_bin(dF)
-            #Get the tabulated probability
-            p1 = self.prob[i_mlt_bin, i_mlat_bin, i_dFbin]
-
-            if p1 == 0.:
-                #If no tabulated probability we must estimate by interpolating
-                #between adjacent coupling strength bins
-                i_dFbin_1 = i_dFbin - 1 if i_dFbin > 0 else i_dFbin+2 #one dF bin before by preference, two after in extremis
-                i_dFbin_2 = i_dFbin + 1 if i_dFbin < self.n_dF_bins-1 else i_dFbin-2 #one dF bin after by preference, two before in extremis
-                p1 = (self.prob[i_mlt_bin, i_mlat_bin, i_dFbin_1] + self.prob[i_mlt_bin, i_mlat_bin, i_dFbin_2])/2.
-
-        return p1
-        
    
         
+
+    def estimate_auroral_flux(self, Ec, i_mlt_bin, i_mlat_bin): 
+        """
+        estimates the flux using the regression coefficients in the 'a' files
+        calls prob_estimate() 20 ms, correct_flux() 6 ms
+        """
+        p = self.prob_estimate(Ec, i_mlt_bin, i_mlat_bin) 
+        #this is the main formula: use the coefficients in the premodel files to calculate fluxes
+        flux = (self.b1a[i_mlt_bin, i_mlat_bin]+self.b2a[i_mlt_bin, i_mlat_bin]*Ec)*p
+        
+        return self.correct_flux(flux)
+   
+         
             
     def correct_flux(self, flux):
         """
         A series of magical (unexplained, unknown) corrections to flux given 
         a particular type of flux
+        noise reduction?
         """
         fluxtype = self.jtype
 
+        #flux must not be less than 0
         if flux < 0.: flux = 0.
 
         if self.atype is not 'ions':
@@ -524,20 +488,59 @@ class SeasonalFluxEstimator(object):
 
 
 
+     
         
 
-    def estimate_auroral_flux(self, dF, i_mlt_bin, i_mlat_bin): ########### ****** OPTIMIZE
+    def prob_estimate(self, Ec, i_mlt_bin, i_mlat_bin): 
         """
-        estimates the flux using the regression coeffecients in the 'a' files
+        the final flux for each bin is multiplied by this probability 
+        coefficients come from prob_b files, depends on Newell coupling Ec
         """
-        p = self.prob_estimate(dF, i_mlt_bin, i_mlat_bin)
-        #print(p, b1, b2, dF)
-        flux = (self.b1a[i_mlt_bin, i_mlat_bin]+self.b2a[i_mlt_bin, i_mlat_bin]*dF)*p
-        return self.correct_flux(flux)
-   
-   
-   
-   
+
+        #Look up the regression coefficients
+        b1, b2 = self.b1p[i_mlt_bin, i_mlat_bin], self.b2p[i_mlt_bin, i_mlat_bin]
+
+        p1 = b1 + b2*Ec 
+        
+        #check if p1 is in correct range 0 to 1, otherwise correct    
+        if p1 < 0.: p1 = 0.
+        if p1 > 1.: p1 = 1.
+
+
+        #if both regression coefficients are zero
+        #then try loading from the probability array. If the value
+        #in the array is zero, then estimates a value using adjacent
+        #coupling strength bins in the probability array
+        if b1 == 0. and b2 == 0.:
+            i_Ecbin = self.which_Ec_bin(Ec)
+            #Get the tabulated probability
+            p1 = self.prob[i_mlt_bin, i_mlat_bin, i_Ecbin]
+
+            if p1 == 0.:
+                #If no tabulated probability we must estimate by interpolating
+                #between adjacent coupling strength bins
+                i_Ecbin_1 = i_Ecbin - 1 if i_Ecbin > 0 else i_Ecbin+2 #one Ec bin before by preference, two after in extremis
+                i_Ecbin_2 = i_Ecbin + 1 if i_Ecbin < self.n_Ec_bins-1 else i_Ecbin-2 #one Ec bin after by preference, two before in extremis
+                p1 = (self.prob[i_mlt_bin, i_mlat_bin, i_Ecbin_1] + self.prob[i_mlt_bin, i_mlat_bin, i_Ecbin_2])/2.
+
+        return p1
+        
+                 
+        
+
+    def which_Ec_bin(self, Ec):
+        """
+        Given a coupling strength value, finds the bin it falls into
+        """
+        #4421 is is a solar cycle average of the Ec coupling parameter, e.g. Newell et al. 2009
+        i_Ecbin = np.round(Ec/(4421./8.))
+        if i_Ecbin < 0: i_Ecbin = 0
+        if i_Ecbin > 0: i_Ecbin = self.n_Ec_bins-1
+    
+        return int(i_Ecbin)
+        
+     
+      
        
         
     def interp_wedge(self, mlatgridN, mltgridN, fluxgridN):
@@ -703,93 +706,155 @@ class SeasonalFluxEstimator(object):
             pickle.dump(self.ov,open(self.premodel_directory+'all_premodel_python.p', 'wb' ))
             print('done.')     
         
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
+           
                
-        
-        
-    
+#################### NUMBA optimization in get_flux_for_time for electron energy flux
 
 
-   
-'''    
-      
-# functions to optimize with numba      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-def which_dF_bin2(self, dF):
-        """
-        Given a coupling strength value, finds the bin it falls into
-        """
-        #4421 is is a solar cycle average of the Ec coupling parameter, e.g. Newell et al. 2009
-        i_dFbin = np.round(dF/(4421./8.))
-        if i_dFbin < 0: i_dFbin = 0
-        if i_dFbin > 0: i_dFbin = self.n_dF_bins-1
-    
-        return int(i_dFbin)  
-      
-      
-      
+
+@njit
+def make_flux_fast(fluxgridN,fluxgridS, n_mlt_bins, n_mlat_bins, Ec, b1a, b2a, b1p, b2p, prob, n_Ec_bins):  
+    '''
+    get electron energy flux for each grid point optimized with numba for southern hemisphere
+    '''
+    #go through each grid point
+    for i_mlt in np.arange(n_mlt_bins):                #all magnetic local times 96
+          for j_mlat in np.arange(n_mlat_bins//2):     #all magnetic latitudes 80
+
+              #northern hemisphere 
+              p = prob_estimate(Ec, b1p[i_mlt,j_mlat+n_mlat_bins//2],b2p[i_mlt,j_mlat+n_mlat_bins//2],prob[i_mlt,j_mlat+n_mlat_bins//2],n_Ec_bins) 
+              flux=(b1a[i_mlt, j_mlat+n_mlat_bins//2]+b2a[i_mlt, j_mlat+n_mlat_bins//2]*Ec)*p
+              fluxgridN[j_mlat, i_mlt] = correct_flux(flux)
+
+              #southern hemisphere
+              p = prob_estimate(Ec, b1p[i_mlt,j_mlat],b2p[i_mlt,j_mlat],prob[i_mlt,j_mlat],n_Ec_bins) 
+              flux=(b1a[i_mlt, j_mlat]+b2a[i_mlt, j_mlat]*Ec)*p
+              fluxgridS[j_mlat, i_mlt] = correct_flux(flux)
+              
+    return fluxgridN,fluxgridS
+
+
+@njit  #ok mit ovationpyme
+def correct_flux(flux):
+    #for electron energy flux only
+    if flux < 0.: flux = 0.
+    if flux > 10.:
+        flux = 0.5
+    elif flux > 5.:
+        flux = 5.             
+    return flux
+
+     
 @njit      
-def interp_wedge2(mlatgridN, mltgridN, fluxgridN):
-        """
-        Interpolates across the wedge shaped data gap around 50 magnetic latitude and 23-4 MLT.
-        Interpolation is performed individually across each magnetic latitude ring,
-        only missing flux values are filled with the using the interpolant
-        """
-        #Constants copied from IDL code
-        x_mlt_min=-1.0   #minimum MLT for interpolation [hours]
-        x_mlt_max=4.0    #maximum MLT for interpolation [hours]
-        x_mlat_min=50.0  #minimum MLAT for interpolation [degrees]
-        #x_mlat_max=67.0
-        x_mlat_max=75.0  #maximum MLAT for interpolation [degrees] --change if desired (LMK increased this from 67->75)
+def prob_estimate(Ec, b1,b2,prob,n_Ec_bins): 
 
-        valid_interp_mlat_bins = np.logical_and(mlatgridN[:, 0]>=x_mlat_min, mlatgridN[:, 0]<=x_mlat_max)
-        #inwedge = np.zeros(fluxgridN.shape, dtype=bool) #Store where we did interpolation
+    p1 = b1 + b2*Ec 
+
+    if p1 < 0.: p1 = 0.
+    if p1 > 1.: p1 = 1.
+
+    if b1 == 0. and b2 == 0.:
+        i_Ecbin = which_Ec_bin(Ec,n_Ec_bins)
+        p1 = prob[i_Ecbin]
+        if p1 == 0.:
+           i_Ecbin_1 = i_Ecbin - 1 if i_Ecbin > 0 else i_Ecbin+2 
+           i_Ecbin_2 = i_Ecbin + 1 if i_Ecbin < n_Ec_bins-1 else i_Ecbin-2 
+           p1 = (prob[i_Ecbin_1] + prob[i_Ecbin_2])/2.
+    return p1
         
-        pdb.set_trace()
-        #go through all rings of constant latitude
-        for i_mlat_bin in np.flatnonzero(valid_interp_mlat_bins):
-            
-            #get array for this latitude and this flux
-            this_mlat = mlatgridN[i_mlat_bin, 0]
-            this_flux = fluxgridN[i_mlat_bin, :]
-            this_mlt = mltgridN[i_mlat_bin, :]
+@njit  #***check in IDL version and ovationpyme
+def which_Ec_bin(Ec,n_Ec_bins):
+        i_Ecbin = np.round(Ec/(4421./8.))
+        if i_Ecbin < 0: i_Ecbin = 0
+        if i_Ecbin > 0: i_Ecbin = n_Ec_bins-1    
+        return int(i_Ecbin)
 
-            #Change from 0-24 MLT to -12 to 12 MLT, so that there is no discontinuity at midnight when we interpolate
-            this_mlt[this_mlt>12.] = this_mlt[this_mlt>12.]-24.
-        
-            #select grid points from -1 to 4 h MLT
-            valid_interp_mlt_bins = np.logical_and(this_mlt >= x_mlt_min, this_mlt <= x_mlt_max)
-            
-    
-            #bins where flux is missing
-            mlt_bins_missing_flux = np.logical_not(this_flux > 0.)
-            #bins where flux is missing and which are in the valid range of the wedge for interpolation
-            interp_bins_missing_flux = np.logical_and(valid_interp_mlt_bins, mlt_bins_missing_flux)
-            
-            #inwedge[i_mlat_bin, :] = interp_bins_missing_flux     
-            
-            if np.count_nonzero(interp_bins_missing_flux) > 0: #go through all bins with missing data for flux
-                #Bins right next to missing wedge probably have bad statistics, so don't include them
-                interp_bins_missing_flux_inds = np.flatnonzero(interp_bins_missing_flux)
-                for edge_offset in np.arange(1, 7):
-                        lower_edge_ind = interp_bins_missing_flux_inds[0]-edge_offset
-                        upper_edge_ind = np.mod(interp_bins_missing_flux_inds[-1]+edge_offset, len(interp_bins_missing_flux))       
-                        interp_bins_missing_flux[lower_edge_ind] = interp_bins_missing_flux[interp_bins_missing_flux_inds[0]]
-                        interp_bins_missing_flux[upper_edge_ind] = interp_bins_missing_flux[interp_bins_missing_flux_inds[-1]]
-                
-                interp_source_bins = np.flatnonzero(np.logical_not(interp_bins_missing_flux))
-                 
-                #interpolate all missing data points 
-                flux_interp = interpolate.interp1d(this_mlt[interp_source_bins], this_flux[interp_source_bins], kind='linear')
-                fluxgridN[i_mlat_bin, interp_bins_missing_flux] = flux_interp(this_mlt[interp_bins_missing_flux])
 
-        return fluxgridN      
- '''
+
+
+
+
+
+
+
+
+				
+@jit				
+def interp_wedge_fast(mlatgridN, mltgridN, fluxgridN):
+				"""
+				Interpolates across the wedge shaped data gap around 50 magnetic latitude and 23-4 MLT.
+				Interpolation is performed individually across each magnetic latitude ring,
+				only missing flux values are filled with the using the interpolant
+				"""
+				#Constants copied from IDL code
+				x_mlt_min=-1.0   #minimum MLT for interpolation [hours]
+				x_mlt_max=4.0    #maximum MLT for interpolation [hours]
+				x_mlat_min=50.0  #minimum MLAT for interpolation [degrees]
+				#x_mlat_max=67.0
+				x_mlat_max=75.0  #maximum MLAT for interpolation [degrees] --change if desired (LMK increased this from 67->75)
+
+				valid_interp_mlat_bins = np.logical_and(mlatgridN[:, 0]>=x_mlat_min, mlatgridN[:, 0]<=x_mlat_max)
+				#inwedge = np.zeros(fluxgridN.shape, dtype=bool) #Store where we did interpolation
+				
+				
+				#Change all mlts from 0-24 MLT to -12 to 12 MLT, so that there is no discontinuity at midnight when we interpolate
+
+				#for i_mlat_bin in np.arange(80):
+				
+				#    this_mlt = mltgridN[i_mlat_bin, :]
+				#    this_mlt[this_mlt>12.] = this_mlt[this_mlt>12.]-24.
+
+			
+				#go through all rings of constant latitude
+				for i_mlat_bin in np.flatnonzero(valid_interp_mlat_bins):
+								
+								#get array for this latitude and this flux
+								this_mlat = mlatgridN[i_mlat_bin, 0]
+								this_flux = fluxgridN[i_mlat_bin, :]
+								this_mlt = mltgridN[i_mlat_bin, :]
+
+								#Change from 0-24 MLT to -12 to 12 MLT, so that there is no discontinuity at midnight when we interpolate
+								this_mlt[this_mlt>12.] = this_mlt[this_mlt>12.]-24.
+				
+								#select grid points from -1 to 4 h MLT
+								valid_interp_mlt_bins = np.logical_and(this_mlt >= x_mlt_min, this_mlt <= x_mlt_max)
+								
+
+								#bins where flux is missing
+								mlt_bins_missing_flux = np.logical_not(this_flux > 0.)
+								#bins where flux is missing and which are in the valid range of the wedge for interpolation
+								interp_bins_missing_flux = np.logical_and(valid_interp_mlt_bins, mlt_bins_missing_flux)
+								
+								#inwedge[i_mlat_bin, :] = interp_bins_missing_flux     
+								
+								if np.count_nonzero(interp_bins_missing_flux) > 0: #go through all bins with missing data for flux
+												#Bins right next to missing wedge probably have bad statistics, so don't include them
+												interp_bins_missing_flux_inds = np.flatnonzero(interp_bins_missing_flux)
+												for edge_offset in np.arange(1, 7):
+																				lower_edge_ind = interp_bins_missing_flux_inds[0]-edge_offset
+																				upper_edge_ind = np.mod(interp_bins_missing_flux_inds[-1]+edge_offset, len(interp_bins_missing_flux))       
+																				interp_bins_missing_flux[lower_edge_ind] = interp_bins_missing_flux[interp_bins_missing_flux_inds[0]]
+																				interp_bins_missing_flux[upper_edge_ind] = interp_bins_missing_flux[interp_bins_missing_flux_inds[-1]]
+												
+												interp_source_bins = np.flatnonzero(np.logical_not(interp_bins_missing_flux))
+													
+												#interpolate all missing data points 
+												flux_interp = interpolate.interp1d(this_mlt[interp_source_bins], this_flux[interp_source_bins], kind='linear')
+												fluxgridN[i_mlat_bin, interp_bins_missing_flux] = flux_interp(this_mlt[interp_bins_missing_flux])
+
+				return fluxgridN      
+		
+		
+		

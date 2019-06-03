@@ -21,10 +21,12 @@ last update May 2019
 TO DO: 
 
 core:
-- code optimize - interp wedge with numba
+- multiprocessing - für die frames
+- check mit IDL code, debuggen, beide hemispheres richtig? 
+- function für coordinates und für worldmap, tricks zum schneller plotten? evt auch mit multiprocessing
 - get flux for time -> weights for both seasons? how correctly?
 - compare further with ovationpyme and IDL version
-- add wave flux
+- add wave flux (needs good interpolation like OP13)
 - add southern hemisphere on world map later (with coordinate conversion etc.) maybe optimize run times here? with own function
 - add equatorial auroral boundary Case et al. 2016, how to get probabilites correctly? ask Nathan Case
 
@@ -54,6 +56,8 @@ or use in ipython for function run times:
 
 import matplotlib
 matplotlib.use('Qt5Agg') 
+#matplotlib.use('Agg') 
+
 
 import urllib
 from urllib.request import urlopen
@@ -118,6 +122,7 @@ from aurora_forecast_input import *
 start_all=time.time()
 
 plt.close('all')
+
 
 utcnow=oup.round_to_minute(datetime.datetime.utcnow()) #get current time as datetime object in UTC
 
@@ -313,7 +318,6 @@ for k in np.arange(0,len(ts)): #go through all times
     #oup.global_ovation_flux(mlatN,mltN,fluxNd,ts[k])
     #sys.exit()
   
-  
     #if k==3: sys.exit()
 
  
@@ -347,6 +351,11 @@ for k in np.arange(0,len(ts)): #go through all times
     #smooth small array first - but strange results!
     #fluxN=scipy.ndimage.gaussian_filter(fluxN,sigma=(5,5))
     fluxN_1D=fluxN.reshape(7680,1)   #also change flux values to 1D array
+
+
+
+    #***bottleneck, maybe make own interpolation and accelerate with numba
+    #https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.interpolate.griddata.html
 
     #interpolate to world grid, and remove 1 dimension with squeeze
     aimg=np.squeeze(scipy.interpolate.griddata(geo_2D, fluxN_1D, (wx, wy), method='linear',fill_value=0))
@@ -435,7 +444,7 @@ print()
 
 
 
-
+'''
 
 #####################################
 
@@ -472,7 +481,7 @@ print()
 
 
 
-'''
+
 #####################  (2c) Convert to probabilities, smooth etc.
  
 # ************* NOT CORRECT -> how to go from erg cm-2 s-1 to probability?

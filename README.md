@@ -1,7 +1,14 @@
 # AURORAMAPS
 
-Running the OVATION aurora model in python. 
-Solar wind input comes from OMNI2 data or the PREDSTORM L1 solar wind forecast. 
+Running the OVATION aurora model in python.
+Solar wind input comes from OMNI2 data or the PREDSTORM L1 solar wind forecast (DSCOVR/STEREO-A spacecraft). 
 The results are plotted with cartopy on different types of world maps.
 
-(Work in progress, May 2019, C. Moestl)
+Status: work in progress, June 2019, C. Moestl/IWF-helio
+
+OVATION has been largely rewritten based on https://github.com/lkilcommons/OvationPyme
+Optimization with the numba package is implemented, multiprocessing TBD
+
+
+
+

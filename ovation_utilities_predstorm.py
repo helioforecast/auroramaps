@@ -715,7 +715,7 @@ def global_ovation_flux(magnetic_latitude,magnetic_local_time,flux,dt):
  
  
  #read in IDL output for comparison
- idl_file_in='ovation_output/ov_diff_Eflux_2017_1230_2330.txt'
+ idl_file_in='data/idl_output/ov_diff_Eflux_2017_1230_2330.txt'
  #idl_file_in='ovation_output/ov_mono_Eflux_2017_1230_2330.txt'
  #idl_file_in='ovation_output/ov_wave_Eflux_2017_1230_2330.txt'
  

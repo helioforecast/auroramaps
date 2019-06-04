@@ -67,11 +67,11 @@ def calc_avg_solarwind_predstorm(dt,l1wind):
 
     avgsw.time = mdates.date2num(dt)
     
-
-   
+  
     #go through all dt times:
     for i in np.arange(0,np.size(dt)):
 
+       
         dt_mat_hour = mdates.date2num(round_to_hour_start(dt[i]))  #get with input dt to hour start and continute with matplotlib times
         closest_time_ind_hour = np.argmin(abs(l1wind.time-dt_mat_hour))  #find index of closest time to dt_mat_hour
         dt_mat = mdates.date2num(dt[i])  #convert input datetimte dt to matplotlib time
@@ -143,15 +143,22 @@ def round_to_hour(dt):
     '''
     round datetime objects to nearest hour
     '''
-    dt_start_of_hour = dt.replace(minute=0, second=0, microsecond=0)
-    dt_half_hour = dt.replace(minute=30, second=0, microsecond=0)
+    #if not a list, change to list
+    if type(dt)!=list: 
+         dt=[dt]
+    
+    for i in np.arange(0,np.size(dt)):
+       dt_start_of_hour = dt[i].replace(minute=0, second=0, microsecond=0)
+       dt_half_hour = dt[i].replace(minute=30, second=0, microsecond=0)
 
-    if dt >= dt_half_hour:
-        # round up
-        dt = dt_start_of_hour + datetime.timedelta(hours=1)
-    else:
-        # round down
-        dt = dt_start_of_hour
+       if dt[i] >= dt_half_hour:
+          # round up
+           dt[i] = dt_start_of_hour + datetime.timedelta(hours=1)
+       else:
+          # round down
+           dt[i] = dt_start_of_hour
+
+
     return dt    
  
  
@@ -159,7 +166,12 @@ def round_to_hour_start(dt):
     '''
     round datetime objects to start of the current hour
     '''
-    dt_start_of_hour = dt.replace(minute=0, second=0, microsecond=0)
+    #if not a list, change to list
+    if type(dt)!=list: 
+        dt=[dt]
+
+    for i in np.arange(0,np.size(dt)):
+        dt_start_of_hour = dt[i].replace(minute=0, second=0, microsecond=0)
     return dt_start_of_hour
         
 
@@ -536,9 +548,6 @@ def ovation_global_north(wic,dt,colormap_input,max_level, outputdir):
      #print('Saved image:  ',plot_Nhemi_filename)
      
      
- #matplotlib.use('Qt5Agg')
-
-
 
 
 

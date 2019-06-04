@@ -21,6 +21,7 @@ last update May 2019
 TO DO: 
 
 core:
+- multiprocessing of aurora cubes
 - check mit IDL code, debuggen, beide hemispheres richtig? - get flux for time -> weights for both seasons? how correctly?, compare further with ovationpyme and IDL version
 - add equatorial auroral boundary Case et al. 2016, how to get probabilites correctly? ask Nathan Case
 - ensemble sims to produce equatorial boundary
@@ -111,7 +112,7 @@ from aurora_forecast_input import *
 
 
 
-def make_aurora_cube(ts,l1wind):
+def make_aurora_cube(ts):
   '''
   single processor version
   
@@ -217,22 +218,23 @@ def make_aurora_cube(ts,l1wind):
 
 
 
-def make_aurora_cube_multi(ts):
+def make_aurora_cube_multi(ts,ec,k):
     '''
     multiprocessing version - ts is a single datetime object into this function
+    for debugging use: make_aurora_cube_multi(tsm[0],ecm[0])   
     '''
     #print('Frame time',ts)
     
-    #get time which frame this is - with ts_multi, then get k number
-    #swav is global, ovation_img_multi is global
-    k=2
-    print(swav.ec[k])
-
     #################  (2a) get solar wind 
-    
-    mlatN, mltN, fluxNd=de.get_flux_for_time(ts,swav[k].ec)
-    mlatN, mltN, fluxNm=me.get_flux_for_time(ts,swav[k].ec)
+        
+    mlatN, mltN, fluxNd=de.get_flux_for_time(ts,ec)
+    mlatN, mltN, fluxNm=me.get_flux_for_time(ts,ec)
     fluxN=fluxNd+fluxNm #+fluxNw
+    
+    print(ts)
+    print(ec)
+    print(k)
+    print('....')
  
     ################  (2b) coordinate conversion magnetic to geographic 
     #Coordinate conversion MLT to AACGM mlon/lat to geographic coordinates
@@ -249,8 +251,7 @@ def make_aurora_cube_multi(ts):
     wx,wy=np.mgrid[-90:90:180/512,-180:180:360/1024]
     aimg=np.squeeze(scipy.interpolate.griddata(geo_2D, fluxN_1D, (wx, wy), method='linear',fill_value=0))
     aimg = scipy.ndimage.gaussian_filter(aimg,sigma=(5,7),mode='wrap') #wrap means wrapping at the 180 degree edge
-    print(aimg)
-    ovation_img_multi[:,:,k]=aimg
+    ovation_img_multi[:,:,0]=aimg
    
     
 
@@ -449,23 +450,24 @@ print()
 
 
 #multiprocessing
-
-
 from multiprocessing import Pool, cpu_count
 
-#ts, l1wind, swav übergeben
+#to function two arguments
+tsm=ts 
+ecm=swav.ec 
+km=np.arange(np.size(ts))
+
 #ovation_img_multi => shared variable
+#this is the array with the final world maps for each timestep, k needs to be known for each time step
+ovation_img_multi='global'
+ovation_img_multi=np.zeros([512,1024,np.size(ts)])
+print('nr of cores',cpu_count())
+p = Pool()
+p.starmap(make_aurora_cube_multi, zip(tsm,ecm,km))
+p.close()
+p.join()
 
-#this is the array with the final world maps for each timestep
-#ovation_img_multi=np.zeros([512,1024,np.size(ts)])
-#print('nr of cores',cpu_count())
-#p = Pool()
-#p.map(make_aurora_cube_multi, zip(ts))
-#p.close()
-#p.join()
-
-
-#single processing
+#single processing - use ts and ec to make aurora world map; get back wx, wy grid
 #ovation_img=make_aurora_cube(ts)
 
 

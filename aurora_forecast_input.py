@@ -2,7 +2,7 @@
 
 mode=0                        # select mode: 0 for real time mode, 1 for local file, 2 for OMNI2 data
 
-time_resolution =  1          # time resolution of resulting auroramaps in minutes
+time_resolution =  5          # time resolution of resulting auroramaps in minutes
 
 output_directory='run_now_test_5'            #specify output directory of frames and movies under "results/"
 

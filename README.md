@@ -8,7 +8,7 @@ Status: work in progress, June 2019, C. Moestl/IWF-helio
 
 OVATION has been largely rewritten based on https://github.com/lkilcommons/OvationPyme
 
-Optimization with the numba package is implemented, multiprocessing TBD
+Optimization with the numba and multiprocessing packages is implemented
 
 
 

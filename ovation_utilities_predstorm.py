@@ -195,7 +195,10 @@ def round_to_minute(dt):
 
 
 
-
+def reshape_ovation_img_multi(om,ovarr,oshape):    
+    for k in np.arange(oshape[2]):
+        om[:,:,k]=ovarr[oshape[0]*oshape[1]*k:oshape[0]*oshape[1]*(k+1)].reshape([oshape[0],oshape[1]])
+    return om    
 
 
 

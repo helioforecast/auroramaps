@@ -14,37 +14,39 @@ https://www.iwf.oeaw.ac.at/user-site/christian-moestl/
 
 published under GNU Lesser General Public License v3.0
 
-last update May 2019
+last update June 2019
 
 -----------------------------------------------------------------------------------
 
 TO DO: 
 
 core:
-- check mit IDL code, debuggen, beide hemispheres richtig? - get flux for time -> weights for both seasons? how correctly?, compare further with ovationpyme and IDL version
 - add equatorial auroral boundary Case et al. 2016, how to get probabilites correctly? ask Nathan Case
 - ensemble sims to produce equatorial boundary
+- check mit IDL code, debuggen, beide hemispheres richtig? - get flux for time -> weights for both seasons? how correctly?, compare further with ovationpyme and IDL version
 
-
+later:
 - add wave flux (needs good interpolation like OP13)
-- add southern hemisphere on world map later (with coordinate conversion etc.)
-- use numba or multiprocessing somewhere for speed? 
-- multiprocessing for saving the frames does not work on MacOS! maybe on linux simply use the plotting function with multiprocessing.pool
-  and multiple arguments (starmap)
+- add southern hemisphere on world map (with coordinate conversion etc.)
+- use numba or multiprocessing somewhere further for speed? 
+- multiprocessing for saving the frames does not work on MacOS! 
+  maybe on linux simply use the plotting function with multiprocessing.pool
+  and multiple arguments (starmap) like for the cubes
+- 180° longitude on world map better interpolation (interpolate on mlatgrid before? or own way to do it instead of wrap?)
+- auroral power on plot directly from ovation integrated (add function in opp)
 
 
 plotting:
 - europe and north america with style like global, higher res background image
+- Newell solar wind coupling als parameter in plot
 - add colorbars for probabilites, colormap should fade into background but oval should also visible for small values
-- make check with direct comparison with NOAA global images nowcast
-- 180° longitude on world map better interpolation (interpolate on mlatgrid before? or own way to do it instead of wrap?)
+- check with direct comparison with NOAA global images nowcast
 - transparent to white colormap so that it looks like viirs images for direct comparison
 - split land on dayside / night lights on night side 
   this should work in global_predstorm_north by loading background only once
   need to figure out how to get pixels from nightshade day/night and how to plot 
   only specific pixels (but then each background image must be updated)
 - Newell solar wind coupling als parameter in plot
-- auroral power on plot directly from ovation integrated (add function in opp)
 - indicate moon phase with astropy
 - cloud cover how? https://pypi.org/project/weather-api/ ? at least for locations
 
@@ -55,6 +57,7 @@ test bottlenecks:
 or use in ipython for function run times:
 >> %timeit function_name()
 >> %time  function_name()
+-----------------------------------------------------------------------------------
 '''
 
 import matplotlib
@@ -85,7 +88,11 @@ import os
 import time
 import numba as nb
 import importlib
-  
+from multiprocessing import Pool, cpu_count, Array
+
+from pandas.plotting import register_matplotlib_converters               
+register_matplotlib_converters()                                        
+
   
 # make sure own modules are 
 # automatically reloaded every time when using ipython
@@ -104,8 +111,149 @@ importlib.reload(aurora_forecast_input)
 from aurora_forecast_input import *
 
 
-
 ##################################### FUNCTIONS #######################################
+
+
+
+
+def make_aurora_cube(ts):
+  '''
+  single processor version
+  '''
+  #this is the array with the final world maps for each timestep
+  ovation_img=np.zeros([512,1024,np.size(ts)])
+  #make a world map grid in latitude 512 pixels, longitude 1024 pixel like NOAA
+  wx,wy=np.mgrid[-90:90:180/512,-180:180:360/1024]
+
+  #if ts is a single not a list, change to list to make it subscriptable
+  if type(ts)!=list: ts=[ts]
+
+  for k in np.arange(0,np.size(ts)): #go through all times
+ 
+    print('Frame number and time:', k, '  ',ts[k])
+    
+
+    #########################################  (2a) get solar wind 
+    startflux=time.time()
+   
+    #sw=oup.calc_avg_solarwind_predstorm(ts[k],l1wind)   #make solarwind with averaging over last 4 hours, only for command line 
+    #print('Byz =',sw.by[0],sw.bz[0],' nT   V =',int(sw.v[0]), 'km/s')
+    #for the Newell coupling Ec, normalized to cycle average, smoothed for high time resolution
+    #print('Ec to cycle average: ',np.round(swav.ec[k]/coup_cycle,1), ' <Ec> =',int(swav.ec[k]))  
+    
+    #get fluxes for northern hemisphere 
+    mlatN, mltN, fluxNd=de.get_flux_for_time(ts[k],swav.ec[k])
+    mlatN, mltN, fluxNm=me.get_flux_for_time(ts[k],swav.ec[k])
+    #mlatN, mltN, fluxNw=we.get_flux_for_time(ts[k],inputfile, hemi='N')  #wave flux not correct yet
+    fluxN=fluxNd+fluxNm #+fluxNw
+    #endflux=time.time()
+    #print('OVATION: ', np.round(endflux-startflux,2),' sec')
+    
+    #for debugging
+    #making flux images for comparison to OVATION IDL output
+    #change IDL file in this function for flux comparison
+    #oup.global_ovation_flux(mlatN,mltN,fluxNw,ts[0])
+    #oup.global_ovation_flux(mlatN,mltN,fluxNd,ts[k])
+    #sys.exit()
+  
+    #if k==3: sys.exit()
+
+ 
+    #####################################  (2b) coordinate conversion magnetic to geographic 
+    #Coordinate conversion MLT to AACGM mlon/lat to geographic coordinates
+    #startcoo=time.time()
+    #magnetic coordinates are  mltN mlonN in 2D grids
+    #so we need to convert magnetic local time (MLT) to longitude first
+    #extract from mltN first 96 MLTs for 1 latitude bin convert to magnetic longitude 
+    mlonN_1D_small=aacgmv2.convert_mlt(mltN[0],ts[k],m2a=True)
+    #copy result  80 times because MLT is same for all latitudes
+    mlonN_1D=np.tile(mlonN_1D_small,mlatN.shape[0])
+    
+    #this will make a 1D array for the latitudes compatible with the 1D array created above    
+    mlatN_1D=np.squeeze(mlatN.reshape(np.size(mltN),1))
+   
+    #magnetic coordinates are now mlatN mlonN, convert to geographic
+    (glatN_1D, glonN_1D, galtN) = aacgmv2.convert_latlon_arr(mlatN_1D,mlonN_1D, 100,ts[k], code="A2G")
+    #endcoo = time.time()
+    #print('Coordinates: ', np.round(endcoo-startcoo,2),' sec')
+   
+
+    #####################################  (2c) interpolate to world map 
+    #geographic coordinates are glatN, glonN, electron flux values are fluxN
+    #change shapes from glatN (80, 96) glonN  (80, 96) to a single array with 7680,2
+    #startworld=time.time()
+ 
+    #glatN_1D=glatN.reshape(np.size(fluxN),1)  
+    #glonN_1D=glonN.reshape(np.size(fluxN),1)    
+    geo_2D=np.vstack((glatN_1D,glonN_1D)).T      #stack 2 (7680,) arrays to a single 7680,2 arrays, .T is needed
+    #smooth small array first - but strange results!
+    #fluxN=scipy.ndimage.gaussian_filter(fluxN,sigma=(5,5))
+    fluxN_1D=fluxN.reshape(7680,1)   #also change flux values to 1D array
+
+    #bottleneck, maybe make own interpolation and accelerate with numba
+    #https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.interpolate.griddata.html
+
+    #interpolate to world grid, and remove 1 dimension with squeeze
+    aimg=np.squeeze(scipy.interpolate.griddata(geo_2D, fluxN_1D, (wx, wy), method='linear',fill_value=0))
+    #filter large array
+    aimg = scipy.ndimage.gaussian_filter(aimg,sigma=(5,7),mode='wrap') #wrap means wrapping at the 180 degree edge
+    ovation_img[:,:,k]=aimg
+    #endworld = time.time()
+    #print('World map: ', np.round(endworld-startworld,2),' sec')
+    
+   
+
+  return ovation_img
+
+
+
+
+
+
+
+
+
+def make_aurora_cube_multi(ts,ec,k):
+    '''
+    multiprocessing version - ts is a single datetime object into this function
+    for debugging use: make_aurora_cube_multi(tsm[0],ecm[0])   
+    '''
+    print('Frame number and time:', k, '  ',ts)
+    
+    #################  (2a) get solar wind 
+        
+    mlatN, mltN, fluxNd=de.get_flux_for_time(ts,ec)
+    mlatN, mltN, fluxNm=me.get_flux_for_time(ts,ec)
+    fluxN=fluxNd+fluxNm #+fluxNw
+    '''
+    print(ts)
+    print(ec)
+    print(k)
+    print('....')
+    '''
+    ################  (2b) coordinate conversion magnetic to geographic 
+    #Coordinate conversion MLT to AACGM mlon/lat to geographic coordinates
+    mlonN_1D_small=aacgmv2.convert_mlt(mltN[0],ts,m2a=True)
+    mlonN_1D=np.tile(mlonN_1D_small,mlatN.shape[0])
+    mlatN_1D=np.squeeze(mlatN.reshape(np.size(mltN),1))
+    (glatN_1D, glonN_1D, galtN) = aacgmv2.convert_latlon_arr(mlatN_1D,mlonN_1D, 100,ts, code="A2G")
+
+    ##############  (2c) interpolate to world map 
+    geo_2D=np.vstack((glatN_1D,glonN_1D)).T      #stack 2 (7680,) arrays to a single 7680,2 arrays, .T is needed
+    fluxN_1D=fluxN.reshape(7680,1)   #also change flux values to 1D array
+
+    #make a world map grid in latitude 512 pixels, longitude 1024 pixel like NOAA
+    wx,wy=np.mgrid[-90:90:180/512,-180:180:360/1024]
+    aimg=np.squeeze(scipy.interpolate.griddata(geo_2D, fluxN_1D, (wx, wy), method='linear',fill_value=0))
+    aimg = scipy.ndimage.gaussian_filter(aimg,sigma=(5,7),mode='wrap') #wrap means wrapping at the 180 degree edge
+      
+    #Array variable to be used by all processes
+    ovation_img_multi[512*1024*k:512*1024*(k+1)]=aimg.reshape(512*1024)
+   
+    
+
+
+
 
 
 
@@ -118,35 +266,31 @@ from aurora_forecast_input import *
 
 ############### (0) get input data, get PREDSTORM solar wind files mode ###############
 
-
-
-
 start_all=time.time()
-
 plt.close('all')
-
 
 utcnow=oup.round_to_minute(datetime.datetime.utcnow()) #get current time as datetime object in UTC
 
 print()
-print('Making aurora forecasts with OVATION')
-print('From the PREDSTORM solar wind predictions (DSCOVR/STEREO-A) or OMNI2 data')
+print('Making aurora forecasts with OVATION PRIME 2010')
+print('with the PREDSTORM solar wind predictions (DSCOVR/STEREO-A) or OMNI2 data')
+print()
 print('UTC time now:')
 print(utcnow.strftime(format="%Y-%m-%d %H:%M") )
 print()
     
 if mode==0:
-    print('mode',mode,': PREDSTORM real time')
+    print('mode '+str(mode)+': PREDSTORM real time')
     t0     = utcnow - datetime.timedelta(hours=abs(past_hours))
     tend   = utcnow + datetime.timedelta(hours=future_hours)
     
 if mode==1:
-    print('mode',mode,': PREDSTORM local file')
+    print('mode '+str(mode)+': PREDSTORM local file')
     t0   = parse_time(start_time)   #parse start time from string to datetime
     tend = parse_time(end_time)     
 
 if mode==2:
-    print('mode',mode,': OMNI2 data')
+    print('mode '+str(mode)+': OMNI2 data')
     t0   = parse_time(start_time)   #parse start time from string to datetime
     tend = parse_time(end_time)     
 
@@ -176,7 +320,6 @@ if os.path.isdir('results/'+output_directory+'/forecast_global') == False: os.mk
 if os.path.isdir('data') == False: os.mkdir('data')
 if os.path.isdir('data/predstorm') == False: os.mkdir('data/predstorm')
 
-
 # get or set input files
 if mode==0:    
    try: 
@@ -197,21 +340,16 @@ print('input data file:',inputfile)
 
 print()
 print('output directory: results/'+output_directory)
-print('------------------------')
-
-
+print('------------------------------------------------------')
 
 
 ########################## (1) Initialize OVATION ########################################
 
 
 ########## load ovation for different types of aurora
-
-print()
 '''
 atype - str, ['diff','mono','wave','ions']
          type of aurora for which to load regression coeffients
-
 jtype - int or str
             1:"electron energy flux",
             2:"ion energy flux",
@@ -221,7 +359,6 @@ jtype - int or str
             6:"ion average energy"
 '''
 jtype = 'electron energy flux'
-
 print('Initialize OVATION')
 start = time.time()
 de = opp.FluxEstimator('diff', jtype)
@@ -233,16 +370,11 @@ print('OVATION uses',jtype,'with diffuse + monoenergetic aurora')
 print('Fluxes for southern hemisphere are currently not calculated.')
 print()
 
-
 ###################### load input solar wind
 l1wind=oup.load_predstorm_wind(inputfile)
 print('Solar wind data loaded from PREDSTORM input file.')
-
-
 swav=oup.calc_avg_solarwind_predstorm(ts,l1wind)  # calculate average solar wind for Newell coupling 
-
 window=int(window_minutes/time_resolution)	#when time resolution < averaging window in minutes, do moving averages
-
 coup_cycle=4421 #average coupling for solar cycle (see e.g. Newell et al. 2010)
 
 #plot current coupling, the driver behind the ovation model
@@ -252,7 +384,7 @@ plt.plot_date(l1wind.time,l1wind.ec/coup_cycle,'k-', label='input wind')
 plt.plot_date(swav.time,swav.ec/coup_cycle,'r-',label='weighted averages',markersize=2)   
 plt.title('Newell coupling')
 
-#plot moving averages and make them 
+#plot moving averages and make them if time resolution high enough
 if window > 0:
    print('running mean used for Ec with time window +/- ',window_minutes,'minutes')
    ec_run_mean=swav.ec
@@ -260,14 +392,10 @@ if window > 0:
    plt.plot_date(swav.time,ec_run_mean/coup_cycle,'b--',label='running mean of weighted averages' )   
    #replace Ec average by running mean
    swav.ec=ec_run_mean
-     
+    
 ax.set_xlim([swav.time[0]-4/24,swav.time[-1]])
 plt.legend()
-#save plot in outputdirectory
-fig.savefig('results/'+output_directory+'/coupling.png',dpi=150,facecolor=fig.get_facecolor())
-
-
-
+fig.savefig('results/'+output_directory+'/coupling.png',dpi=150,facecolor=fig.get_facecolor()) #save plot in outputdirectory
 
 
 
@@ -275,115 +403,54 @@ fig.savefig('results/'+output_directory+'/coupling.png',dpi=150,facecolor=fig.ge
 
 ###################### (2) RUN OVATION FOR EACH FRAME TIME ##############################
 
+print()
+print('------------------------------------------------------')
 print('Now make the aurora flux data cubes for all timesteps.')
-
-#make a world map grid in latitude 512 pixels, longitude 1024 pixel like NOAA
-wx,wy=np.mgrid[-90:90:180/512,-180:180:360/1024]
-
-#this is the array with the final world maps for each timestep
-ovation_img=np.zeros([512,1024,np.size(ts)])
-
-#this is the array with the flux grid in magnetic coordinates for each timestep
-#flux_img=np.zeros([80,96,np.size(ts)])
-
-#time measure indicator start
-start = time.time()
-print('--------------------------------------------------------------')
-print('Clock run time start ...')
 print()
 
 
+if calc_mode == 'multi':   #multiprocessing mode
 
-#do with multiprocessing
-#needed for loop: ts, l1wind - output ovation_img
-
-for k in np.arange(0,len(ts)): #go through all times
- 
-    print('Frame number and time:', k, '  ',ts[k])
-
-    #########################################  (2a) get solar wind 
-    startflux=time.time()
-   
-    sw=oup.calc_avg_solarwind_predstorm(ts[k],l1wind)   #make solarwind with averaging over last 4 hours, only for command line 
-    print('Byz =',sw.by[0],sw.bz[0],' nT   V =',int(sw.v[0]), 'km/s')
-    #for the Newell coupling Ec, normalized to cycle average, smoothed for high time resolution
-    print('Ec to cycle average: ',np.round(swav.ec[k]/coup_cycle,1), ' <Ec> =',int(swav.ec[k]))  
-    
-    #get fluxes for northern hemisphere 
-    mlatN, mltN, fluxNd=de.get_flux_for_time(ts[k],swav.ec[k])
-    mlatN, mltN, fluxNm=me.get_flux_for_time(ts[k],swav.ec[k])
-    #mlatN, mltN, fluxNw=we.get_flux_for_time(ts[k],inputfile, hemi='N')  #wave flux not correct yet
-    fluxN=fluxNd+fluxNm #+fluxNw
-    endflux=time.time()
-    print('OVATION: ', np.round(endflux-startflux,2),' sec')
-    
-    #for debugging
-    #making flux images for comparison to OVATION IDL output
-    #change IDL file in this function for flux comparison
-    #oup.global_ovation_flux(mlatN,mltN,fluxNw,ts[0])
-    #oup.global_ovation_flux(mlatN,mltN,fluxNd,ts[k])
-    #sys.exit()
-  
-    #if k==3: sys.exit()
-
- 
-    #####################################  (2b) coordinate conversion magnetic to geographic 
-    #Coordinate conversion MLT to AACGM mlon/lat to geographic coordinates
-    startcoo=time.time()
-    #magnetic coordinates are  mltN mlonN in 2D grids
-    #so we need to convert magnetic local time (MLT) to longitude first
-    #extract from mltN first 96 MLTs for 1 latitude bin convert to magnetic longitude 
-    mlonN_1D_small=aacgmv2.convert_mlt(mltN[0],ts[k],m2a=True)
-    #copy result  80 times because MLT is same for all latitudes
-    mlonN_1D=np.tile(mlonN_1D_small,mlatN.shape[0])
-    
-    #this will make a 1D array for the latitudes compatible with the 1D array created above    
-    mlatN_1D=np.squeeze(mlatN.reshape(np.size(mltN),1))
-   
-    #magnetic coordinates are now mlatN mlonN, convert to geographic
-    (glatN_1D, glonN_1D, galtN) = aacgmv2.convert_latlon_arr(mlatN_1D,mlonN_1D, 100,ts[k], code="A2G")
-    endcoo = time.time()
-    print('Coordinates: ', np.round(endcoo-startcoo,2),' sec')
-   
-
-    #####################################  (2c) interpolate to world map 
-    #geographic coordinates are glatN, glonN, electron flux values are fluxN
-    #change shapes from glatN (80, 96) glonN  (80, 96) to a single array with 7680,2
-    startworld=time.time()
- 
-    #glatN_1D=glatN.reshape(np.size(fluxN),1)  
-    #glonN_1D=glonN.reshape(np.size(fluxN),1)    
-    geo_2D=np.vstack((glatN_1D,glonN_1D)).T      #stack 2 (7680,) arrays to a single 7680,2 arrays, .T is needed
-    #smooth small array first - but strange results!
-    #fluxN=scipy.ndimage.gaussian_filter(fluxN,sigma=(5,5))
-    fluxN_1D=fluxN.reshape(7680,1)   #also change flux values to 1D array
-
-
-
-    #***bottleneck, maybe make own interpolation and accelerate with numba
-    #https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.interpolate.griddata.html
-
-    #interpolate to world grid, and remove 1 dimension with squeeze
-    aimg=np.squeeze(scipy.interpolate.griddata(geo_2D, fluxN_1D, (wx, wy), method='linear',fill_value=0))
-    #filter large array
-    aimg = scipy.ndimage.gaussian_filter(aimg,sigma=(5,7),mode='wrap') #wrap means wrapping at the 180 degree edge
-    ovation_img[:,:,k]=aimg
-    endworld = time.time()
-    print('World map: ', np.round(endworld-startworld,2),' sec')
-    
-
+    print('Using multiprocessing, nr of cores',cpu_count())
     print()
-    print('---------------------')
+
+    #time measure indicator start
+    start = time.time()
+    print('clock run time start ...')
+    
+    #these variables will be used for pool.starmap
+    tsm=ts; ecm=swav.ec; km=np.arange(np.size(ts))
+    
+    oshape = (512, 1024,np.size(ts)) #define shape of final array
+    arrsize=oshape[0]*oshape[1]*oshape[2]  #define size of 1D array
+    
+    ovation_img_multi = Array('d', arrsize) #make 1D array to be used by the processes simultaneously for the ovation map
+    p = Pool()                                              #make multiprocessing Pool object  
+    res=p.starmap(make_aurora_cube_multi, zip(tsm,ecm,km))  #goes through all ts times, needs Ec and counter too
+    p.close()
+    p.join()
+    oim=np.frombuffer(ovation_img_multi.get_obj())          #get calculated array values into 1D array
+
+    #make final array 512*1024*size(ts) out of 1D array that is used in make_aurora_cube_multi
+    ovation_img=oup.reshape_ovation_img_multi(np.zeros(oshape),oim,oshape) 
+ 
+    print('... end run time clock:  ',np.round(time.time() - start,2),' sec total, per frame: ',np.round((time.time() - start)/np.size(ts),2) )
 
 
-
+if calc_mode == 'single':
+  
+    print('Using single processing')
+    print()
+    start = time.time()
+    print('clock run time start ...')
+    ovation_img=make_aurora_cube(ts) #ovation_img single processing - use ts and ec to make aurora world map; get back 512*1024 image cube
+    print('... end run time clock:  ',np.round(time.time() - start,2),' sec total, per frame: ',np.round((time.time() - start)/np.size(ts),2) )
 
  
-end = time.time()
+
+
 print()
-print('... end run time clock:  ',np.round(end - start,2),' sec total, per frame: ',np.round((end - start)/np.size(ts),2) )
-print('--------------------------------------------------------------')   
-print() 
+print('------------------------------------------------------')
 
 '''
 #for testing conversion and image making - note that the image is upside down with north at bottom
@@ -393,31 +460,34 @@ plt.imshow(aimg)
 sys.exit()
 '''
 
- 
 
 #####################################  (3) PLOTS  #########################################
 
 
 ############################ (3a) Make global aurora plot for comparison with NOAA nowcast
 #maybe make faster with multiprocessing pool - does not work on MacOS but should on Linux
+#try multiprocessing with initializer?
+#https://docs.python.org/dev/library/multiprocessing.html#multiprocessing.pool.Pool
 
+print('Make all movie frames')  
+print()
 
 start = time.time()
-#better use color map that starts with some basic green color
-
-#direct animation output?
+#better use color map that starts with some basic green color, make up to 10% probability alpha=0
 oup.ovation_global_north(ovation_img,ts,'hot',1.5,output_directory)
 end = time.time()
 print('All movie frames took ',np.round(end - start,2),'sec, per frame',np.round((end - start)/np.size(ts),2),' sec.')
 
-#make move with frames 
+#make movie with frames 
 print()
-print('Make movies')
+print('Make mp4 and gif movies')
+print()
+print('For all results see: results/'+output_directory)
 os.system('ffmpeg -r 25 -i results/'+output_directory+'/frames_global/aurora_%05d.jpg -b:v 5000k -r 25 results/'+output_directory+'/predstorm_aurora_global.mp4 -y -loglevel quiet')
 os.system('ffmpeg -r 25 -i results/'+output_directory+'/frames_global/aurora_%05d.jpg -b:v 5000k -r 25 results/'+output_directory+'/predstorm_aurora_global.gif -y -loglevel quiet')
 print()
-end_all=time.time()
-print('Run time for everything:  ',np.round((end_all - start_all)/60,2),' min; per frame: ',np.round((end_all - start_all)/np.size(ts),2),'sec' )
+
+print('Run time for everything:  ',np.round((time.time() - start_all)/60,2),' min; per frame: ',np.round((time.time() - start_all)/np.size(ts),2),'sec' )
 
 print()
 
@@ -427,7 +497,7 @@ print()
 
 
 
-
+##################################### END ################################################
 
 
 

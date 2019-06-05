@@ -4,13 +4,16 @@ mode=0                        # select mode: 0 for real time mode, 1 for local f
 
 time_resolution =  5          # time resolution of resulting auroramaps in minutes
 
-output_directory='run_now_test_5'            #specify output directory of frames and movies under "results/"
+output_directory='run_now_test_7'            #specify output directory of frames and movies under "results/"
 
 
 
-#-------------------------------
+#------------------------------- controls for computation
 
-window_minutes=1                #window in minutes for smoothing the coupling with a running mean; ignored if time_resolution larger than window_minutes
+window_minutes=20                #window in minutes for smoothing the coupling with a running mean; ignored if time_resolution larger than window_minutes
+
+calc_mode='multi'               #multi or single processing mode for calculating the aurora image cube
+#calc_mode='single'
 
 
 # --------------------------- mode 0 settings

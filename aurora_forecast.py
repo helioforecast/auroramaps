@@ -21,9 +21,12 @@ last update June 2019
 TO DO: 
 
 core:
-- add equatorial auroral boundary Case et al. 2016, how to get probabilites correctly? ask Nathan Case
-- ensemble sims to produce equatorial boundary
+- cut viewing line in daylight 
+- how to get probabilites correctly? ask Nathan Case
+- ensemble sims to produce equatorial boundary - or method used by Martin to make 100 runs with error propagation
 - check mit IDL code, debuggen, beide hemispheres richtig? - get flux for time -> weights for both seasons? how correctly?, compare further with ovationpyme and IDL version
+- multiprocessing mit queue?
+
 
 later:
 - add wave flux (needs good interpolation like OP13)
@@ -61,7 +64,7 @@ or use in ipython for function run times:
 '''
 
 import matplotlib
-matplotlib.use('Qt5Agg') 
+#matplotlib.use('Qt5Agg') 
 #matplotlib.use('Agg') 
 #matplotlib.use('GTK3Agg')
 
@@ -86,7 +89,8 @@ import aacgmv2
 import pdb
 import os
 import time
-import numba as nb
+import pandas as pd
+from numba import njit
 import importlib
 from multiprocessing import Pool, cpu_count, Array
 
@@ -254,7 +258,23 @@ def make_aurora_cube_multi(ts,ec,k):
 
 
 
+@njit  
+def make_view_line(ovation_img,eb,cubesize,all_latitude,threshold):
+  '''
+  calculate equatorial boundary from ovation world image cube
+  '''
 
+  #go through all ovation images
+  for q in np.arange(0,cubesize,1):
+    #go through all longitudes in one ovation image
+    for k in np.arange(0,1024,1):
+        this_long_stripe=ovation_img[:,k,q]  #all flux values at this longitude
+        index_greater_threshold=np.where(this_long_stripe > threshold)[0]
+        if len(index_greater_threshold)> 0: 
+             eb[q,k]=all_latitude[np.min(index_greater_threshold)] #take the smallest index which corresponds to lowest latitude
+        else:
+             eb[q,k]=np.nan
+  return eb
 
 
 
@@ -438,7 +458,7 @@ if calc_mode == 'multi':   #multiprocessing mode
 
 
 if calc_mode == 'single':
-  
+ 
     print('Using single processing')
     print()
     start = time.time()
@@ -461,6 +481,66 @@ sys.exit()
 '''
 
 
+
+
+
+
+
+
+
+##################### (2a) get lower equatorial boundary and viewing line
+
+#define the latitude longitude grid again 
+all_lat=np.linspace(-90,90,512)
+all_long=np.linspace(-180,180,1024)   
+
+eb=np.zeros([np.size(ts),np.size(all_long)])    #define array of equatorial boundaries eb
+
+eb=make_view_line(ovation_img,eb,np.size(ts),all_lat,0.5) #the results are eb and vl as function of longitude all_long
+ebi=np.zeros([np.size(ts),np.size(all_long)])  #define interpolated equatorial boundary
+ebi[np.where(ebi==0)]=np.nan                   #set all to nan
+ebwin=21  #size of filter window
+
+
+ebi=eb
+'''
+#smoothing of equatorial boundary: make array larger, smooth with moving windows and take out final smoothed values
+ 
+for i in range(0,np.size(ts)):
+
+  ebinew=np.insert(ebi,0,eb[i,512:1024])  
+  ebinew2=np.insert(ebinew,512,eb[i,0:1024])  
+  ebinew3=np.insert(ebinew2,1536,eb[i,0:512])  
+
+
+  
+   plt.figure(10)
+  #plt.plot(ebinew2,'-k') 
+  plt.plot(eb[i,:],'or') 
+  plt.figure(11)
+  plt.plot(ebinew3,'-k') 
+
+  plt.show()
+  #moving window filter
+  ebidum=np.zeros(2048)
+  ebidum[np.where(ebidum==0)]=np.nan                   #set all to nan
+  
+  for j in np.arange(ebwin,np.size(all_long*2)-ebwin): 
+           ebidum[j]=np.nanmean(ebinew3[j-ebwin:j+ebwin])    
+
+  ebi[i,:]=ebinew3[512:1536]  
+
+plt.figure(12)
+plt.plot(all_long,eb[i,:],'ob')   
+plt.plot(all_long,ebi[i,:],'-k')   
+plt.show()
+
+sys.exit()
+'''
+
+
+
+
 #####################################  (3) PLOTS  #########################################
 
 
@@ -474,17 +554,19 @@ print()
 
 start = time.time()
 #better use color map that starts with some basic green color, make up to 10% probability alpha=0
-oup.ovation_global_north(ovation_img,ts,'hot',1.5,output_directory)
+oup.ovation_global_north(ovation_img,ts,'hot',1.5,output_directory,all_long,ebi)
 end = time.time()
 print('All movie frames took ',np.round(end - start,2),'sec, per frame',np.round((end - start)/np.size(ts),2),' sec.')
 
+
+plt.show() 
 #make movie with frames 
 print()
 print('Make mp4 and gif movies')
 print()
 print('For all results see: results/'+output_directory)
-os.system('ffmpeg -r 25 -i results/'+output_directory+'/frames_global/aurora_%05d.jpg -b:v 5000k -r 25 results/'+output_directory+'/predstorm_aurora_global.mp4 -y -loglevel quiet')
-os.system('ffmpeg -r 25 -i results/'+output_directory+'/frames_global/aurora_%05d.jpg -b:v 5000k -r 25 results/'+output_directory+'/predstorm_aurora_global.gif -y -loglevel quiet')
+os.system('ffmpeg -r 5 -i results/'+output_directory+'/frames_global/aurora_%05d.jpg -b:v 5000k -r 5 results/'+output_directory+'/predstorm_aurora_global.mp4 -y -loglevel quiet')
+os.system('ffmpeg -r 5 -i results/'+output_directory+'/frames_global/aurora_%05d.jpg -b:v 5000k -r 5 results/'+output_directory+'/predstorm_aurora_global.gif -y -loglevel quiet')
 print()
 
 print('Run time for everything:  ',np.round((time.time() - start_all)/60,2),' min; per frame: ',np.round((time.time() - start_all)/np.size(ts),2),'sec' )
@@ -601,6 +683,7 @@ ax1.coastlines()
 ax1.imshow(pimg, vmin=0, vmax=100, transform=crs, extent=mapextent, origin='lower',zorder=3,cmap=aurora_cmap())
 #ax1.set_extent(fullextent)
 '''
+
 
 
 

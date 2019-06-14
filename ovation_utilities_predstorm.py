@@ -466,7 +466,7 @@ def get_omni_data():
 ######################################## PLOTTING ########################################
 
 
-def ovation_global_north(wic,dt,colormap_input,max_level, outputdir):
+def ovation_global_north(wic,dt,colormap_input,max_level, outputdir,longitude_bound,equatorial_bound):
  '''
  plots the ovation aurora on the northern hemisphere from a polar view, makes movie frames
  wic is a world image cube with ovation results 512x1024
@@ -504,6 +504,7 @@ def ovation_global_north(wic,dt,colormap_input,max_level, outputdir):
  fig.set_facecolor('black') 
  fig.text(0.99,0.01,'C. Möstl / IWF-helio, Austria', color='white',fontsize=10,ha='right',va='bottom')
  
+ 
  ax = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(global_plot_longitude, global_plot_latitude))
 
  ax.background_patch.set_facecolor('k')    
@@ -523,8 +524,9 @@ def ovation_global_north(wic,dt,colormap_input,max_level, outputdir):
  #these are calls that create the first object to be removed from the plot with each frame
  txt=fig.text(0.5,0.92,'')
  border=ax.add_feature(Nightshade(dt[0]))  #add day night border
- img=ax.imshow(wic[:,:,0], cmap=my_cmap)
-  
+ img=ax.imshow(wic[:,:,0])
+ bound_e=ax.plot(0,color='k') #equatorial boundary
+ bound_v=ax.plot(0,color='k') #equatorial boundary
 
  for i in np.arange(0,np.size(dt)):
 
@@ -533,17 +535,27 @@ def ovation_global_north(wic,dt,colormap_input,max_level, outputdir):
      #plt.cla()  #clear axes
      txt.set_visible(False)  #clear previous plot title
      #plot title with time
-     txt=fig.text(0.5,0.92,'PREDSTORM aurora forecast  '+dt[i].strftime('%Y-%m-%d %H:%M UT'), color='white',fontsize=15, ha='center')
+     txt=fig.text(0.5,0.92,'PREDSTORM aurora  '+dt[i].strftime('%Y-%m-%d %H:%M UT'), color='white',fontsize=15, ha='center')
      img.remove()     #remove previous wic
      border.remove()  #remove previous nightshade
+     bound_e[0].remove() #remove equatorial boundary
+     bound_v[0].remove() #remove view line
      
      border=ax.add_feature(Nightshade(dt[i]))  #add day night border
-     img=ax.imshow(wic[:,:,i], vmin=0.01, vmax=max_level, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap)
+     img=ax.imshow(wic[:,:,i], vmin=0.01, vmax=max_level, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap) #aurora
+     bound_e=ax.plot(longitude_bound,equatorial_bound[i,:],transform=crs,color='k',alpha=0.8) #equatorial boundary
+     
+     #***cut view line at longitudes which are in daylight
+     
+     bound_v=ax.plot(longitude_bound,equatorial_bound[i,:]-8,transform=crs,color='r',linestyle='--',alpha=0.8) #viewing line after Case et al. 2016
+
+
   
      #save as image with timestamp in filename
      #plot_Nhemi_filename='results/forecast_global/predstorm_aurora_real_Nhemi_'+dt.strftime("%Y_%m_%d_%H%M")  +'.jpg'
      #fig.savefig(plot_Nhemi_filename,dpi=150,facecolor=fig.get_facecolor())
-
+     
+     
      #save as movie frame
      framestr = '%05i' % (i)  
      fig.savefig('results/'+outputdir+'/frames_global/aurora_'+framestr+'.jpg',dpi=150,facecolor=fig.get_facecolor())

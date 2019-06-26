@@ -540,17 +540,14 @@ def ovation_global_north(wic,dt,colormap_input,max_level, outputdir,longitude_bo
      border.remove()  #remove previous nightshade
      bound_e[0].remove() #remove equatorial boundary
      bound_v[0].remove() #remove view line
+     bound_e=ax.plot(longitude_bound,equatorial_bound[i,:],transform=crs,color='k',alpha=0.8) #equatorial boundary
+     #***cut view line at longitudes which are in daylight
+     bound_v=ax.plot(longitude_bound,equatorial_bound[i,:]-8,transform=crs,color='r',linestyle='--',alpha=0.8) #viewing line after Case et al. 2016
+
      
      border=ax.add_feature(Nightshade(dt[i]))  #add day night border
      img=ax.imshow(wic[:,:,i], vmin=0.01, vmax=max_level, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap) #aurora
-     bound_e=ax.plot(longitude_bound,equatorial_bound[i,:],transform=crs,color='k',alpha=0.8) #equatorial boundary
-     
-     #***cut view line at longitudes which are in daylight
-     
-     bound_v=ax.plot(longitude_bound,equatorial_bound[i,:]-8,transform=crs,color='r',linestyle='--',alpha=0.8) #viewing line after Case et al. 2016
-
-
-  
+ 
      #save as image with timestamp in filename
      #plot_Nhemi_filename='results/forecast_global/predstorm_aurora_real_Nhemi_'+dt.strftime("%Y_%m_%d_%H%M")  +'.jpg'
      #fig.savefig(plot_Nhemi_filename,dpi=150,facecolor=fig.get_facecolor())

@@ -115,6 +115,11 @@ importlib.reload(aurora_forecast_input)
 from aurora_forecast_input import *
 
 
+#import aurora_forecast_input_testing
+#importlib.reload(aurora_forecast_input_testing)   
+#from aurora_forecast_input_testing import *
+
+
 ##################################### FUNCTIONS #######################################
 
 
@@ -301,7 +306,7 @@ print()
     
 if mode==0:
     print('mode '+str(mode)+': PREDSTORM real time')
-    t0     = utcnow - datetime.timedelta(hours=abs(past_hours))
+    t0     = utcnow + datetime.timedelta(hours=past_hours)
     tend   = utcnow + datetime.timedelta(hours=future_hours)
     
 if mode==1:
@@ -490,54 +495,61 @@ sys.exit()
 
 ##################### (2a) get lower equatorial boundary and viewing line
 
+
+
+
 #define the latitude longitude grid again 
 all_lat=np.linspace(-90,90,512)
 all_long=np.linspace(-180,180,1024)   
 
 eb=np.zeros([np.size(ts),np.size(all_long)])    #define array of equatorial boundaries eb
 
-eb=make_view_line(ovation_img,eb,np.size(ts),all_lat,0.5) #the results are eb and vl as function of longitude all_long
-ebi=np.zeros([np.size(ts),np.size(all_long)])  #define interpolated equatorial boundary
-ebi[np.where(ebi==0)]=np.nan                   #set all to nan
-ebwin=21  #size of filter window
+#eb=make_view_line(ovation_img,eb,np.size(ts),all_lat,0.5) #the results is eb and vl as function of longitude all_long
+eb=make_view_line(ovation_img,eb,np.size(ts),all_lat,1) #the results is eb and vl as function of longitude all_long
+
+ebi=np.zeros(np.size(all_long)*3)  #define interpolated equatorial boundary
+ebi[np.where(ebi==0)]=np.nan                   #set all 0 to nan
+
+ebs=np.zeros([np.size(ts),np.size(all_long)])  #define interpolated equatorial boundary
+ebs[np.where(ebs==0)]=np.nan                   #set all 0 to nan
 
 
-ebi=eb
+ebwin=15 #size of filter window
+
+
+# smoothing of equatorial boundary: 
+# make array larger, smooth with moving windows and take out final smoothed values
+# go through all timesteps 
+
+
+for k in np.arange(0,np.size(ts)): #go through all times
+
+    #insert array 3 times to smooth moving window at edges
+    ebi[0:512*2]=eb[k,:]
+    ebi[512*2:512*4]=eb[k,:]
+    ebi[512*4:512*6]=eb[k,:]
+    
+    #**** into function
+    # self made moving window filter that does not cut edges
+    ebis=np.zeros(512*6)
+    ebis[np.where(ebis==0)]=np.nan                   #set all to nan
+  
+    for j in np.arange(ebwin,512*6-ebwin): 
+           #check nans inside window
+           window_data=ebi[j-ebwin:j+ebwin]
+           nansize=np.size(np.where(np.isnan(window_data)))           
+           #get data from window decreased by number of nans to 
+           ebis[j]=np.mean(ebi[j-ebwin+nansize:j+ebwin-nansize])    
+           
+    ebs[k,:]=ebis[512*2:512*4]
 '''
-#smoothing of equatorial boundary: make array larger, smooth with moving windows and take out final smoothed values
- 
-for i in range(0,np.size(ts)):
-
-  ebinew=np.insert(ebi,0,eb[i,512:1024])  
-  ebinew2=np.insert(ebinew,512,eb[i,0:1024])  
-  ebinew3=np.insert(ebinew2,1536,eb[i,0:512])  
-
-
-  
-   plt.figure(10)
-  #plt.plot(ebinew2,'-k') 
-  plt.plot(eb[i,:],'or') 
-  plt.figure(11)
-  plt.plot(ebinew3,'-k') 
-
-  plt.show()
-  #moving window filter
-  ebidum=np.zeros(2048)
-  ebidum[np.where(ebidum==0)]=np.nan                   #set all to nan
-  
-  for j in np.arange(ebwin,np.size(all_long*2)-ebwin): 
-           ebidum[j]=np.nanmean(ebinew3[j-ebwin:j+ebwin])    
-
-  ebi[i,:]=ebinew3[512:1536]  
-
 plt.figure(12)
-plt.plot(all_long,eb[i,:],'ob')   
-plt.plot(all_long,ebi[i,:],'-k')   
-plt.show()
+#plt.plot(np.arange(0,512*6),ebi[0,:],'or')   
+#plt.plot(np.arange(0,512*6),ebis[0,:],'-k')   
 
-sys.exit()
+plt.plot(all_long,eb[0,:],'or')   
+plt.plot(all_long,ebs[0,:],'-k')   
 '''
-
 
 
 
@@ -554,19 +566,27 @@ print()
 
 start = time.time()
 #better use color map that starts with some basic green color, make up to 10% probability alpha=0
-oup.ovation_global_north(ovation_img,ts,'hot',1.5,output_directory,all_long,ebi)
+oup.ovation_global_north(ovation_img,ts,'hot',1.5,output_directory,all_long,ebs)
 end = time.time()
 print('All movie frames took ',np.round(end - start,2),'sec, per frame',np.round((end - start)/np.size(ts),2),' sec.')
 
 
-plt.show() 
 #make movie with frames 
 print()
 print('Make mp4 and gif movies')
 print()
 print('For all results see: results/'+output_directory)
-os.system('ffmpeg -r 5 -i results/'+output_directory+'/frames_global/aurora_%05d.jpg -b:v 5000k -r 5 results/'+output_directory+'/predstorm_aurora_global.mp4 -y -loglevel quiet')
-os.system('ffmpeg -r 5 -i results/'+output_directory+'/frames_global/aurora_%05d.jpg -b:v 5000k -r 5 results/'+output_directory+'/predstorm_aurora_global.gif -y -loglevel quiet')
+
+
+#frame rate 20 is good for 10 minute resolution if 3 days want to be seen quickly
+os.system('ffmpeg -r 20 -i results/'+output_directory+'/frames_global/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/predstorm_aurora_global.mp4 -y -loglevel quiet')
+os.system('ffmpeg -r 20 -i results/'+output_directory+'/frames_global/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/predstorm_aurora_global.gif -y -loglevel quiet')
+
+########## convert mp4 to gif and makes smaller
+os.system('ffmpeg -i results/'+output_directory+'/predstorm_aurora_global.mp4  -vf scale=1000:-1 results/'+output_directory+'/predstorm_aurora_global_small.gif  -y -loglevel quiet ')
+
+
+
 print()
 
 print('Run time for everything:  ',np.round((time.time() - start_all)/60,2),' min; per frame: ',np.round((time.time() - start_all)/np.size(ts),2),'sec' )

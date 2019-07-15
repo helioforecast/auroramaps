@@ -1,31 +1,31 @@
 '''
+aurora_forecast.py
 Plotting an aurora forecast/hindcast 
-based on the PREDSTORM solar wind prediction method
-or OMNI2 data for historic events
+based on the PREDSTORM solar wind prediction method or OMNI2 data for historic events
+part of the auroramaps package
 
-using a rewritten version of the ovationpyme aurora model 
-by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
-and the cartopy package
 
 by C. Moestl, IWF-helio group, Graz, Austria.
 https://github.com/IWF-helio
 twitter @chrisoutofspace
 https://www.iwf.oeaw.ac.at/user-site/christian-moestl/
 
+using a rewritten version of the ovationpyme aurora model 
+by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
+
 published under GNU Lesser General Public License v3.0
 
-last update June 2019
+last update July 2019
 
 -----------------------------------------------------------------------------------
-
 TO DO: 
 
 core:
-- cut viewing line in daylight 
-- how to get probabilites correctly? ask Nathan Case
-- ensemble sims to produce equatorial boundary - or method used by Martin to make 100 runs with error propagation
-- check mit IDL code, debuggen, beide hemispheres richtig? - get flux for time -> weights for both seasons? how correctly?, compare further with ovationpyme and IDL version
-- multiprocessing mit queue?
+- how to get probabilites correctly? ask Nathan Case / Diana Morosan
+- ensemble simulations to produce equatorial boundary - or method to estimate error propagation
+- check with IDL code, debuggen, both hemispheres correct?
+- get flux for time -> weights for both seasons? how correctly?, compare further with ovationpyme and IDL version
+- multiprocessing with queue?
 
 
 later:
@@ -34,12 +34,13 @@ later:
 - use numba or multiprocessing somewhere further for speed? 
 - multiprocessing for saving the frames does not work on MacOS! 
   maybe on linux simply use the plotting function with multiprocessing.pool
-  and multiple arguments (starmap) like for the cubes
+  and multiple arguments (starmap) like for the data cubes
 - 180° longitude on world map better interpolation (interpolate on mlatgrid before? or own way to do it instead of wrap?)
 - auroral power on plot directly from ovation integrated (add function in opp)
 
 
 plotting:
+- cut viewing line in daylight 
 - europe and north america with style like global, higher res background image
 - Newell solar wind coupling als parameter in plot
 - add colorbars for probabilites, colormap should fade into background but oval should also visible for small values
@@ -52,7 +53,6 @@ plotting:
 - Newell solar wind coupling als parameter in plot
 - indicate moon phase with astropy
 - cloud cover how? https://pypi.org/project/weather-api/ ? at least for locations
-
 
 test bottlenecks: 
 >> python -m cProfile -s tottime aurora_forecast.py
@@ -114,14 +114,12 @@ import aurora_forecast_input
 importlib.reload(aurora_forecast_input)   
 from aurora_forecast_input import *
 
-
 #import aurora_forecast_input_testing
 #importlib.reload(aurora_forecast_input_testing)   
 #from aurora_forecast_input_testing import *
 
 
 ##################################### FUNCTIONS #######################################
-
 
 
 
@@ -283,6 +281,10 @@ def make_view_line(ovation_img,eb,cubesize,all_latitude,threshold):
 
 
 
+
+
+
+
 #######################################################################################
 ##################################### Main ############################################
 #######################################################################################
@@ -368,6 +370,16 @@ print('output directory: results/'+output_directory)
 print('------------------------------------------------------')
 
 
+
+
+
+
+
+
+
+
+
+
 ########################## (1) Initialize OVATION ########################################
 
 
@@ -421,6 +433,19 @@ if window > 0:
 ax.set_xlim([swav.time[0]-4/24,swav.time[-1]])
 plt.legend()
 fig.savefig('results/'+output_directory+'/coupling.png',dpi=150,facecolor=fig.get_facecolor()) #save plot in outputdirectory
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -495,8 +520,7 @@ sys.exit()
 
 ##################### (2a) get lower equatorial boundary and viewing line
 
-
-
+print('Now make equatorial boundary and viewing line')
 
 #define the latitude longitude grid again 
 all_lat=np.linspace(-90,90,512)
@@ -513,14 +537,11 @@ ebi[np.where(ebi==0)]=np.nan                   #set all 0 to nan
 ebs=np.zeros([np.size(ts),np.size(all_long)])  #define interpolated equatorial boundary
 ebs[np.where(ebs==0)]=np.nan                   #set all 0 to nan
 
-
 ebwin=15 #size of filter window
-
 
 # smoothing of equatorial boundary: 
 # make array larger, smooth with moving windows and take out final smoothed values
 # go through all timesteps 
-
 
 for k in np.arange(0,np.size(ts)): #go through all times
 
@@ -551,9 +572,18 @@ plt.plot(all_long,eb[0,:],'or')
 plt.plot(all_long,ebs[0,:],'-k')   
 '''
 
+print('Done.')
+print()
+print()
+
+
+
+
+
 
 
 #####################################  (3) PLOTS  #########################################
+
 
 
 ############################ (3a) Make global aurora plot for comparison with NOAA nowcast

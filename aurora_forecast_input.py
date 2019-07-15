@@ -2,9 +2,9 @@
 
 mode=0                        # select mode: 0 for real time mode, 1 for local file, 2 for OMNI2 data
 
-time_resolution = 60         # time resolution of resulting auroramaps in minutes
+time_resolution = 5         # time resolution of resulting auroramaps in minutes
 
-output_directory='run_26june_2019_test2'            #specify output directory of frames and movies under "results/"
+output_directory='run_15july_2019_test'            #specify output directory of frames and movies under "results/"
 
 
 
@@ -19,8 +19,8 @@ calc_mode='multi'               #multi or single processing mode for calculating
 # --------------------------- mode 0 settings
 
                                    # in real time mode, start time is always now in UTC
-past_hours      =  11               # in real time mode, start time with previous hours, negative = past
-future_hours    =  17               # in real time mode, number of hours into future, 0 for one frame only
+past_hours      =  0               # in real time mode, start time with previous hours, negative = past
+future_hours    =  48               # in real time mode, number of hours into future, 0 for one frame only
 
 #online source file for real time mode
 predstorm_url='https://www.iwf.oeaw.ac.at/fileadmin//staff/SP/cmoestl/readtime/predstorm_real.txt'

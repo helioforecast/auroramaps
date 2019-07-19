@@ -205,6 +205,71 @@ def reshape_ovation_img_multi(om,ovarr,oshape):
 
 
 
+@njit  
+def make_equatorial_boundary(ovation_img,eb,cubesize,all_latitude,threshold):
+  '''
+  calculate equatorial boundary from ovation world image cube
+  '''
+
+  #go through all ovation images
+  for q in np.arange(0,cubesize,1):
+    #go through all longitudes in one ovation image
+    for k in np.arange(0,1024,1):
+        this_long_stripe=ovation_img[:,k,q]  #all flux values at this longitude
+        index_greater_threshold=np.where(this_long_stripe > threshold)[0]
+        if len(index_greater_threshold)> 0: 
+             eb[q,k]=all_latitude[np.min(index_greater_threshold)] #take the smallest index which corresponds to lowest latitude
+        else:
+             eb[q,k]=np.nan
+  return eb
+
+
+
+
+
+def smooth_boundary(ts,eb,ebwin):
+    '''
+    smoothing of equatorial boundary: 
+    make array larger, smooth with moving windows and take out final smoothed values
+    go through all timesteps 
+    '''
+
+    #define arrays
+    eb_dum=np.zeros(1024*3)  #define interpolated equatorial boundary
+    eb_dum[np.where(eb_dum==0)]=np.nan                   #set all 0 to nan
+
+    eb_smooth=np.zeros([np.size(ts),1024])  #define interpolated equatorial boundary
+    eb_smooth[np.where(eb_smooth==0)]=np.nan                   #set all 0 to nan
+
+    ebis=np.zeros(1024*3)
+    ebis[np.where(ebis==0)]=np.nan                   #set all to nan
+    
+    eb_smooth=smooth_boundary_core_filter(np.size(ts),eb,ebwin,eb_dum,ebis,eb_smooth)
+    
+    return eb_smooth
+
+
+@njit
+def smooth_boundary_core_filter(frames,eb,ebwin,eb_dum,ebis,eb_smooth):
+    '''
+    core computation of the filter for smoothing of equatorial boundary
+    '''
+    for k in np.arange(0,frames): #go through all times
+        #insert array 3 times to smooth moving window at edges
+        eb_dum[0:512*2]=eb[k,:]
+        eb_dum[512*2:512*4]=eb[k,:]
+        eb_dum[512*4:512*6]=eb[k,:]
+    
+        # self made moving window filter that does not cut edges
+        for j in np.arange(ebwin,512*6-ebwin): 
+           #check nans inside window
+           window_data=eb_dum[j-ebwin:j+ebwin]
+           nansize=len(np.where(np.isnan(window_data)))           
+           #get data from window decreased by number of nans
+           ebis[j]=np.mean(eb_dum[j-ebwin+nansize:j+ebwin-nansize])    
+           
+        eb_smooth[k,:]=ebis[512*2:512*4]
+    return eb_smooth   
 
 
 

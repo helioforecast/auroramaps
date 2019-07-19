@@ -21,7 +21,7 @@ last update July 2019
 TO DO: 
 
 core:
-- how to get probabilites correctly? ask Nathan Case / Diana Morosan
+- use probabilities as shown by Diana
 - ensemble simulations to produce equatorial boundary - or method to estimate error propagation
 - check with IDL code, debuggen, both hemispheres correct?
 - get flux for time -> weights for both seasons? how correctly?, compare further with ovationpyme and IDL version
@@ -60,6 +60,34 @@ test bottlenecks:
 or use in ipython for function run times:
 >> %timeit function_name()
 >> %time  function_name()
+
+
+
+
+
+
+
+#Diana:
+
+# Scalers for displaying aurora probabilities from read_data_local.pro line 73
+imult = 10.
+iadd = 0.
+aurora_data = iadd + imult*je_array # where je_array is the auroral flux array
+
+# Remove spurios noise
+aurora_data[np.where(aurora_data<1)] = 0
+
+# Rescale aurora again based on geoconvert.pro line 73
+aurora_data = 5*np.sqrt(aurora_data)
+aurora_data[np.where(aurora_data<4)] = 0
+aurora_data[np.where(aurora_data>100)] = 100
+
+
+
+
+
+
+
 -----------------------------------------------------------------------------------
 '''
 
@@ -261,27 +289,6 @@ def make_aurora_cube_multi(ts,ec,k):
 
 
 
-@njit  
-def make_view_line(ovation_img,eb,cubesize,all_latitude,threshold):
-  '''
-  calculate equatorial boundary from ovation world image cube
-  '''
-
-  #go through all ovation images
-  for q in np.arange(0,cubesize,1):
-    #go through all longitudes in one ovation image
-    for k in np.arange(0,1024,1):
-        this_long_stripe=ovation_img[:,k,q]  #all flux values at this longitude
-        index_greater_threshold=np.where(this_long_stripe > threshold)[0]
-        if len(index_greater_threshold)> 0: 
-             eb[q,k]=all_latitude[np.min(index_greater_threshold)] #take the smallest index which corresponds to lowest latitude
-        else:
-             eb[q,k]=np.nan
-  return eb
-
-
-
-
 
 
 
@@ -460,7 +467,6 @@ print()
 
 
 if calc_mode == 'multi':   #multiprocessing mode
-
     print('Using multiprocessing, nr of cores',cpu_count())
     print()
 
@@ -488,7 +494,6 @@ if calc_mode == 'multi':   #multiprocessing mode
 
 
 if calc_mode == 'single':
- 
     print('Using single processing')
     print()
     start = time.time()
@@ -496,7 +501,6 @@ if calc_mode == 'single':
     ovation_img=make_aurora_cube(ts) #ovation_img single processing - use ts and ec to make aurora world map; get back 512*1024 image cube
     print('... end run time clock:  ',np.round(time.time() - start,2),' sec total, per frame: ',np.round((time.time() - start)/np.size(ts),2) )
 
- 
 
 
 print()
@@ -515,54 +519,32 @@ sys.exit()
 
 
 
-
-
-
 ##################### (2a) get lower equatorial boundary and viewing line
 
 print('Now make equatorial boundary and viewing line')
+start = time.time()
+print('clock run time start ...')
 
 #define the latitude longitude grid again 
 all_lat=np.linspace(-90,90,512)
 all_long=np.linspace(-180,180,1024)   
-
 eb=np.zeros([np.size(ts),np.size(all_long)])    #define array of equatorial boundaries eb
 
-#eb=make_view_line(ovation_img,eb,np.size(ts),all_lat,0.5) #the results is eb and vl as function of longitude all_long
-eb=make_view_line(ovation_img,eb,np.size(ts),all_lat,1) #the results is eb and vl as function of longitude all_long
+#make the equatorial boundary
+eb=oup.make_equatorial_boundary(ovation_img,eb,np.size(ts),all_lat,0.5) #the results is eb as function of longitude all_long
 
-ebi=np.zeros(np.size(all_long)*3)  #define interpolated equatorial boundary
-ebi[np.where(ebi==0)]=np.nan                   #set all 0 to nan
-
-ebs=np.zeros([np.size(ts),np.size(all_long)])  #define interpolated equatorial boundary
-ebs[np.where(ebs==0)]=np.nan                   #set all 0 to nan
 
 ebwin=15 #size of filter window
+ebs=oup.smooth_boundary(ts,eb,ebwin)
 
-# smoothing of equatorial boundary: 
-# make array larger, smooth with moving windows and take out final smoothed values
-# go through all timesteps 
 
-for k in np.arange(0,np.size(ts)): #go through all times
 
-    #insert array 3 times to smooth moving window at edges
-    ebi[0:512*2]=eb[k,:]
-    ebi[512*2:512*4]=eb[k,:]
-    ebi[512*4:512*6]=eb[k,:]
     
-    #**** into function
-    # self made moving window filter that does not cut edges
-    ebis=np.zeros(512*6)
-    ebis[np.where(ebis==0)]=np.nan                   #set all to nan
-  
-    for j in np.arange(ebwin,512*6-ebwin): 
-           #check nans inside window
-           window_data=ebi[j-ebwin:j+ebwin]
-           nansize=np.size(np.where(np.isnan(window_data)))           
-           #get data from window decreased by number of nans to 
-           ebis[j]=np.mean(ebi[j-ebwin+nansize:j+ebwin-nansize])    
-           
-    ebs[k,:]=ebis[512*2:512*4]
+print('... end run time clock:  ',np.round(time.time() - start,2),' sec total, per frame: ',np.round((time.time() - start)/np.size(ts),2) )
+print()
+print('------------------------------------------------------')
+    
+    
 '''
 plt.figure(12)
 #plt.plot(np.arange(0,512*6),ebi[0,:],'or')   
@@ -572,9 +554,6 @@ plt.plot(all_long,eb[0,:],'or')
 plt.plot(all_long,ebs[0,:],'-k')   
 '''
 
-print('Done.')
-print()
-print()
 
 
 

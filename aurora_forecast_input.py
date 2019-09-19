@@ -19,7 +19,7 @@ calc_mode='multi'               #multi or single processing mode for calculating
 # --------------------------- mode 0 settings
 
                                    # in real time mode, start time is always now in UTC
-past_hours      =  0               # in real time mode, start time with previous hours, negative = past
+past_hours      =  -24               # in real time mode, start time with previous hours, negative = past
 future_hours    =  24               # in real time mode, number of hours into future, 0 for one frame only
 
 #online source file for real time mode

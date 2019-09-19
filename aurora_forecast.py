@@ -531,7 +531,7 @@ all_long=np.linspace(-180,180,1024)
 eb=np.zeros([np.size(ts),np.size(all_long)])    #define array of equatorial boundaries eb
 
 #make the equatorial boundary
-eb=oup.make_equatorial_boundary(ovation_img,eb,np.size(ts),all_lat,0.5) #the results is eb as function of longitude all_long
+eb=oup.make_equatorial_boundary(ovation_img,eb,np.size(ts),all_lat,1.0) #the results is eb as function of longitude all_long
 
 
 ebwin=15 #size of filter window

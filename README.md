@@ -3,6 +3,8 @@ AURORAMAPS
 
 This is an open-source version of the OVATION Prime 2010 (OP10) aurora model in python.
 
+ONGOING DEBUGGING!
+
 The solar wind input comes either from OMNI2 historic data or from the PREDSTORM L1 solar wind forecast, which is based on data from the DSCOVR and STEREO-A spacecraft. The results are plotted with cartopy on different types of world maps.
 
 Status: work in progress, October 2019, C. Moestl/IWF-helio 

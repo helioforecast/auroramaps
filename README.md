@@ -65,7 +65,7 @@ In mode 2, the OMNI2 data are downloaded automatically from https://spdf.gsfc.na
 
 
 
-![Sample image](https://raw.githubusercontent.com/cmoestl/auroramaps/samples/sample_polar_north.png)
+![Sample image](samples/sample_polar_north.png)
 
 
 

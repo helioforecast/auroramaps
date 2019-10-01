@@ -6,15 +6,17 @@ based on the PREDSTORM solar wind prediction method (available online)
 or OMNI2 data for historic events
 
 uses the python "auroramaps" package
+https://github.com/IWF-helio/auroramaps
 
-input parameters are in the input.py file
+input parameters are given in the input.py file
 
 by C. Moestl, IWF-helio group, Graz, Austria.
-https://github.com/IWF-helio/auroramaps
+Contributions by Liam Kilcommons and Diana Morosan
+
 twitter @chrisoutofspace
 https://www.iwf.oeaw.ac.at/user-site/christian-moestl/
 
-using a rewritten version of the ovationpyme aurora model 
+This package uses a rewritten version of the ovationpyme aurora model 
 by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
 
 published under GNU Lesser General Public License v3.0
@@ -125,26 +127,20 @@ from multiprocessing import Pool, cpu_count, Array
 from pandas.plotting import register_matplotlib_converters               
 register_matplotlib_converters()                                        
 
-  
-# make sure own modules are 
-# automatically reloaded every time when using ipython
-  
-#ovation model
+#import auroramaps
+#importlib.reload(auroramaps) 
 from auroramaps import ovation as amo
-#importlib.reload(opp) 
-
-#extra functions and for plotting
 from auroramaps import util as amu
-#importlib.reload(oup) 
 
-#input parameters 
+importlib.reload(amu) #reload again while debugging
+importlib.reload(amo) #reload again while debugging
+
+
 import input
-importlib.reload(input)   
-from input import *   #gets all variables from this file
+importlib.reload(input)   #make sure it reads file again
+from input import *       #gets all variables from this file
 
-#import aurora_forecast_input_testing
-#importlib.reload(aurora_forecast_input_testing)   
-#from aurora_forecast_input_testing import *
+
 
 
 ##################################### FUNCTIONS #######################################
@@ -352,13 +348,11 @@ if os.path.isdir('results/'+output_directory+'/frames_europe_canada') == False: 
 if os.path.isdir('results/'+output_directory+'/forecast_europe_canada') == False: os.mkdir('results/'+output_directory+'/forecast_europe_canada')
 if os.path.isdir('results/'+output_directory+'/forecast_global') == False: os.mkdir('results/'+output_directory+'/forecast_global')
 
-if os.path.isdir('data') == False: os.mkdir('data')
-if os.path.isdir('data/predstorm') == False: os.mkdir('data/predstorm')
 
 # get or set input files
 if mode==0:    
    try: 
-       inputfile='data/predstorm/predstorm_real.txt'
+       inputfile='auroramaps/data/predstorm/predstorm_real.txt'
        urllib.request.urlretrieve(predstorm_url,inputfile)
        print('loaded from', predstorm_url)
    except urllib.error.URLError as e:
@@ -369,7 +363,7 @@ if mode==1:
 
 if mode==2:     
      amu.omni_txt_generator(ts)   #make txt file from OMNI2 data in similar format as predstorm
-     inputfile='data/predstorm/predstorm_omni.txt'
+     inputfile='auroramaps/data/predstorm/predstorm_omni.txt'
     
 print('input data file:',inputfile)
 

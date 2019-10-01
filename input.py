@@ -17,7 +17,7 @@ last update October 2019
 '''
 
 
-mode=0                       # select mode: 0 for real time mode, 1 for local file, 2 for OMNI2 data
+mode=0                      # select mode: 0 for real time mode, 1 for local file, 2 for OMNI2 data
 
 time_resolution = 20         # time resolution of resulting auroramaps in minutes
 

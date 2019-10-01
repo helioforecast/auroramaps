@@ -52,6 +52,7 @@ import os
 import pickle	
 import scipy
 import pdb
+import sys
 
 
 
@@ -364,7 +365,7 @@ def omni_txt_generator(dt):
 
    #description
    #np.savetxt(filename_save, ['time     Dst [nT]     Kp     aurora [GW]   B [nT]    Bx [nT]     By [nT]     Bz [nT]    N [ccm-3]   V [km/s]    '])
-   filename_save='data/predstorm/predstorm_omni.txt'
+   filename_save='auroramaps/data/predstorm/predstorm_omni.txt'
    np.savetxt(filename_save, vartxtout,  delimiter='',fmt='%4i %2i %2i %2i %2i %2i %10.6f %5.1f %5.1f %5.1f %5.1f   %7.0f %7.0f ',\
                header='        time      matplotlib_time B[nT] Bx   By     Bz   N[ccm-3] V[km/s] ')
 
@@ -377,31 +378,30 @@ def omni_txt_generator(dt):
 
 def omni_loader():
    '''
-   downloads all omni2 data into "data/omni2" folder
-   converts to pickle file and returns object with data
+   downloads all omni2 data into the "auroramaps/data/omni2" folder
+   converts to pickle file for faster reloading and returns object with data
    '''
-   if os.path.isdir('data') == False: os.mkdir('data')
-   if os.path.isdir('data/omni2') == False: os.mkdir('data/omni2')
   
-   if not os.path.exists('data/omni2/omni2_all_years.dat'):
+   if not os.path.exists('auroramaps/data/omni2/omni2_all_years.dat'):
       #see http://omniweb.gsfc.nasa.gov/html/ow_data.html
       print('OMNI2 .dat file not in "data" directory, so download OMNI2 data from')
-      omni2_url='ftp://nssdcftp.gsfc.nasa.gov/pub/data/omni/low_res_omni/omni2_all_years.dat'
+      omni2_url='https://spdf.gsfc.nasa.gov/pub/data/omni/low_res_omni/omni2_all_years.dat'
       print(omni2_url)
-      try: urllib.request.urlretrieve(omni2_url, 'data/omni2/omni2_all_years.dat')
+      try: urllib.request.urlretrieve(omni2_url, 'auroramaps/data/omni2/omni2_all_years.dat')
       except urllib.error.URLError as e:
           print(' ', omni2_url,' ',e.reason)
+          sys.exit()
 
    #if omni2 hourly data is not yet converted and saved as pickle, do it:
-   if not os.path.exists('data/omni2/omni2_all_years_pickle.p'):
+   if not os.path.exists('auroramaps/data/omni2/omni2_all_years_pickle.p'):
        #load OMNI2 dataset from .dat file with a function from dst_module.py
        print('OMNI2 .p file not in "data" directory, so convert to pickle')
        o=get_omni_data()
        #contains: o. time,day,hour,btot,bx,by,bz,bygsm,bzgsm,speed,speedx,den,pdyn,dst,kp
        #save for faster loading later
-       pickle.dump(o, open('data/omni2/omni2_all_years_pickle.p', 'wb') )
+       pickle.dump(o, open('auroramaps/data/omni2/omni2_all_years_pickle.p', 'wb') )
 
-   else:  o=pickle.load(open('data/omni2/omni2_all_years_pickle.p', 'rb') )
+   else:  o=pickle.load(open('auroramaps/data/omni2/omni2_all_years_pickle.p', 'rb') )
    print('loaded OMNI2 data')
    return o
 
@@ -417,7 +417,7 @@ def get_omni_data():
     """
 
     #check how many rows exist in this file
-    f=open('data/omni2/omni2_all_years.dat')
+    f=open('auroramaps/data/omni2/omni2_all_years.dat')
     dataset= len(f.readlines())
     #print(dataset)
     #global Variables
@@ -447,7 +447,7 @@ def get_omni_data():
     
     j=0
     print('Read OMNI2 data ...')
-    with open('data/omni2/omni2_all_years.dat') as f:
+    with open('auroramaps/data/omni2/omni2_all_years.dat') as f:
         for line in f:
             line = line.split() # to deal with blank 
             #print line #41 is Dst index, in nT
@@ -824,7 +824,7 @@ def global_ovation_flux(magnetic_latitude,magnetic_local_time,flux,dt):
  
  
  #read in IDL output for comparison
- idl_file_in='data/idl_output/ov_diff_Eflux_2017_1230_2330.txt'
+ idl_file_in='auroramaps/data/idl_output/ov_diff_Eflux_2017_1230_2330.txt'
  #idl_file_in='ovation_output/ov_mono_Eflux_2017_1230_2330.txt'
  #idl_file_in='ovation_output/ov_wave_Eflux_2017_1230_2330.txt'
  

@@ -190,10 +190,10 @@ class FluxEstimator(object):
 class SeasonalFluxEstimator(object):
     """
     A class to calculate predictions from the regression coeffecients
-    which are tabulated in the data/premodel/{season}_{atype}_*.txt
+    which are tabulated in the auroramaps/data/premodel/{season}_{atype}_*.txt
     files.
     A function is included that loads these files into a single array that 
-    is dumped in the python pickle file data/premodel/all_premodel_python.p
+    is dumped in the python pickle file auroramaps/data/premodel/all_premodel_python.p
 
     Given a particular season, type of aurora ( one of ['diff','mono','wave','ions'])
     and type of flux, extracts all fit parameters upon initialization
@@ -216,7 +216,7 @@ class SeasonalFluxEstimator(object):
             6:"ion average energy"
         """
 
-        self.premodel_directory='data/premodel/'         #define premodel directory
+        self.premodel_directory='auroramaps/data/premodel/'         #define premodel directory
         nmlt = 96              #number of mag local times in arrays (resolution of 15 minutes)
         nmlat = 160            #number of mag latitudes in arrays (resolution of 0.5 degree, for two hemispheres))
         nEc = 12               #number of coupling strength bins

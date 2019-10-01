@@ -348,6 +348,9 @@ if os.path.isdir('results/'+output_directory+'/frames_europe_canada') == False: 
 if os.path.isdir('results/'+output_directory+'/forecast_europe_canada') == False: os.mkdir('results/'+output_directory+'/forecast_europe_canada')
 if os.path.isdir('results/'+output_directory+'/forecast_global') == False: os.mkdir('results/'+output_directory+'/forecast_global')
 
+if os.path.isdir('auroramaps/data/predstorm') == False: os.mkdir('auroramaps/data/predstorm')
+if os.path.isdir('auroramaps/data/omni2') == False: os.mkdir('auroramaps/data/omni2')
+
 
 # get or set input files
 if mode==0:    

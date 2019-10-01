@@ -13,7 +13,7 @@ Contributions by Liam Kilcommons and Diana Morosan
 
 OVATION has been largely rewritten based on https://github.com/lkilcommons/OvationPyme
 
-Python packages used on top of a python anaconda installation: cartopy 0.17.0, sunpy 1.0.3, scikit-learn 0.20.3, aacgmv2 2.5.1. For their installation, see below.
+Python packages used on top of a python 3.7 anaconda installation: cartopy 0.17.0, sunpy 1.0.3, scikit-learn 0.20.3, aacgmv2 2.5.1. For their installation, see below.
 
 Note that for installing cartopy you need an anaconda installation.
 
@@ -64,6 +64,8 @@ Documentation
 In mode 2, the OMNI2 data are downloaded automatically from https://spdf.gsfc.nasa.gov/pub/data/omni/low_res_omni/omni2_all_years.dat on the first time, and then converted to a pickle for faster processing in new runs. If you want to update the OMNI2 data, just delete both files in "auroramaps/data/omni2/" to force a new download and conversion.
 
 
+
+![Sample image](https://raw.githubusercontent.com/cmoestl/auroramaps/samples/sample_polar_north.jpg)
 
 
 

@@ -19,9 +19,16 @@ last update October 2019
 
 mode=0                      # select mode: 0 for real time mode, 1 for local file, 2 for OMNI2 data
 
-time_resolution = 20         # time resolution of resulting auroramaps in minutes
+time_resolution = 30         # time resolution of resulting auroramaps in minutes
 
 output_directory='aurora_test_package'            #specify output directory of frames and movies under "results/"
+
+#--------------------------------- select map types 
+
+global_flux_map=True                   #northern polar view
+
+europe_canada_flux_map=False              #2 maps in one frame for Europa and Canada/USA
+
 
 
 
@@ -36,8 +43,8 @@ calc_mode='multi'               #multi or single processing mode for calculating
 # --------------------------- mode 0 settings
 
                                    # in real time mode, start time is always now in UTC
-past_hours      =  0              # in real time mode, start time with previous hours, negative = past
-future_hours    =  3               # in real time mode, number of hours into future, 0 for one frame only
+past_hours      =  6              # in real time mode, start time with previous hours, negative = past
+future_hours    =  12               # in real time mode, number of hours into future, 0 for one frame only
 
 #online source file for real time mode
 predstorm_url='https://www.iwf.oeaw.ac.at/fileadmin//staff/SP/cmoestl/readtime/predstorm_real.txt'

@@ -44,8 +44,7 @@ later:
 
 
 plotting:
-- cut viewing line in daylight 
-- europe and north america with style like global, higher res background image
+- cut viewing line in daylight? 
 - Newell solar wind coupling als parameter in plot
 - add colorbars for probabilites, colormap should fade into background but oval should also visible for small values
 - check with direct comparison with NOAA global images nowcast
@@ -114,7 +113,6 @@ from auroramaps import util as amu
 
 importlib.reload(amu) #reload again while debugging
 importlib.reload(amo) #reload again while debugging
-
 
 import input
 importlib.reload(input)   #make sure it reads file again
@@ -223,10 +221,10 @@ print()
 #check if all needed directories are there
 if os.path.isdir('results') == False: os.mkdir('results')
 if os.path.isdir('results/'+output_directory) == False: os.mkdir('results/'+output_directory)
-if os.path.isdir('results/'+output_directory+'/frames_global') == False: os.mkdir('results/'+output_directory+'/frames_global')
-if os.path.isdir('results/'+output_directory+'/frames_europe_canada') == False: os.mkdir('results/'+output_directory+'/frames_europe_canada')
-#if os.path.isdir('results/'+output_directory+'/forecast_europe_canada') == False: os.mkdir('results/'+output_directory+'/forecast_europe_canada')
-#if os.path.isdir('results/'+output_directory+'/forecast_global') == False: os.mkdir('results/'+output_directory+'/forecast_global')
+if os.path.isdir('results/'+output_directory+'/flux_global') == False: os.mkdir('results/'+output_directory+'/flux_global')
+if os.path.isdir('results/'+output_directory+'/flux_europe_canada') == False: os.mkdir('results/'+output_directory+'/flux_europe_canada')
+if os.path.isdir('results/'+output_directory+'/prob_europe_canada') == False: os.mkdir('results/'+output_directory+'/prob_europe_canada')
+if os.path.isdir('results/'+output_directory+'/prob_global') == False: os.mkdir('results/'+output_directory+'/prob_global')
 
 if os.path.isdir('auroramaps/data/predstorm') == False: os.mkdir('auroramaps/data/predstorm')
 if os.path.isdir('auroramaps/data/omni2') == False: os.mkdir('auroramaps/data/omni2')
@@ -300,7 +298,7 @@ swav=amu.calc_avg_solarwind_predstorm(ts,l1wind)  # calculate average solar wind
 window=int(window_minutes/time_resolution)	#when time resolution < averaging window in minutes, do moving averages
 coup_cycle=4421 #average coupling for solar cycle (see e.g. Newell et al. 2010)
 
-#plot current coupling, the driver behind the ovation model
+####################### plot current coupling, the driver behind the ovation model
 fig, ax = plt.subplots(figsize=[12, 5])
 plt.plot_date(swav.time,np.ones(np.size(swav.time)),'k-.',label='cycle average')
 plt.plot_date(l1wind.time,l1wind.ec/coup_cycle,'k-', label='input wind')   
@@ -339,9 +337,12 @@ fig.savefig('results/'+output_directory+'/coupling.png',dpi=150,facecolor=fig.ge
 
 ###################### (2) RUN OVATION FOR EACH TIME STEP ##############################
 
+
+
+##################### (2a) get flux data cubes
 print()
 print('------------------------------------------------------')
-print('Now make the aurora flux data cubes for all timesteps.')
+print('Now make the aurora flux data cubes including all timesteps.')
 print()
 
 #depending on switch in input.py:
@@ -393,7 +394,7 @@ sys.exit()
 '''
 
 
-##################### (2a) get lower equatorial boundary and viewing line
+##################### (2b) get lower equatorial boundary and viewing line
 
 print('Now make equatorial boundary and viewing line')
 start = time.time()
@@ -428,10 +429,21 @@ plt.plot(all_long,ebs[0,:],'-k')
 
 
 
+#comparison with NOAA
+#global_predstorm_noaa(ovation_img)
+
+#plot the fluxes for direct comparison to ovation prime in IDL
+#for k in np.arange(0,np.size(ts)):
+#    oup.global_predstorm_flux(ovation_img[:,:,k],ts[k],k)
+
+#for k in np.arange(0,np.size(ts)):
+#    oup.europe_canada_predstorm(ovation_img[:,:,k],ts[k],k, 'hot')
 
 
-#####################################  (3) PLOTS  #########################################
 
+
+
+#####################################  (3) PLOTS and MOVIES  #########################################
 
 
 ############################ (3a) Make global aurora plot for comparison with NOAA nowcast
@@ -444,129 +456,64 @@ print()
 
 start = time.time()
 
+
+
 #global flux images
 if global_flux_map==True:
-  amu.ovation_global_north(ovation_img,ts,'hot',1.5,output_directory,all_long,ebs)
+  amu.ovation_global_north(ovation_img,ts,'hot',max_level_flux,output_directory,all_long,ebs)
 
 #europe and canada/USA flux images
 if europe_canada_flux_map==True:
-  amu.ovation_europe_canada(ovation_img,ts,'hot',1.5,output_directory,all_long,ebs)
+  amu.ovation_europe_canada(ovation_img,ts,'hot',max_level_flux,output_directory,all_long,ebs)
 
-#probability maps
-#better use color map that starts with some basic green color, make up to 10% probability alpha=0
+#same for probability maps
+if global_probability_map==True:
+  amu.ovation_probability_global_north(ovation_img,ts,'hot',100,output_directory,all_long,ebs)
 
-#.......
-
+if europe_canada_probability_map==True:
+  amu.ovation_probability_europe_canada(ovation_img,ts,'hot',100,output_directory,all_long,ebs)
 
 end = time.time()
 print('All movie frames took ',np.round(end - start,2),'sec, per frame',np.round((end - start)/np.size(ts),2),' sec.')
 
 
-#make movie with frames 
+################################# (3b) make movies 
 print()
 print('Make mp4 and gif movies')
 print()
 print('For all results see: results/'+output_directory)
 
+#frame rate 20 is good for 10 minute resolution if 3 days want to be seen quickly
 
 if global_flux_map==True:
-  #frame rate 20 is good for 10 minute resolution if 3 days want to be seen quickly
-  os.system('ffmpeg -r 20 -i results/'+output_directory+'/frames_global/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/predstorm_aurora_global.mp4 -y -loglevel quiet')
-  os.system('ffmpeg -r 20 -i results/'+output_directory+'/frames_global/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/predstorm_aurora_global.gif -y -loglevel quiet')
+  os.system('ffmpeg -r 20 -i results/'+output_directory+'/flux_global/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/flux_global.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r 20 -i results/'+output_directory+'/flux_global/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/flux_global.gif -y -loglevel quiet')
   ########## convert mp4 to gif and makes smaller
-  os.system('ffmpeg -i results/'+output_directory+'/predstorm_aurora_global.mp4  -vf scale=1000:-1 results/'+output_directory+'/predstorm_aurora_global_small.gif  -y -loglevel quiet ')
-
+  os.system('ffmpeg -i results/'+output_directory+'/flux_global.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_global_small.gif  -y -loglevel quiet ')
 
 if europe_canada_flux_map==True:
-  os.system('ffmpeg -r 20 -i results/'+output_directory+'/frames_europe_canada/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/predstorm_aurora_europe_canada.mp4 -y -loglevel quiet')
-  os.system('ffmpeg -r 20 -i results/'+output_directory+'/frames_europe_canada/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/predstorm_aurora_europe_canada.gif -y -loglevel quiet')
-  os.system('ffmpeg -i results/'+output_directory+'/predstorm_aurora_europe_canada.mp4  -vf scale=1000:-1 results/'+output_directory+'/predstorm_aurora_europe_canada_small.gif  -y -loglevel quiet ')
+  os.system('ffmpeg -r 20 -i results/'+output_directory+'/flux_europe_canada/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/flux_europe_canada.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r 20 -i results/'+output_directory+'/flux_europe_canada/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/flux_europe_canada.gif -y -loglevel quiet')
+  os.system('ffmpeg -i results/'+output_directory+'/flux_europe_canada.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_europe_canada_small.gif  -y -loglevel quiet ')
 
+if global_probability_map==True:
+  os.system('ffmpeg -r 20 -i results/'+output_directory+'/prob_global/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/prob_global.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r 20 -i results/'+output_directory+'/prob_global/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/prob_global.gif -y -loglevel quiet')
+  os.system('ffmpeg -i results/'+output_directory+'/prob_global.mp4  -vf scale=1000:-1 results/'+output_directory+'/prob_global_small.gif  -y -loglevel quiet ')
 
-
-
+if europe_canada_probability_map==True:
+  os.system('ffmpeg -r 20 -i results/'+output_directory+'/prob_europe_canada/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/prob_europe_canada.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r 20 -i results/'+output_directory+'/prob_europe_canada/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/prob_europe_canada.gif -y -loglevel quiet')
+  os.system('ffmpeg -i results/'+output_directory+'/prob_europe_canada.mp4  -vf scale=1000:-1 results/'+output_directory+'/prob_europe_canada_small.gif  -y -loglevel quiet ')
 
 print()
-
 print('Run time for everything:  ',np.round((time.time() - start_all)/60,2),' min; per frame: ',np.round((time.time() - start_all)/np.size(ts),2),'sec' )
-
 print()
-
-
-
-
-
 
 
 ##################################### END ################################################
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-'''
-
-
-OLD CODES, maybe useful
-
-#####################################
-
-
-#make images and movie frames for the generated aurora image cube ovation_img
-#for k in np.arange(0,np.size(ts)):
-    #amu.global_predstorm_north(ovation_img[:,:,k],ts[k],k,'magma')
-    #amu.global_predstorm_north(ovation_img[:,:,k],ts[k],k,'hot')
-    #amu.global_predstorm_north(ovation_img[:,:,k],ts[k],k,oup.aurora_cmap2())
-
-#eliminate noise when plotting
-#ovation_img[ovation_img < 0.1]=np.nan  
-
-#flux plot of last timestep
-#oup.global_ovation_flux(mlatN,mltN,fluxNd,ts[k])
-
-#comparison with NOAA
-#global_predstorm_noaa(ovation_img)
-
-#plot the fluxes for direct comparison to ovation prime in IDL
-#for k in np.arange(0,np.size(ts)):
-#    oup.global_predstorm_flux(ovation_img[:,:,k],ts[k],k)
-
-#for k in np.arange(0,np.size(ts)):
-#    oup.europe_canada_predstorm(ovation_img[:,:,k],ts[k],k, 'hot')
 
 
 

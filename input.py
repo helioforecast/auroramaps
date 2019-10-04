@@ -19,9 +19,9 @@ last update October 2019
 
 mode=0                      # select mode: 0 for real time mode, 1 for local file, 2 for OMNI2 data
 
-time_resolution = 10         # time resolution of resulting auroramaps in minutes
+time_resolution = 20         # time resolution of resulting auroramaps in minutes
 
-output_directory='aurora_test_package2'            #specify output directory of frames and movies under "results/"
+output_directory='aurora_test_package3'            #specify output directory of frames and movies under "results/"
 
 #--------------------------------- select map types 
 
@@ -31,15 +31,17 @@ europe_canada_flux_map=False           #2 maps in one frame for Europa and Canad
 
 #probability maps
 global_probability_map=True
-europe_canada_probability_map=False
+europe_canada_probability_map=True
 
 
 #Maximum level for flux plots erg cm-2 -s-1
 max_level_flux=1.5
 
+equatorial_boundary_flux_threshold=1.0
+
 #------------------------------- controls for computation
 
-window_minutes=20                #window in minutes for smoothing the coupling with a running mean; ignored if time_resolution larger than window_minutes; standard=20
+window_minutes=10                #window in minutes for smoothing the coupling with a running mean; ignored if time_resolution larger than window_minutes; standard=20
 
 calc_mode='multi'               #multi or single processing mode for calculating the aurora image cube
 #calc_mode='single'
@@ -48,8 +50,8 @@ calc_mode='multi'               #multi or single processing mode for calculating
 # --------------------------- mode 0 settings
 
                                    # in real time mode, start time is always now in UTC
-past_hours      =  -12             # in real time mode, start time with previous hours, negative = past
-future_hours    =  -11               # in real time mode, number of hours into future, 0 for one frame only
+past_hours      =  0             # in real time mode, start time with previous hours, negative = past
+future_hours    =  24               # in real time mode, number of hours into future, 0 for one frame only
 
 #online source file for real time mode
 predstorm_url='https://www.iwf.oeaw.ac.at/fileadmin//staff/SP/cmoestl/readtime/predstorm_real.txt'

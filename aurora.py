@@ -27,26 +27,19 @@ last update October 2019
 TO DO: 
 
 core:
-- use probabilities as shown by Diana
 - check with IDL code, debuggen, both hemispheres correct?
 - get flux for time -> weights for both seasons? how correctly?, compare further with ovationpyme and IDL version
-- multiprocessing with queue?
-
 later:
 - add wave flux (needs good interpolation like OP13)
-- add southern hemisphere on world map (with coordinate conversion etc.)
+- add southern hemisphere maps (with coordinate conversion etc.)
 - use numba or multiprocessing somewhere further for speed? 
 - multiprocessing for saving the frames does not work on MacOS! 
   maybe on linux simply use the plotting function with multiprocessing.pool
   and multiple arguments (starmap) like for the data cubes
-- 180° longitude on world map better interpolation (interpolate on mlatgrid before? or own way to do it instead of wrap?)
-- auroral power on plot directly from ovation integrated (add function in amo)
 
 
 plotting:
-- cut viewing line in daylight? 
-- Newell solar wind coupling als parameter in plot
-- add colorbars for probabilites, colormap should fade into background but oval should also visible for small values
+- auroral power on plot directly from ovation integrated (add function in amo), Newell solar wind coupling als parameter in plot
 - check with direct comparison with NOAA global images nowcast
 - transparent to white colormap so that it looks like viirs images for direct comparison
 - split land on dayside / night lights on night side 
@@ -98,6 +91,7 @@ import aacgmv2
 import pdb
 import os
 import time
+import seaborn as sns
 import pandas as pd
 from numba import njit
 import importlib
@@ -176,6 +170,7 @@ def make_aurora_cube_multi(ts,ec,k):
 
 start_all=time.time()
 plt.close('all')
+sns.set_style('darkgrid')
 
 #get current time as datetime object in UTC, rounded to minute
 utcnow=amu.round_to_minute(datetime.datetime.utcnow()) 
@@ -406,7 +401,7 @@ all_long=np.linspace(-180,180,1024)
 eb=np.zeros([np.size(ts),np.size(all_long)])    #define array of equatorial boundaries eb
 
 #make the equatorial boundary
-eb=amu.make_equatorial_boundary(ovation_img,eb,np.size(ts),all_lat,1.0) 
+eb=amu.make_equatorial_boundary(ovation_img,eb,np.size(ts),all_lat,equatorial_boundary_flux_threshold) 
 #the result is eb as function of longitude variable all_long
 
 ebwin=15 #size of filter window
@@ -468,10 +463,10 @@ if europe_canada_flux_map==True:
 
 #same for probability maps
 if global_probability_map==True:
-  amu.ovation_probability_global_north(ovation_img,ts,'hot',100,output_directory,all_long,ebs)
+  amu.ovation_probability_global_north(ovation_img,ts,output_directory,all_long,ebs)
 
 if europe_canada_probability_map==True:
-  amu.ovation_probability_europe_canada(ovation_img,ts,'hot',100,output_directory,all_long,ebs)
+  amu.ovation_probability_europe_canada(ovation_img,ts,output_directory,all_long,ebs)
 
 end = time.time()
 print('All movie frames took ',np.round(end - start,2),'sec, per frame',np.round((end - start)/np.size(ts),2),' sec.')

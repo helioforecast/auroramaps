@@ -595,12 +595,10 @@ def ovation_global_north(wic,dt,colormap_input,max_level, outputdir,longitude_bo
  fig.set_facecolor('black') 
  fig.text(0.99,0.01,'C. Möstl / IWF-helio, Austria', color='white',fontsize=10,ha='right',va='bottom')
  
- 
  ax = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(global_plot_longitude, global_plot_latitude))
 
  ax.background_patch.set_facecolor('k')    
- 
- 
+  
  gl=ax.gridlines(linestyle='--',alpha=0.5,color='white') #make grid
  gl.n_steps=100   #make grid finer
  ax.stock_img()  
@@ -612,7 +610,6 @@ def ovation_global_north(wic,dt,colormap_input,max_level, outputdir,longitude_bo
  ax.add_feature(carfeat.BORDERS, alpha=0.3) #,zorder=2,alpha=0.5)
   
 
- 
  #these are calls that create the first object to be removed from the plot with each frame
  txt=fig.text(0.5,0.92,'')
  border=ax.add_feature(Nightshade(dt[0]))  #add day night border
@@ -811,7 +808,7 @@ def ovation_europe_canada(wic,dt,colormap_input,max_level, outputdir,longitude_b
 
 
 
-def ovation_probability_global_north(wicf,dt,colormap_input,max_level, outputdir,longitude_bound,equatorial_bound):
+def ovation_probability_global_north(wicf,dt, outputdir,longitude_bound,equatorial_bound):
  '''
  plots the ovation aurora on the northern hemisphere from a polar view, makes movie frames
  wic is a world image cube with ovation results 512x1024
@@ -834,18 +831,13 @@ def ovation_probability_global_north(wicf,dt,colormap_input,max_level, outputdir
  #define extent of the produced world maps - defined as: west east south north
  mapextent=[-180,180,-90,90]   
  
- #need to set alpha linearly increasing in the colormap so that it blends into background for 
- #small values
+ #use custom colormap suitable for aurora
  my_cmap = aurora_cmap()
- #cmap = plt.get_cmap(colormap_input)  # Choose colormap
- #my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
- #my_cmap[:,-1] = np.linspace(0, 1, cmap.N)  # Set alpha
- #my_cmap = ListedColormap(my_cmap) # Create new colormap
- 
+
  crs=ccrs.PlateCarree()
 
  fig = plt.figure(4,figsize=[12, 12],dpi=80) 
- fig.set_facecolor('white') 
+ fig.set_facecolor('black') 
  fig.text(0.99,0.01,'C. Möstl / IWF-helio, Austria', color='white',fontsize=10,ha='right',va='bottom')
   
  ax = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(global_plot_longitude, global_plot_latitude))
@@ -873,28 +865,30 @@ def ovation_probability_global_north(wicf,dt,colormap_input,max_level, outputdir
  ax.add_feature(provinces_50m,alpha=0.3)    #,zorder=2,alpha=0.8)
  ax.add_feature(carfeat.BORDERS, alpha=0.3) #,zorder=2,alpha=0.5)
  
- 
- 
- gl=ax.gridlines(linestyle='--',alpha=0.5,color='white') #make grid
- gl.n_steps=100   #make grid finer  
- 
  #these are calls that create the first object to be removed from the plot with each frame
  txt=fig.text(0.5,0.92,'')
  border=ax.add_feature(Nightshade(dt[0]))  #add day night border
- img=ax.imshow(wic[:,:,0])
+ img=ax.imshow(wic[:,:,0], vmin=10, vmax=100,cmap=my_cmap) #aurora test frame
  
+ 
+ #colorbar
  fg_color = 'white'
-
- 
+ plt.style.use("dark_background") #for white ticks and labels
  cbaxes = fig.add_axes([0.2, 0.05, 0.6, 0.02]) 
- cbar = plt.colorbar(img, cax = cbaxes,orientation='horizontal',pad=10)  
- plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color=fg_color)
- #cbar.ax.set_yticklabels(color=fg_color)
- cbar.set_label('aurora viewing probability', color=fg_color)
- plt.show()
+ cbar = plt.colorbar(img, cax = cbaxes,orientation='horizontal',ticks=np.arange(10,100,10) )  
+ cbar.set_alpha(1)
+ cbar.draw_all()
+ cbar.set_label('aurora viewing probability %', color=fg_color)
+
  
  bound_e=ax.plot(0,color='k') #equatorial boundary
  bound_v=ax.plot(0,color='k') #equatorial boundary
+
+
+ 
+ gl=ax.gridlines(linestyle='--',alpha=0.5,color='white') #make grid
+ gl.n_steps=100   #make grid finer  
+
 
  for i in np.arange(0,np.size(dt)):
 
@@ -903,7 +897,7 @@ def ovation_probability_global_north(wicf,dt,colormap_input,max_level, outputdir
      #plt.cla()  #clear axes
      txt.set_visible(False)  #clear previous plot title
      #plot title with time
-     txt=fig.text(0.5,0.92,'PREDSTORM/OP10 aurora  '+dt[i].strftime('%Y-%m-%d %H:%M UT'), color='white',fontsize=15, ha='center')
+     txt=fig.text(0.5,0.92,'PREDSTORM + Ovation Prime 2010 aurora  '+dt[i].strftime('%Y-%m-%d %H:%M UT'), color='white',fontsize=15, ha='center')
      img.remove()     #remove previous wic
      border.remove()  #remove previous nightshade
      bound_e[0].remove() #remove equatorial boundary
@@ -912,11 +906,8 @@ def ovation_probability_global_north(wicf,dt,colormap_input,max_level, outputdir
      bound_v=ax.plot(longitude_bound,equatorial_bound[i,:]-8,transform=crs,color='r',linestyle='--',alpha=0.8) #viewing line after Case et al. 2016
      
      border=ax.add_feature(Nightshade(dt[i]))  #add day night border
-     img=ax.imshow(wic[:,:,i], vmin=4, vmax=max_level, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap) #aurora
-     
-     sys.exit()
+     img=ax.imshow(wic[:,:,i], vmin=10, vmax=100, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap) #aurora
 
-  
      #save as movie frame
      framestr = '%05i' % (i)  
      fig.savefig('results/'+outputdir+'/prob_global/aurora_'+framestr+'.jpg',dpi=150,facecolor=fig.get_facecolor())
@@ -932,7 +923,7 @@ def ovation_probability_global_north(wicf,dt,colormap_input,max_level, outputdir
 
 
 
-def ovation_probability_europe_canada(wicf,dt,colormap_input,max_level, outputdir,longitude_bound,equatorial_bound):
+def ovation_probability_europe_canada(wicf,dt, outputdir,longitude_bound,equatorial_bound):
  '''
  plots the ovation aurora on the northern hemisphere from a polar view, makes movie frames
  wic is a world image cube with ovation results 512x1024
@@ -957,13 +948,11 @@ def ovation_probability_europe_canada(wicf,dt,colormap_input,max_level, outputdi
 
  #define extent of the produced world maps - defined as: west east south north
  mapextent=[-180,180,-90,90]   
- 
- #need to set alpha linearly increasing in the colormap so that it blends into background for 
- #small values
- cmap = plt.get_cmap(colormap_input)  # Choose colormap
- my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
- my_cmap[:,-1] = np.linspace(0, 1, cmap.N)  # Set alpha
- my_cmap = ListedColormap(my_cmap) # Create new colormap
+
+
+ #use custom colormap suitable for aurora
+ my_cmap = aurora_cmap()
+
 
  crs=ccrs.PlateCarree()
 
@@ -1025,16 +1014,28 @@ def ovation_probability_europe_canada(wicf,dt,colormap_input,max_level, outputdi
      #these are calls that create the first object to be removed from the plot with each frame
      txt=fig.text(0.5,0.92,'')
      border1=ax.add_feature(Nightshade(dt[0]))  #add day night border
-     img1=ax.imshow(wic[:,:,0])
+     img1=ax.imshow(wic[:,:,0],vmin=10, vmax=100,cmap=my_cmap)
      bound_e1=ax.plot(0,color='k') #equatorial boundary
      bound_v1=ax.plot(0,color='k') #equatorial boundary
    
    if ax == ax2: 
      ax.set_extent([canada_west, canada_east, canada_south, canada_north])
      border2=ax.add_feature(Nightshade(dt[0]))  #add day night border
-     img2=ax.imshow(wic[:,:,0])
+     img2=ax.imshow(wic[:,:,0],vmin=10, vmax=100,cmap=my_cmap)
      bound_e2=ax.plot(0,color='k') #equatorial boundary
      bound_v2=ax.plot(0,color='k') #equatorial boundary
+
+
+
+ 
+ #colorbar
+ fg_color = 'white'
+ plt.style.use("dark_background") #for white ticks and labels
+ cbaxes = fig.add_axes([0.3, 0.07, 0.4, 0.02]) 
+ cbar = plt.colorbar(img1, cax = cbaxes,orientation='horizontal',ticks=np.arange(10,100,10) )  
+ cbar.set_alpha(1)
+ cbar.draw_all()
+ cbar.set_label('aurora viewing probability %', color=fg_color)
 
 
  for i in np.arange(0,np.size(dt)):
@@ -1044,7 +1045,7 @@ def ovation_probability_europe_canada(wicf,dt,colormap_input,max_level, outputdi
      #plt.cla()  #clear axes
      txt.set_visible(False)  #clear previous plot title
      #plot title with time
-     txt=fig.text(0.5,0.92,'PREDSTORM/OP10 aurora  '+dt[i].strftime('%Y-%m-%d %H:%M UT'), color='white',fontsize=15, ha='center')
+     txt=fig.text(0.5,0.92,'PREDSTORM + Ovation Prime 2010 aurora   '+dt[i].strftime('%Y-%m-%d %H:%M UT'), color='white',fontsize=15, ha='center')
      
      #Europe
     
@@ -1056,7 +1057,7 @@ def ovation_probability_europe_canada(wicf,dt,colormap_input,max_level, outputdi
      bound_e1=ax1.plot(longitude_bound,equatorial_bound[i,:],transform=crs,color='k',alpha=0.8) #equatorial boundary
      bound_v1=ax1.plot(longitude_bound,equatorial_bound[i,:]-8,transform=crs,color='r',linestyle='--',alpha=0.8) #viewing line after Case et al. 2016
      border1=ax1.add_feature(Nightshade(dt[i]))  #add day night border
-     img1=ax1.imshow(wic[:,:,i], vmin=0.01, vmax=max_level, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap) #aurora
+     img1=ax1.imshow(wic[:,:,i], vmin=10, vmax=100, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap) #aurora
 
      #Canada USA
      
@@ -1068,13 +1069,9 @@ def ovation_probability_europe_canada(wicf,dt,colormap_input,max_level, outputdi
      bound_e2=ax2.plot(longitude_bound,equatorial_bound[i,:],transform=crs,color='k',alpha=0.8) #equatorial boundary
      bound_v2=ax2.plot(longitude_bound,equatorial_bound[i,:]-8,transform=crs,color='r',linestyle='--',alpha=0.8) #viewing line after Case et al. 2016
      border2=ax2.add_feature(Nightshade(dt[i]))  #add day night border
-     img2=ax2.imshow(wic[:,:,i], vmin=0.01, vmax=max_level, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap) #aurora
+     img2=ax2.imshow(wic[:,:,i], vmin=10, vmax=100, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap) #aurora
 
- 
-     #save as image with timestamp in filename
-     #plot_Nhemi_filename='results/forecast_global/predstorm_aurora_real_Nhemi_'+dt.strftime("%Y_%m_%d_%H%M")  +'.jpg'
-     #fig.savefig(plot_Nhemi_filename,dpi=150,facecolor=fig.get_facecolor())
-     
+      
      
      #save as movie frame
      framestr = '%05i' % (i)  
@@ -1086,81 +1083,27 @@ def ovation_probability_europe_canada(wicf,dt,colormap_input,max_level, outputdi
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-'''
-
-#####################  (2c) Convert to probabilities, smooth etc.
+def aurora_cmap():
+    '''make custom colormap suitable for aurora'''
  
-# ************* NOT CORRECT -> how to go from erg cm-2 s-1 to probability?
-#Case et al. 2016
-#print('Convert to probabilites, smooth with gaussian,')
-#print('round numbers, trim values < 2, cut at 100 % probability')
-#convert to probabilities from energy flux in erg cm−2 s−1 Case et al. 2016
- 
-#pimg=8*aimg
-   
-#pimg=10+8*aimg
+    cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["green","yellow","red"])
+    my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
+    my_cmap[:,-1] = np.linspace(0.5, 1, cmap.N)  # Set alpha
+    my_cmap[0:10,-1] = 0  # Set alpha for all values under 4 zero (256 steps are in this array, so 256/100*4 ~10)
+    my_cmap = ListedColormap(my_cmap) # Create new colormap
 
-#smooth out artefacts
-pimg = scipy.ndimage.gaussian_filter(pimg,sigma=(3,5))
+    return my_cmap
 
-#round probabilities?
-#pimg=np.round(pimg,0)
 
-#trim small values
-#pimg[np.where(pimg <2)]=0
 
-#cut at 100 percent probability
-#pimg[np.where(pimg >100)]=100
 
-#add calibration of probabilities compared to NOAA
-#adhoc_calibration=3
-#ovation_img[:,:,k]=pimg*adhoc_calibration
- 
- 
-for testing
-plt.close()
-#16/9 ration for full hd output
-fig = plt.figure(figsize=[10, 5]) 
-ax1 = plt.subplot(1, 1, 1, projection=crs)
-fig.set_facecolor('black') 
-ax1.coastlines()
-ax1.imshow(pimg, vmin=0, vmax=100, transform=crs, extent=mapextent, origin='lower',zorder=3,cmap=aurora_cmap())
-#ax1.set_extent(fullextent)
 
-  
-#Diana:
 
-# Scalers for displaying aurora probabilities from read_data_local.pro line 73
-imult = 10.
-iadd = 0.
-aurora_data = iadd + imult*je_array # where je_array is the auroral flux array
 
-# Remove spurios noise
-aurora_data[np.where(aurora_data<1)] = 0
 
-# Rescale aurora again based on geoconvert.pro line 73
-aurora_data = 5*np.sqrt(aurora_data)
-aurora_data[np.where(aurora_data<4)] = 0
-aurora_data[np.where(aurora_data>100)] = 100
 
-    
-'''  
-    
+
+
     
     
     
@@ -1202,51 +1145,6 @@ def aurora_now():
   
     return img, dt
 
-
-
-def aurora_cmap():
-    """Return a colormap with aurora like colors"""
-    stops = {'red': [(0.00, 0.1725, 0.1725),
-                     (0.50, 0.1725, 0.1725),
-                     (1.00, 0.95, 0.95)],
-
-             'green': [(0.00, 0.9294, 0.9294),
-                       (0.50, 0.9294, 0.9294),
-                       (1.00, 0., 0.)],
-
-             'blue': [(0.00, 0.3843, 0.3843),
-                      (0.50, 0.3843, 0.3843),
-                      (1.00, 0., 0.)],
-
-             'alpha': [(0.00, 0.0, 0.0),
-                       (0.50, 1.0, 1.0),
-                       (1.00, 1.0, 1.0)]}
-
-    return LinearSegmentedColormap('aurora', stops)
-
-def aurora_cmap2 ():
-    """Return a colormap with aurora like colors"""
-    stops = {'red': [(0.00, 0.1725, 0.1725),
-                     (0.50, 0.1725, 0.1725),
-                     (1.00, 0.8353, 0.8353)],
-
-             'green': [(0.00, 0.9294, 0.9294),
-                       (0.50, 0.9294, 0.9294),
-                       (1.00, 0.8235, 0.8235)],
-
-             'blue': [(0.00, 0.3843, 0.3843),
-                      (0.50, 0.3843, 0.3843),
-                      (1.00, 0.6549, 0.6549)],
-
-             'alpha': [(0.00, 0.0, 0.0),
-                       (0.50, 1.0, 1.0),
-                       (1.00, 1.0, 1.0)]}
-
-    return LinearSegmentedColormap('aurora', stops)
-    
-    
-    
-  
     
     
 

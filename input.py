@@ -19,9 +19,9 @@ last update October 2019
 
 mode=0                      # select mode: 0 for real time mode, 1 for local file, 2 for OMNI2 data
 
-time_resolution = 20         # time resolution of resulting auroramaps in minutes
+time_resolution = 30         # time resolution of resulting auroramaps in minutes
 
-output_directory='aurora_test_package3'            #specify output directory of frames and movies under "results/"
+output_directory='aurora_test_package_5'            #specify output directory of frames and movies under "results/"
 
 #--------------------------------- select map types 
 
@@ -29,19 +29,27 @@ output_directory='aurora_test_package3'            #specify output directory of 
 global_flux_map=False                   #northern polar view
 europe_canada_flux_map=False           #2 maps in one frame for Europa and Canada/USA
 
-#probability maps
-global_probability_map=True
-europe_canada_probability_map=True
-
 
 #Maximum level for flux plots erg cm-2 -s-1
 max_level_flux=1.5
 
+
+#probability maps
+global_probability_map=False
+europe_probability_map=False
+canada_probability_map=True
+europe_canada_probability_map=False
+
+#marble, viirs or topography
+map_type = 'marble'#'viirs' #'marble'#'topography'
+
+
+#valid for flux and probability maps
 equatorial_boundary_flux_threshold=1.0
 
 #------------------------------- controls for computation
 
-window_minutes=10                #window in minutes for smoothing the coupling with a running mean; ignored if time_resolution larger than window_minutes; standard=20
+window_minutes=30                #window in minutes for smoothing the coupling with a running mean; ignored if time_resolution larger than window_minutes; standard=20
 
 calc_mode='multi'               #multi or single processing mode for calculating the aurora image cube
 #calc_mode='single'
@@ -50,8 +58,8 @@ calc_mode='multi'               #multi or single processing mode for calculating
 # --------------------------- mode 0 settings
 
                                    # in real time mode, start time is always now in UTC
-past_hours      =  0             # in real time mode, start time with previous hours, negative = past
-future_hours    =  24               # in real time mode, number of hours into future, 0 for one frame only
+past_hours      =  -15             # in real time mode, start time with previous hours, negative = past
+future_hours    =  1               # in real time mode, number of hours into future, 0 for one frame only
 
 #online source file for real time mode
 predstorm_url='https://www.iwf.oeaw.ac.at/fileadmin//staff/SP/cmoestl/readtime/predstorm_real.txt'

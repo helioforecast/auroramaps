@@ -26,6 +26,9 @@ last update October 2019
 -----------------------------------------------------------------------------------
 TO DO: 
 
+
+
+
 core:
 - check with IDL code, debuggen, both hemispheres correct?
 - get flux for time -> weights for both seasons? how correctly?, compare further with ovationpyme and IDL version
@@ -166,7 +169,25 @@ def make_aurora_cube_multi(ts,ec,k):
 
 
 
+
+
+
+'''
+amu.save_gibs_earth_image('BlueMarble_NextGeneration',300)    
+amu.save_gibs_earth_image('VIIRS_CityLights_2012',300)    
+
+
+
+
+amu.save_gibs_earth_image('BlueMarble_NextGeneration',600)    
+amu.save_gibs_earth_image('VIIRS_CityLights_2012',600)    
+'''
+
+         
+
+
 ############### (0) get input data, get PREDSTORM solar wind files mode ###############
+
 
 start_all=time.time()
 plt.close('all')
@@ -220,6 +241,8 @@ if os.path.isdir('results/'+output_directory+'/flux_global') == False: os.mkdir(
 if os.path.isdir('results/'+output_directory+'/flux_europe_canada') == False: os.mkdir('results/'+output_directory+'/flux_europe_canada')
 if os.path.isdir('results/'+output_directory+'/prob_europe_canada') == False: os.mkdir('results/'+output_directory+'/prob_europe_canada')
 if os.path.isdir('results/'+output_directory+'/prob_global') == False: os.mkdir('results/'+output_directory+'/prob_global')
+if os.path.isdir('results/'+output_directory+'/prob_europe') == False: os.mkdir('results/'+output_directory+'/prob_europe')
+if os.path.isdir('results/'+output_directory+'/prob_canada') == False: os.mkdir('results/'+output_directory+'/prob_canada')
 
 if os.path.isdir('auroramaps/data/predstorm') == False: os.mkdir('auroramaps/data/predstorm')
 if os.path.isdir('auroramaps/data/omni2') == False: os.mkdir('auroramaps/data/omni2')
@@ -452,7 +475,6 @@ print()
 start = time.time()
 
 
-
 #global flux images
 if global_flux_map==True:
   amu.ovation_global_north(ovation_img,ts,'hot',max_level_flux,output_directory,all_long,ebs)
@@ -461,12 +483,48 @@ if global_flux_map==True:
 if europe_canada_flux_map==True:
   amu.ovation_europe_canada(ovation_img,ts,'hot',max_level_flux,output_directory,all_long,ebs)
 
+
+
+
+
+''' ***** add function to make probability maps once
+ ################ Scalers for displaying aurora probabilities from read_data_local.pro line 73
+ imult = 10.
+ iadd = 0.
+ wic = iadd + imult*wicf # where je_array is the auroral flux array
+
+ # Remove spurios noise
+ wic[np.where(wic<1)] = 0
+
+ # Rescale aurora again based on geoconvert.pro line 73
+ wic = 5*np.sqrt(wic)
+ wic[np.where(wic<4)] = 0
+ wic[np.where(wic>100)] = 100
+ ####################################################
+
+'''
+
+
+
+
+
+
+
+
+
 #same for probability maps
 if global_probability_map==True:
   amu.ovation_probability_global_north(ovation_img,ts,output_directory,all_long,ebs)
 
 if europe_canada_probability_map==True:
   amu.ovation_probability_europe_canada(ovation_img,ts,output_directory,all_long,ebs)
+
+if europe_probability_map==True:
+  amu.ovation_probability_europe(ovation_img,ts,output_directory,all_long,ebs, map_type)
+
+if canada_probability_map==True:
+  amu.ovation_probability_canada(ovation_img,ts,output_directory,all_long,ebs,map_type)
+
 
 end = time.time()
 print('All movie frames took ',np.round(end - start,2),'sec, per frame',np.round((end - start)/np.size(ts),2),' sec.')
@@ -500,6 +558,18 @@ if europe_canada_probability_map==True:
   os.system('ffmpeg -r 20 -i results/'+output_directory+'/prob_europe_canada/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/prob_europe_canada.mp4 -y -loglevel quiet')
   os.system('ffmpeg -r 20 -i results/'+output_directory+'/prob_europe_canada/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/prob_europe_canada.gif -y -loglevel quiet')
   os.system('ffmpeg -i results/'+output_directory+'/prob_europe_canada.mp4  -vf scale=1000:-1 results/'+output_directory+'/prob_europe_canada_small.gif  -y -loglevel quiet ')
+
+if europe_probability_map==True:
+  os.system('ffmpeg -r 20 -i results/'+output_directory+'/prob_europe/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/prob_europe.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r 20 -i results/'+output_directory+'/prob_europe/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/prob_europe.gif -y -loglevel quiet')
+  os.system('ffmpeg -i results/'+output_directory+'/prob_europe.mp4  -vf scale=1000:-1 results/'+output_directory+'/prob_europe_small.gif  -y -loglevel quiet ')
+
+if canada_probability_map==True:
+  os.system('ffmpeg -r 20 -i results/'+output_directory+'/prob_canada/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/prob_canada.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r 20 -i results/'+output_directory+'/prob_canada/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/prob_canada.gif -y -loglevel quiet')
+  os.system('ffmpeg -i results/'+output_directory+'/prob_canada.mp4  -vf scale=1000:-1 results/'+output_directory+'/prob_canada_small.gif  -y -loglevel quiet ')
+
+
 
 print()
 print('Run time for everything:  ',np.round((time.time() - start_all)/60,2),' min; per frame: ',np.round((time.time() - start_all)/np.size(ts),2),'sec' )

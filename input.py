@@ -25,27 +25,31 @@ output_directory='aurora_test_package_5'            #specify output directory of
 
 #--------------------------------- select map types 
 
-#flux maps
-global_flux_map=False                   #northern polar view
-europe_canada_flux_map=False           #2 maps in one frame for Europa and Canada/USA
 
+### valid for all maps
+
+#marble, viirs or topography
+map_type = 'marble'#'viirs' #'marble'#'topography'
+
+#1.0 erg /cm^2 /s is the threshold in flux for visible aurora
+equatorial_boundary_flux_threshold=1.0
+####
+
+
+#flux maps
+global_flux_map=False          #northern polar view
+europe_flux_map=False          #Europe
+canada_flux_map=False           #Europe
 
 #Maximum level for flux plots erg cm-2 -s-1
 max_level_flux=1.5
 
 
 #probability maps
-global_probability_map=False
-europe_probability_map=False
+global_probability_map=True
+europe_probability_map=True
 canada_probability_map=True
-europe_canada_probability_map=False
 
-#marble, viirs or topography
-map_type = 'marble'#'viirs' #'marble'#'topography'
-
-
-#valid for flux and probability maps
-equatorial_boundary_flux_threshold=1.0
 
 #------------------------------- controls for computation
 
@@ -58,8 +62,8 @@ calc_mode='multi'               #multi or single processing mode for calculating
 # --------------------------- mode 0 settings
 
                                    # in real time mode, start time is always now in UTC
-past_hours      =  -15             # in real time mode, start time with previous hours, negative = past
-future_hours    =  1               # in real time mode, number of hours into future, 0 for one frame only
+past_hours      =  -2             # in real time mode, start time with previous hours, negative = past
+future_hours    =  2               # in real time mode, number of hours into future, 0 for one frame only
 
 #online source file for real time mode
 predstorm_url='https://www.iwf.oeaw.ac.at/fileadmin//staff/SP/cmoestl/readtime/predstorm_real.txt'

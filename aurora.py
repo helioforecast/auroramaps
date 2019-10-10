@@ -238,8 +238,8 @@ print()
 if os.path.isdir('results') == False: os.mkdir('results')
 if os.path.isdir('results/'+output_directory) == False: os.mkdir('results/'+output_directory)
 if os.path.isdir('results/'+output_directory+'/flux_global') == False: os.mkdir('results/'+output_directory+'/flux_global')
-if os.path.isdir('results/'+output_directory+'/flux_europe_canada') == False: os.mkdir('results/'+output_directory+'/flux_europe_canada')
-if os.path.isdir('results/'+output_directory+'/prob_europe_canada') == False: os.mkdir('results/'+output_directory+'/prob_europe_canada')
+if os.path.isdir('results/'+output_directory+'/flux_europe') == False: os.mkdir('results/'+output_directory+'/flux_europe')
+if os.path.isdir('results/'+output_directory+'/flux_canada') == False: os.mkdir('results/'+output_directory+'/flux_canada')
 if os.path.isdir('results/'+output_directory+'/prob_global') == False: os.mkdir('results/'+output_directory+'/prob_global')
 if os.path.isdir('results/'+output_directory+'/prob_europe') == False: os.mkdir('results/'+output_directory+'/prob_europe')
 if os.path.isdir('results/'+output_directory+'/prob_canada') == False: os.mkdir('results/'+output_directory+'/prob_canada')
@@ -475,55 +475,31 @@ print()
 start = time.time()
 
 
-#global flux images
+#flux maps
 if global_flux_map==True:
-  amu.ovation_global_north(ovation_img,ts,'hot',max_level_flux,output_directory,all_long,ebs)
+  amu.plot_ovation(ovation_img, ts, output_directory, all_long,ebs, map_type, 'global', 'flux')
 
-#europe and canada/USA flux images
-if europe_canada_flux_map==True:
-  amu.ovation_europe_canada(ovation_img,ts,'hot',max_level_flux,output_directory,all_long,ebs)
+if europe_flux_map==True:
+  amu.plot_ovation(ovation_img, ts, output_directory, all_long,ebs, map_type, 'europe', 'flux')
 
-
-
-
-
-''' ***** add function to make probability maps once
- ################ Scalers for displaying aurora probabilities from read_data_local.pro line 73
- imult = 10.
- iadd = 0.
- wic = iadd + imult*wicf # where je_array is the auroral flux array
-
- # Remove spurios noise
- wic[np.where(wic<1)] = 0
-
- # Rescale aurora again based on geoconvert.pro line 73
- wic = 5*np.sqrt(wic)
- wic[np.where(wic<4)] = 0
- wic[np.where(wic>100)] = 100
- ####################################################
-
-'''
-
-
-
-
-
-
+if canada_flux_map==True:
+  amu.plot_ovation(ovation_img, ts, output_directory, all_long,ebs, map_type, 'canada', 'flux')
 
 
 
 #same for probability maps
-if global_probability_map==True:
-  amu.ovation_probability_global_north(ovation_img,ts,output_directory,all_long,ebs)
 
-if europe_canada_probability_map==True:
-  amu.ovation_probability_europe_canada(ovation_img,ts,output_directory,all_long,ebs)
+#first convert flux to probability
+ovation_img_prob=amu.flux_to_probability(ovation_img)
+
+if global_probability_map==True:
+  amu.plot_ovation(ovation_img_prob, ts, output_directory, all_long,ebs, map_type, 'global', 'prob',utcnow,swav.ec)
 
 if europe_probability_map==True:
-  amu.ovation_probability_europe(ovation_img,ts,output_directory,all_long,ebs, map_type)
+  amu.plot_ovation(ovation_img_prob, ts, output_directory, all_long,ebs, map_type, 'europe', 'prob',utcnow,swav.ec)
 
 if canada_probability_map==True:
-  amu.ovation_probability_canada(ovation_img,ts,output_directory,all_long,ebs,map_type)
+  amu.plot_ovation(ovation_img_prob, ts, output_directory, all_long,ebs, map_type, 'canada', 'prob',utcnow,swav.ec)
 
 
 end = time.time()

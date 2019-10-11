@@ -84,6 +84,7 @@ import cartopy.feature as carfeat
 from cartopy.feature.nightshade import Nightshade
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.dates import  DateFormatter
 import mpl_toolkits  
 import matplotlib.dates as mdates
 import sys
@@ -168,22 +169,12 @@ def make_aurora_cube_multi(ts,ec,k):
 #######################################################################################
 
 
-
-
-
-
-'''
-amu.save_gibs_earth_image('BlueMarble_NextGeneration',300)    
-amu.save_gibs_earth_image('VIIRS_CityLights_2012',300)    
-
-
-
-
-amu.save_gibs_earth_image('BlueMarble_NextGeneration',600)    
-amu.save_gibs_earth_image('VIIRS_CityLights_2012',600)    
-'''
-
-         
+#if new background images need to be saved in auroramaps/data/wmts, some are included!
+#amu.save_gibs_earth_image('BlueMarble_NextGeneration',300)    
+#amu.save_gibs_earth_image('VIIRS_CityLights_2012',300)    
+#amu.save_gibs_earth_image('BlueMarble_NextGeneration',600)    
+#amu.save_gibs_earth_image('VIIRS_CityLights_2012',600)    
+        
 
 
 ############### (0) get input data, get PREDSTORM solar wind files mode ###############
@@ -317,26 +308,26 @@ window=int(window_minutes/time_resolution)	#when time resolution < averaging win
 coup_cycle=4421 #average coupling for solar cycle (see e.g. Newell et al. 2010)
 
 ####################### plot current coupling, the driver behind the ovation model
-fig, ax = plt.subplots(figsize=[12, 5])
-plt.plot_date(swav.time,np.ones(np.size(swav.time)),'k-.',label='cycle average')
+fig, ax = plt.subplots(figsize=[10, 5],dpi=100)
+plt.plot_date(l1wind.time,np.ones(np.size(l1wind.time)),'k-.',label='cycle average',linewidth=0.7)
 plt.plot_date(l1wind.time,l1wind.ec/coup_cycle,'k-', label='input wind')   
 plt.plot_date(swav.time,swav.ec/coup_cycle,'r-',label='weighted averages',markersize=2)   
-plt.title('Newell coupling')
+plt.title('Newell coupling Nc')
+plt.ylabel(r'Nc / 4421 $\mathrm{[(km/s)^{4/3}\/nT^{2/3}]}$')
+ax.xaxis.set_major_formatter( DateFormatter('%Y-%b-%d %Hh') )
 
 #plot moving averages and make them if time resolution high enough
 if window > 0:
-   print('running mean used for Ec with time window +/- ',window_minutes,'minutes')
+   print('running mean used for Nc with time window +/- ',window_minutes,'minutes')
    ec_run_mean=swav.ec
    for i in np.arange(window,np.size(ts)-window): ec_run_mean[i]=np.mean(swav.ec[i-window:i+window])  
-   plt.plot_date(swav.time,ec_run_mean/coup_cycle,'b--',label='running mean of weighted averages' )   
+   plt.plot_date(swav.time,ec_run_mean/coup_cycle,'b--',label='smoothed weighted averages' )   
    #replace Ec average by running mean
    swav.ec=ec_run_mean
     
 ax.set_xlim([swav.time[0]-4/24,swav.time[-1]])
 plt.legend()
 fig.savefig('results/'+output_directory+'/coupling.png',dpi=150,facecolor=fig.get_facecolor()) #save plot in outputdirectory
-
-
 
 
 
@@ -412,50 +403,34 @@ sys.exit()
 '''
 
 
-##################### (2b) get lower equatorial boundary and viewing line
+##################### (2b) get lower equatorial boundary 
 
-print('Now make equatorial boundary and viewing line')
+print('Now make equatorial boundary')
 start = time.time()
 print('clock run time start ... for total number of frames:', np.size(ts))
 
-#define the latitude longitude grid again 
-all_lat=np.linspace(-90,90,512)
-all_long=np.linspace(-180,180,1024)   
-eb=np.zeros([np.size(ts),np.size(all_long)])    #define array of equatorial boundaries eb
-
+#dictionary for putting together latitude, longitude and boundary data
+eb = {'lat':np.linspace(-90,90,512), 'long':np.linspace(-180,180,1024),\
+      'data':np.zeros([np.size(ts),np.size(np.linspace(-180,180,1024))]), \
+      'smooth':np.zeros([np.size(ts),np.size(np.linspace(-180,180,1024))]) }
 #make the equatorial boundary
-eb=amu.make_equatorial_boundary(ovation_img,eb,np.size(ts),all_lat,equatorial_boundary_flux_threshold) 
-#the result is eb as function of longitude variable all_long
-
-ebwin=15 #size of filter window
-ebs=amu.smooth_boundary(ts,eb,ebwin)
+eb['data']=amu.make_equatorial_boundary(ovation_img,eb['data'],np.size(ts),eb['lat'],equatorial_boundary_flux_threshold) 
+#the result is eb['data'] as function of longitude variable eb['long'] 
+ebwin=15 #size of filter window, apply filter
+eb['smooth']=amu.smooth_boundary(ts,eb['data'],ebwin)
     
 print('... end run time clock:  ',np.round(time.time() - start,2),' sec total, per frame: ',np.round((time.time() - start)/np.size(ts),2))
 print('total number of frames:', np.size(ts))
 print()
 print('------------------------------------------------------')
-    
-'''
-plt.figure(12)
-#plt.plot(np.arange(0,512*6),ebi[0,:],'or')   
-#plt.plot(np.arange(0,512*6),ebis[0,:],'-k')   
-
-plt.plot(all_long,eb[0,:],'or')   
-plt.plot(all_long,ebs[0,:],'-k')   
+   
+        
+'''for debugging equatorial boundary
+plt.figure(13)
+plt.plot(eb['long'],eb['data'][0,:],'-r')   
+plt.plot(eb['long'],eb['smooth'][0,:],'-b')   
 '''
 
-
-
-
-#comparison with NOAA
-#global_predstorm_noaa(ovation_img)
-
-#plot the fluxes for direct comparison to ovation prime in IDL
-#for k in np.arange(0,np.size(ts)):
-#    oup.global_predstorm_flux(ovation_img[:,:,k],ts[k],k)
-
-#for k in np.arange(0,np.size(ts)):
-#    oup.europe_canada_predstorm(ovation_img[:,:,k],ts[k],k, 'hot')
 
 
 
@@ -464,46 +439,48 @@ plt.plot(all_long,ebs[0,:],'-k')
 #####################################  (3) PLOTS and MOVIES  #########################################
 
 
-############################ (3a) Make global aurora plot for comparison with NOAA nowcast
+############################ (3a) Make global aurora plots 
 #maybe make faster with multiprocessing pool - does not work on MacOS but should on Linux
 #try multiprocessing with initializer?
 #https://docs.python.org/dev/library/multiprocessing.html#multiprocessing.pool.Pool
 
 print('Make all movie frames')  
 print()
-
 start = time.time()
 
+############ load background image
+map_img=amu.load_high_res_background(map_type)
 
 #flux maps
 if global_flux_map==True:
-  amu.plot_ovation(ovation_img, ts, output_directory, all_long,ebs, map_type, 'global', 'flux')
+  amu.plot_ovation(ovation_img, ts, output_directory, eb, map_type, map_img, 'global', 'flux',utcnow,swav.ec)
 
 if europe_flux_map==True:
-  amu.plot_ovation(ovation_img, ts, output_directory, all_long,ebs, map_type, 'europe', 'flux')
+  amu.plot_ovation(ovation_img, ts, output_directory, eb, map_type, map_img, 'europe', 'flux',utcnow,swav.ec)
 
 if canada_flux_map==True:
-  amu.plot_ovation(ovation_img, ts, output_directory, all_long,ebs, map_type, 'canada', 'flux')
+  amu.plot_ovation(ovation_img, ts, output_directory, eb, map_type, map_img, 'canada', 'flux',utcnow,swav.ec)
 
-
-
-#same for probability maps
+########### same for probability maps
 
 #first convert flux to probability
 ovation_img_prob=amu.flux_to_probability(ovation_img)
 
 if global_probability_map==True:
-  amu.plot_ovation(ovation_img_prob, ts, output_directory, all_long,ebs, map_type, 'global', 'prob',utcnow,swav.ec)
+  amu.plot_ovation(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'global', 'prob',utcnow,swav.ec)
 
 if europe_probability_map==True:
-  amu.plot_ovation(ovation_img_prob, ts, output_directory, all_long,ebs, map_type, 'europe', 'prob',utcnow,swav.ec)
+  amu.plot_ovation(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'europe', 'prob',utcnow,swav.ec)
 
 if canada_probability_map==True:
-  amu.plot_ovation(ovation_img_prob, ts, output_directory, all_long,ebs, map_type, 'canada', 'prob',utcnow,swav.ec)
+  amu.plot_ovation(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'canada', 'prob',utcnow,swav.ec)
 
+#####
 
+number_of_maps=sum([global_flux_map, europe_flux_map, canada_flux_map, global_probability_map,europe_probability_map, canada_probability_map])
 end = time.time()
-print('All movie frames took ',np.round(end - start,2),'sec, per frame',np.round((end - start)/np.size(ts),2),' sec.')
+print(number_of_maps, ' different maps were produced.')
+print('All movie frames took ',np.round(end - start,2),'sec, per frame',np.round((end - start)/np.size(ts)*1/number_of_maps,2),' sec.')
 
 
 ################################# (3b) make movies 
@@ -512,44 +489,48 @@ print('Make mp4 and gif movies')
 print()
 print('For all results see: results/'+output_directory)
 
-#frame rate 20 is good for 10 minute resolution if 3 days want to be seen quickly
+#frame rate is set in input.py
 
 if global_flux_map==True:
-  os.system('ffmpeg -r 20 -i results/'+output_directory+'/flux_global/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/flux_global.mp4 -y -loglevel quiet')
-  os.system('ffmpeg -r 20 -i results/'+output_directory+'/flux_global/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/flux_global.gif -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_global/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_global.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_global/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_global.gif -y -loglevel quiet')
   ########## convert mp4 to gif and makes smaller
   os.system('ffmpeg -i results/'+output_directory+'/flux_global.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_global_small.gif  -y -loglevel quiet ')
 
-if europe_canada_flux_map==True:
-  os.system('ffmpeg -r 20 -i results/'+output_directory+'/flux_europe_canada/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/flux_europe_canada.mp4 -y -loglevel quiet')
-  os.system('ffmpeg -r 20 -i results/'+output_directory+'/flux_europe_canada/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/flux_europe_canada.gif -y -loglevel quiet')
-  os.system('ffmpeg -i results/'+output_directory+'/flux_europe_canada.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_europe_canada_small.gif  -y -loglevel quiet ')
+if europe_flux_map==True:
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_europe/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_europe.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_europe/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_europe.gif -y -loglevel quiet')
+  os.system('ffmpeg -i results/'+output_directory+'/flux_europe.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_europe_small.gif  -y -loglevel quiet ')
+
+if canada_flux_map==True:
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_canada.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_canada.gif -y -loglevel quiet')
+  os.system('ffmpeg -i results/'+output_directory+'/flux_canada.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_canada_small.gif  -y -loglevel quiet ')
+
 
 if global_probability_map==True:
-  os.system('ffmpeg -r 20 -i results/'+output_directory+'/prob_global/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/prob_global.mp4 -y -loglevel quiet')
-  os.system('ffmpeg -r 20 -i results/'+output_directory+'/prob_global/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/prob_global.gif -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_global/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_global.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_global/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_global.gif -y -loglevel quiet')
   os.system('ffmpeg -i results/'+output_directory+'/prob_global.mp4  -vf scale=1000:-1 results/'+output_directory+'/prob_global_small.gif  -y -loglevel quiet ')
 
-if europe_canada_probability_map==True:
-  os.system('ffmpeg -r 20 -i results/'+output_directory+'/prob_europe_canada/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/prob_europe_canada.mp4 -y -loglevel quiet')
-  os.system('ffmpeg -r 20 -i results/'+output_directory+'/prob_europe_canada/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/prob_europe_canada.gif -y -loglevel quiet')
-  os.system('ffmpeg -i results/'+output_directory+'/prob_europe_canada.mp4  -vf scale=1000:-1 results/'+output_directory+'/prob_europe_canada_small.gif  -y -loglevel quiet ')
-
 if europe_probability_map==True:
-  os.system('ffmpeg -r 20 -i results/'+output_directory+'/prob_europe/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/prob_europe.mp4 -y -loglevel quiet')
-  os.system('ffmpeg -r 20 -i results/'+output_directory+'/prob_europe/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/prob_europe.gif -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_europe/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_europe.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_europe/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_europe.gif -y -loglevel quiet')
   os.system('ffmpeg -i results/'+output_directory+'/prob_europe.mp4  -vf scale=1000:-1 results/'+output_directory+'/prob_europe_small.gif  -y -loglevel quiet ')
 
 if canada_probability_map==True:
-  os.system('ffmpeg -r 20 -i results/'+output_directory+'/prob_canada/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/prob_canada.mp4 -y -loglevel quiet')
-  os.system('ffmpeg -r 20 -i results/'+output_directory+'/prob_canada/aurora_%05d.jpg -b:v 5000k -r 20 results/'+output_directory+'/prob_canada.gif -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_canada.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_canada.gif -y -loglevel quiet')
   os.system('ffmpeg -i results/'+output_directory+'/prob_canada.mp4  -vf scale=1000:-1 results/'+output_directory+'/prob_canada_small.gif  -y -loglevel quiet ')
 
 
 
 print()
-print('Run time for everything:  ',np.round((time.time() - start_all)/60,2),' min; per frame: ',np.round((time.time() - start_all)/np.size(ts),2),'sec' )
+print('Run time for everything:  ',np.round((time.time() - start_all)/60,2),' min; per frame: ',np.round((time.time() - start_all)/np.size(ts)*1/number_of_maps,2),'sec' )
 print()
+
+
+plt.style.use('seaborn-whitegrid') #for white ticks and labels, resetting the dark background for plotting the maps
 
 
 ##################################### END ################################################

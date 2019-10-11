@@ -24,17 +24,6 @@ published under GNU Lesser General Public License v3.0
 
 last update October 2019
 
-
-
-
-
-
-if you change this do 
->> import importlib
->> import auroramaps.ovation as amo
->> importlib.reload(amo)  
-in main program to use altered functions in main program
-
  
 
 """

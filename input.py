@@ -21,28 +21,32 @@ mode=0                      # select mode: 0 for real time mode, 1 for local fil
 
 time_resolution = 30         # time resolution of resulting auroramaps in minutes
 
-output_directory='aurora_test_package_5'            #specify output directory of frames and movies under "results/"
+output_directory='aurora_test_10'            #specify output directory of frames and movies under "results/"
 
 #--------------------------------- select map types 
 
 
-### valid for all maps
+#---------- valid for all maps --------------
 
 #marble, viirs or topography
 map_type = 'marble'#'viirs' #'marble'#'topography'
+#map_type = 'topography'
+#map_type = 'viirs'
 
 #1.0 erg /cm^2 /s is the threshold in flux for visible aurora
 equatorial_boundary_flux_threshold=1.0
-####
 
+#output movie frame rate
+frame_rate=5
+#frame rate 20 is good for 10 minute resolution if 3 days want to be seen quickly
+
+
+#------------------------------------------   
 
 #flux maps
-global_flux_map=False          #northern polar view
-europe_flux_map=False          #Europe
-canada_flux_map=False           #Europe
-
-#Maximum level for flux plots erg cm-2 -s-1
-max_level_flux=1.5
+global_flux_map=True          #northern polar view
+europe_flux_map=True         #Europe
+canada_flux_map=True           #Europe
 
 
 #probability maps
@@ -62,8 +66,8 @@ calc_mode='multi'               #multi or single processing mode for calculating
 # --------------------------- mode 0 settings
 
                                    # in real time mode, start time is always now in UTC
-past_hours      =  -2             # in real time mode, start time with previous hours, negative = past
-future_hours    =  2               # in real time mode, number of hours into future, 0 for one frame only
+past_hours      =  0             # in real time mode, start time with previous hours, negative = past
+future_hours    =  1               # in real time mode, number of hours into future, 0 for one frame only
 
 #online source file for real time mode
 predstorm_url='https://www.iwf.oeaw.ac.at/fileadmin//staff/SP/cmoestl/readtime/predstorm_real.txt'

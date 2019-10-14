@@ -30,6 +30,7 @@ PLOTTING
 """
 
 import datetime
+from dateutil import tz
 import numpy as np
 import matplotlib
 import matplotlib.dates as mdates
@@ -300,6 +301,10 @@ def smooth_boundary_core_filter(frames,eb,ebwin,eb_dum,ebis,eb_smooth):
 ########################################### DATA HANDLING ######################################
 
 
+
+ 
+
+
 def load_predstorm_wind(file_in):
     '''
     loads the predstorm input file
@@ -536,8 +541,46 @@ def get_omni_data():
 
  
  
+ 
+def get_selected_timezones(dt):
+    '''get times of cities with respect to all aurora map times   
+    for a list of available timezone names see 
+    https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+    '''
+    
+    #Europe
+    #get timezone
+    oslos=tz.gettz('Europe/Oslo')     
+    #add to dt
+    ts_oslo=[dt[i]+oslos.utcoffset(dt[i]) for i in range(len(dt))]   
 
+    iceland=tz.gettz('Iceland')     
+    ts_iceland=[dt[i]+iceland.utcoffset(dt[i]) for i in range(len(dt))]   
 
+    edinburgh=tz.gettz('Europe/London')     
+    ts_edinburgh=[dt[i]+edinburgh.utcoffset(dt[i]) for i in range(len(dt))]   
+
+    helsinki=tz.gettz('Europe/Helsinki')     
+    ts_helsinki=[dt[i]+helsinki.utcoffset(dt[i]) for i in range(len(dt))]   
+
+    #America
+    halifax=tz.gettz('America/Halifax')     
+    ts_halifax=[dt[i]+halifax.utcoffset(dt[i]) for i in range(len(dt))]   
+ 
+    minneapolis=tz.gettz('America/Chicago')     
+    ts_minneapolis=[dt[i]+minneapolis.utcoffset(dt[i]) for i in range(len(dt))]   
+
+    calgary=tz.gettz('America/Edmonton')     
+    ts_calgary=[dt[i]+calgary.utcoffset(dt[i]) for i in range(len(dt))]   
+
+    fairbanks=tz.gettz('America/Anchorage')     
+    ts_fairbanks=[dt[i]+fairbanks.utcoffset(dt[i]) for i in range(len(dt))]   
+
+    #return dictionary with all variables
+    return {'Oslo':ts_oslo,'Iceland':ts_iceland,'Edinburgh':ts_edinburgh,'Helsinki':ts_helsinki, \
+            'Halifax':ts_halifax,'Minneapolis': ts_minneapolis,'Calgary':ts_calgary,'Fairbanks':ts_fairbanks}
+ 
+ 
 
 
 
@@ -715,6 +758,7 @@ def plot_ovation(wic,dt, outputdir, eb, maptype, map_img, region, type, utcnow,e
 
  #these are calls that create the first object to be removed from the plot with each frame
  txt=fig.text(0.5,0.92,''); txt2=fig.text(0.5,0.85,''); txt3=fig.text(0.5,0.85,''); txt4=fig.text(0.5,0.85,'')
+ txt5=fig.text(0.5,0.92,''); txt6=fig.text(0.5,0.85,''); txt7=fig.text(0.5,0.85,''); txt8=fig.text(0.5,0.85,'')
 
  #set levels in plot and used in colorbar
  if type=='prob': min_level=10; max_level=100
@@ -749,18 +793,25 @@ def plot_ovation(wic,dt, outputdir, eb, maptype, map_img, region, type, utcnow,e
    cbar.ax.tick_params(labelsize=15)
    cbar.set_label(r'aurora flux $\mathrm{erg\/cm^{-2}\/s^{-2}}$', color=fg_color, fontsize=16)
  
+ #get times for specific cities
+ dt_cities=get_selected_timezones(dt)
+ 
+   
+ #draw all frames
  for i in np.arange(0,np.size(dt)):
 
      print(maptype+' '+region+' '+type+' movie frame',i)
 
      #clear previous texts
      txt.set_visible(False);txt2.set_visible(False);txt3.set_visible(False);txt4.set_visible(False)     
+     if region != 'global':  txt5.set_visible(False);txt6.set_visible(False);txt7.set_visible(False);txt8.set_visible(False)     
+ 
      img1.remove(); border1.remove()    #remove previous wic, remove previous nightshade
      bound_e1[0].remove(); bound_v1[0].remove() # remove equatorial boundary, remove view line
 
      #plot title with time
      txt=fig.text(0.45,0.92,dt[i].strftime('%Y %b %d  %H:%M UT'), color='white',fontsize=25, ha='center')
-     txt2=fig.text(0.67,0.92,dt[i].strftime('%A'), color='white',fontsize=25, ha='center')
+     txt2=fig.text(0.69,0.92,dt[i].strftime('%A'), color='white',fontsize=25, ha='center')
 
      #frame time difference to model run time,**only for real time mode!
      diff=dt[i]-utcnow
@@ -770,14 +821,29 @@ def plot_ovation(wic,dt, outputdir, eb, maptype, map_img, region, type, utcnow,e
      #current 4-hour weighted Newell coupling for this frame normalized to solar cycle average (4421) on plot
      txt4=fig.text(0.05,0.92,'Nc = '+str(np.round(ec[i]/4421,1)), color='white',fontsize=25, ha='left')      
      
-     #**add timezones PST, EST, PDT, EDT
-     #if region == 'canada':       txt4=fig.text(0.05,0.92,'Nc = '+str(np.round(ec[i]/4421,1)), color='white',fontsize=25, ha='left')      
+     #add times for selected cities
+     if region == 'canada':   
+         txt5=fig.text(0.01,0.08,dt_cities['Fairbanks'][i].strftime('%H:%M')+' Fairbanks', color='white',fontsize=15, ha='left')      
+         txt6=fig.text(0.01,0.05,dt_cities['Calgary'][i].strftime('%H:%M')+' Calgary', color='white',fontsize=15, ha='left')      
+         txt7=fig.text(0.99,0.08,'Minneapolis '+dt_cities['Minneapolis'][i].strftime('%H:%M'), color='white',fontsize=15, ha='right')      
+         txt8=fig.text(0.99,0.05,'Halifax '+dt_cities['Halifax'][i].strftime('%H:%M'), color='white',fontsize=15, ha='right')      
+ 
+     if region == 'europe':   
+         txt5=fig.text(0.01,0.08,dt_cities['Iceland'][i].strftime('%H:%M')+' Iceland', color='white',fontsize=15, ha='left')      
+         txt6=fig.text(0.01,0.05,dt_cities['Edinburgh'][i].strftime('%H:%M')+' Edinburgh', color='white',fontsize=15, ha='left')      
+         txt7=fig.text(0.99,0.08,'Oslo '+dt_cities['Oslo'][i].strftime('%H:%M'), color='white',fontsize=15, ha='right')      
+         txt8=fig.text(0.99,0.05,'Helsinki '+dt_cities['Helsinki'][i].strftime('%H:%M'), color='white',fontsize=15, ha='right')      
 
+     
      #plot current frame     
      bound_e1=ax.plot(eb['long'],eb['smooth'][i,:],transform=crs,color=bordercolor,alpha=0.8) #equatorial boundary
      bound_v1=ax.plot(eb['long'],eb['smooth'][i,:]-8,transform=crs,color=bordercolor,linestyle='--',alpha=0.8) #viewing line after Case et al. 2016
      border1=ax.add_feature(Nightshade(dt[i]),alpha=0.3)  #add day night border
      img1=ax.imshow(wic[:,:,i], vmin=min_level, vmax=max_level, transform=crs, extent=global_mapextent, origin='lower', zorder=3,alpha=0.8, cmap=my_cmap) #aurora
+      
+     #for debugging  
+     #plt.show()
+     #sys.exit()  
        
      #save as movie frame
      framestr = '%05i' % (i)  

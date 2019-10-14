@@ -4,7 +4,7 @@ AURORAMAPS
 This is an open-source version of the OVATION Prime 2010 (OP10) aurora model in python.
 
 by C. Moestl, IWF-helio group, Graz, Austria. https://www.iwf.oeaw.ac.at/en/user-site/christian-moestl/  
-Contributions by Liam Kilcommons and Diana Morosan
+Contributions by Rachel L. Bailey, Diana E. Morosan and Liam Kilcommons
 
 Current status (October 2019): ongoing debugging. 
 

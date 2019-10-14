@@ -24,34 +24,18 @@ published under GNU Lesser General Public License v3.0
 last update October 2019
 
 -----------------------------------------------------------------------------------
-TO DO: 
-
-
-
+open issues: 
 
 core:
 - check with IDL code, debuggen, both hemispheres correct?
+- check with direct comparison with NOAA global images nowcast
 - get flux for time -> weights for both seasons? how correctly?, compare further with ovationpyme and IDL version
-later:
 - add wave flux (needs good interpolation like OP13)
 - add southern hemisphere maps (with coordinate conversion etc.)
 - use numba or multiprocessing somewhere further for speed? 
 - multiprocessing for saving the frames does not work on MacOS! 
   maybe on linux simply use the plotting function with multiprocessing.pool
   and multiple arguments (starmap) like for the data cubes
-
-
-plotting:
-- auroral power on plot directly from ovation integrated (add function in amo), Newell solar wind coupling als parameter in plot
-- check with direct comparison with NOAA global images nowcast
-- transparent to white colormap so that it looks like viirs images for direct comparison
-- split land on dayside / night lights on night side 
-  this should work in global_predstorm_north by loading background only once
-  need to figure out how to get pixels from nightshade day/night and how to plot 
-  only specific pixels (but then each background image must be updated)
-- Newell solar wind coupling als parameter in plot
-- indicate moon phase with astropy
-- cloud cover how? https://pypi.org/project/weather-api/ ? at least for locations
 
 test bottlenecks: 
 >> python -m cProfile -s tottime aurora_forecast.py
@@ -60,6 +44,15 @@ or use in ipython for function run times:
 >> %timeit function_name()
 >> %time  function_name()
 
+
+plotting ideas:
+- transparent to white colormap so that it looks like viirs images for direct comparison
+- split land on dayside / night lights on night side 
+  this should work in global_predstorm_north by loading background only once
+  need to figure out how to get pixels from nightshade day/night and how to plot 
+  only specific pixels (but then each background image must be updated)
+- indicate moon phase with astropy
+- cloud cover for local location? https://pypi.org/project/weather-api/ ? at least for locations
 
 
 
@@ -79,9 +72,7 @@ from io import StringIO
 from sunpy.time import parse_time
 import numpy as np
 from datetime import datetime
-import cartopy.crs as ccrs
-import cartopy.feature as carfeat
-from cartopy.feature.nightshade import Nightshade
+from dateutil import tz
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.dates import  DateFormatter
@@ -95,6 +86,7 @@ import aacgmv2
 import pdb
 import os
 import time
+import pickle
 import seaborn as sns
 import pandas as pd
 from numba import njit
@@ -184,8 +176,8 @@ start_all=time.time()
 plt.close('all')
 sns.set_style('darkgrid')
 
-#get current time as datetime object in UTC, rounded to minute
-utcnow=amu.round_to_minute(datetime.datetime.utcnow()) 
+#get current time as datetime object in UTC, rounded to minute and time zone aware
+utcnow=amu.round_to_minute(datetime.datetime.now(tz=tz.tzutc())) 
 
 print()
 print('Making aurora forecasts with OVATION PRIME 2010')
@@ -309,12 +301,14 @@ coup_cycle=4421 #average coupling for solar cycle (see e.g. Newell et al. 2010)
 
 ####################### plot current coupling, the driver behind the ovation model
 fig, ax = plt.subplots(figsize=[10, 5],dpi=100)
-plt.plot_date(l1wind.time,np.ones(np.size(l1wind.time)),'k-.',label='cycle average',linewidth=0.7)
-plt.plot_date(l1wind.time,l1wind.ec/coup_cycle,'k-', label='input wind')   
-plt.plot_date(swav.time,swav.ec/coup_cycle,'r-',label='weighted averages',markersize=2)   
+plt.plot_date(l1wind.time,np.ones(np.size(l1wind.time)),'k--',label='cycle average',linewidth=0.7)
+plt.plot_date(l1wind.time,l1wind.ec/coup_cycle,'k-', label='input solar wind')   
+plt.plot_date(swav.time,swav.ec/coup_cycle,'r-',label='4-hour weighted averages',markersize=2)   
 plt.title('Newell coupling Nc')
 plt.ylabel(r'Nc / 4421 $\mathrm{[(km/s)^{4/3}\/nT^{2/3}]}$')
 ax.xaxis.set_major_formatter( DateFormatter('%Y-%b-%d %Hh') )
+plt.xticks(rotation=45)
+
 
 #plot moving averages and make them if time resolution high enough
 if window > 0:
@@ -327,7 +321,9 @@ if window > 0:
     
 ax.set_xlim([swav.time[0]-4/24,swav.time[-1]])
 plt.legend()
-fig.savefig('results/'+output_directory+'/coupling.png',dpi=150,facecolor=fig.get_facecolor()) #save plot in outputdirectory
+
+plt.tight_layout()
+fig.savefig('results/'+output_directory+'/run_newell_coupling.png',dpi=150,facecolor=fig.get_facecolor()) #save plot in outputdirectory
 
 
 
@@ -409,25 +405,34 @@ print('Now make equatorial boundary')
 start = time.time()
 print('clock run time start ... for total number of frames:', np.size(ts))
 
-#dictionary for putting together latitude, longitude and boundary data
-eb = {'lat':np.linspace(-90,90,512), 'long':np.linspace(-180,180,1024),\
-      'data':np.zeros([np.size(ts),np.size(np.linspace(-180,180,1024))]), \
-      'smooth':np.zeros([np.size(ts),np.size(np.linspace(-180,180,1024))]) }
+#dictionary for putting together latitude, longitude, boundary, time and flux map data for saving
+eb = {'lat':np.linspace(-90,90,512), 'long':np.linspace(-180,180,1024),       \
+      'boundary':np.zeros([np.size(ts),np.size(np.linspace(-180,180,1024))]), \
+      'smooth':np.zeros([np.size(ts),np.size(np.linspace(-180,180,1024))]),   \
+      'time': ts}#,'flux_map': ovation_img}
+     
 #make the equatorial boundary
-eb['data']=amu.make_equatorial_boundary(ovation_img,eb['data'],np.size(ts),eb['lat'],equatorial_boundary_flux_threshold) 
+eb['boundary']=amu.make_equatorial_boundary(ovation_img,eb['boundary'],np.size(ts),eb['lat'],equatorial_boundary_flux_threshold) 
 #the result is eb['data'] as function of longitude variable eb['long'] 
 ebwin=15 #size of filter window, apply filter
-eb['smooth']=amu.smooth_boundary(ts,eb['data'],ebwin)
-    
+eb['smooth']=amu.smooth_boundary(ts,eb['boundary'],ebwin)
+   
 print('... end run time clock:  ',np.round(time.time() - start,2),' sec total, per frame: ',np.round((time.time() - start)/np.size(ts),2))
 print('total number of frames:', np.size(ts))
 print()
 print('------------------------------------------------------')
+
+
+#saving boundary data
+eb_save_filename='results/'+output_directory+'/run_data_boundary.p' #run_data_flux_map_boundary.p'
+pickle.dump(eb,open(eb_save_filename, 'wb' ))
+print('Boundary data saved as '+eb_save_filename)
+print()
    
         
 '''for debugging equatorial boundary
 plt.figure(13)
-plt.plot(eb['long'],eb['data'][0,:],'-r')   
+plt.plot(eb['long'],eb['boundary'][0,:],'-r')   
 plt.plot(eb['long'],eb['smooth'][0,:],'-b')   
 '''
 

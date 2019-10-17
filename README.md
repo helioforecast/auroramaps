@@ -64,9 +64,9 @@ Control all this with input.py.
 
 
 
-![Sample image](samples/global_flux_sample.png)
-![Sample image](samples/canada_prob_sample.png)
-![Sample image](samples/europe_prob_sample.png)
+![Sample image](samples/global_flux_sample.jpg)
+![Sample image](samples/canada_prob_sample.jpg)
+![Sample image](samples/europe_prob_sample.jpg)
 
 
 

@@ -4,13 +4,6 @@ util.py
 part of the "auroramaps" package
 
 utilities for the ovation prime 2010 model in python
-includes a few functions taken from https://github.com/lkilcommons/OvationPyme
-
-Modified source code taken originally as OvationPyme
-from https://github.com/lkilcommons/OvationPyme
-
-This module contains the main model routines for 
-Ovation Prime (historically called season_epoch.pro in the IDL version)
 
 ---------------------
 by C. Moestl, IWF-helio group, Graz, Austria.
@@ -21,24 +14,29 @@ https://www.iwf.oeaw.ac.at/user-site/christian-moestl/
 using a rewritten version of the ovationpyme aurora model 
 by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
 
+contributions by R. L. Bailey, D. E. Morosan
+
 published under GNU Lesser General Public License v3.0
 
 last update October 2019
 
-if you change this do 
->> import importlib
->> import auroramaps.util as amu
->> importlib.reload(amu)  
-in main program to use altered functions in main program
 
+sections:
+
+MATH
+DATA_HANDLING
+PLOTTING
 
 """
+
 import datetime
+from dateutil import tz
 import numpy as np
 import matplotlib
 import matplotlib.dates as mdates
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.colors import ListedColormap
+from matplotlib.image import imread
 import matplotlib.pyplot as plt
 import urllib
 from urllib.request import urlopen
@@ -298,8 +296,13 @@ def smooth_boundary_core_filter(frames,eb,ebwin,eb_dum,ebis,eb_smooth):
 
 
 
+
+
 ########################################### DATA HANDLING ######################################
 
+
+
+ 
 
 
 def load_predstorm_wind(file_in):
@@ -404,6 +407,11 @@ def omni_loader():
    else:  o=pickle.load(open('auroramaps/data/omni2/omni2_all_years_pickle.p', 'rb') )
    print('loaded OMNI2 data')
    return o
+   
+   
+   
+   
+   
 
 
 def get_omni_data():
@@ -533,8 +541,46 @@ def get_omni_data():
 
  
  
+ 
+def get_selected_timezones(dt):
+    '''get times of cities with respect to all aurora map times   
+    for a list of available timezone names see 
+    https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+    '''
+    
+    #Europe
+    #get timezone
+    oslos=tz.gettz('Europe/Oslo')     
+    #add to dt
+    ts_oslo=[dt[i]+oslos.utcoffset(dt[i]) for i in range(len(dt))]   
 
+    iceland=tz.gettz('Iceland')     
+    ts_iceland=[dt[i]+iceland.utcoffset(dt[i]) for i in range(len(dt))]   
 
+    edinburgh=tz.gettz('Europe/London')     
+    ts_edinburgh=[dt[i]+edinburgh.utcoffset(dt[i]) for i in range(len(dt))]   
+
+    helsinki=tz.gettz('Europe/Helsinki')     
+    ts_helsinki=[dt[i]+helsinki.utcoffset(dt[i]) for i in range(len(dt))]   
+
+    #America
+    halifax=tz.gettz('America/Halifax')     
+    ts_halifax=[dt[i]+halifax.utcoffset(dt[i]) for i in range(len(dt))]   
+ 
+    minneapolis=tz.gettz('America/Chicago')     
+    ts_minneapolis=[dt[i]+minneapolis.utcoffset(dt[i]) for i in range(len(dt))]   
+
+    calgary=tz.gettz('America/Edmonton')     
+    ts_calgary=[dt[i]+calgary.utcoffset(dt[i]) for i in range(len(dt))]   
+
+    fairbanks=tz.gettz('America/Anchorage')     
+    ts_fairbanks=[dt[i]+fairbanks.utcoffset(dt[i]) for i in range(len(dt))]   
+
+    #return dictionary with all variables
+    return {'Oslo':ts_oslo,'Iceland':ts_iceland,'Edinburgh':ts_edinburgh,'Helsinki':ts_helsinki, \
+            'Halifax':ts_halifax,'Minneapolis': ts_minneapolis,'Calgary':ts_calgary,'Fairbanks':ts_fairbanks}
+ 
+ 
 
 
 
@@ -554,100 +600,263 @@ def get_omni_data():
 ######################################## PLOTTING ########################################
 
 
-def ovation_global_north(wic,dt,colormap_input,max_level, outputdir,longitude_bound,equatorial_bound):
+
+def save_gibs_earth_image(layer, dpi_in):
+    '''load NASA GIBS maps and save them in auroramaps/data/wmts/
+    to be able to quickly load them when producing high-resolution aurora maps
+    default layer is blue marble_NextGeneration
+    URL: 'https://map1c.vis.earthdata.nasa.gov/wmts-geo/wmts.cgi'
+    layers: 'BlueMarble_NextGeneration', 'VIIRS_CityLights_2012',
+              'Reference_Features', 'Sea_Surface_Temp_Blended', 'MODIS_Terra_Aerosol',
+             'Coastlines', 'BlueMarble_ShadedRelief', 'BlueMarble_ShadedRelief_Bathymetry'
+    dpi_in: 600 dpi -> 12k x 6k image /  300 dpi -> 6k x 3k image
+    '''    
+    URL = 'https://map1c.vis.earthdata.nasa.gov/wmts-geo/wmts.cgi'
+    print('save_gibs_earth_image makes a figure and saves it with layer',layer)
+    plt.close(100)
+    fig = plt.figure(100,figsize=[20,10],dpi=300)
+    ax = plt.subplot(1, 1, 1, projection=ccrs.PlateCarree(), position=[0,0,1,1])
+    ax.add_wmts(URL, layer)
+    res=''
+    if dpi_in==300: res='_6k'
+    if dpi_in==600: res='_12k'    
+    fig.savefig('auroramaps/data/wmts/'+layer+'_plate_carree'+res+'.jpg',dpi=dpi_in,facecolor='black')
+
+
+
+def load_high_res_background(maptype):
+    ''' load high resolution background image 
+        for marble and viirs from NASA GIBS also _12k resolution available, 6k takes 1 sec to load (mac), 12k 4 sec.
+        save these images first with save_gibs_earth_image
+    '''
+    
+    if maptype=='marble': 
+        img=imread('auroramaps/data/wmts/BlueMarble_NextGeneration_plate_carree_6k.jpg')        
+    if maptype=='viirs':  
+        img=imread('auroramaps/data/wmts/VIIRS_CityLights_2012_plate_carree_6k.jpg')
+    if maptype=='topography': 
+        img=imread('auroramaps/data/wmts/natural-earth-1_large4096px.png')
+    
+    return img
+
+
+
+def flux_to_probability(flux_array):
+    ''' input flux map wic is converted to probability map ''' 
+
+    # Scalers for displaying aurora probabilities from read_data_local.pro line 73
+    imult = 10.
+    iadd = 0.
+    aurora_data = iadd + imult*flux_array # where je_array is the auroral flux array
+
+    # Remove spurios noise
+    aurora_data[np.where(aurora_data<1)] = 0
+
+    # Rescale aurora again based on geoconvert.pro line 73
+    aurora_data = 5*np.sqrt(aurora_data)
+    aurora_data[np.where(aurora_data<4)] = 0
+    aurora_data[np.where(aurora_data>100)] = 100
+    
+    return aurora_data
+
+
+
+
+def aurora_cmap():
+    '''make custom colormap suitable for aurora probablities'''
+  
+    cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["green","yellow","red"])
+    my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
+    my_cmap[:,-1] = np.linspace(0.5, 1, cmap.N)  # Set alpha
+    my_cmap[0:10,-1] = 0  # Set alpha for all values under 4 zero (256 steps are in this array, so 256/100*4 ~10)
+    my_cmap = ListedColormap(my_cmap) # Create new colormap
+
+    return my_cmap
+
+
+
+
+
+def plot_ovation(wic,dt, outputdir, eb, maptype, map_img, region, type, utcnow,ec):
  '''
- plots the ovation aurora on the northern hemisphere from a polar view, makes movie frames
- wic is a world image cube with ovation results 512x1024
- dt are the datetimes for each frame
- colormap_input is the colormap
- max_level is the maximum level for the colorbar
+ plots high-res probability and flux maps on northern polar views, Europe and Canada, with 
+ different background images
  '''
- #plotting parameters
- #-100 for North America, +10 or 0 for Europe
- global_plot_longitude=-100
- #global_plot_longitude=0
- global_plot_latitude=90
+
+ #for very high res maps if needed later
+ #import cartopy.io.img_tiles as cimgt
+ # stamen_terrain = cimgt.Stamen('terrain-background')
+ #ax = fig.add_subplot(1, 1, 1, projection=ccrs.Orthographic(0, 60))
+ #ax.add_image(stamen_terrain, 6)
 
 
- provinces_50m = carfeat.NaturalEarthFeature('cultural',
-                                             'admin_1_states_provinces_lines',
-                                             '50m',
-                                             facecolor='none',edgecolor='black')
+ ##### borders and coasts parameters depending on background image
+ if maptype=='marble': bordercolor='white'; borderalpha=0.4; coastcolor='white';coastalpha=0.5
+ if maptype=='viirs':  bordercolor='white'; borderalpha=0.5; coastcolor='white';coastalpha=0.3
+ if maptype=='topography': bordercolor='black'; borderalpha=0.4; coastcolor='black';coastalpha=0.1
 
-
-
- #define extent of the produced world maps - defined as: west east south north
- mapextent=[-180,180,-90,90]   
+ if region == 'global':  view_latitude=90; view_longitude=-100; plot_pos=[0.1,0.1,0.8,0.8]  #[left, bottom, width, height]
+ if region == 'canada':  view_latitude=60; view_longitude=-100; plot_pos=[0.05,0.05,0.9,0.9]
+ if region == 'europe':  view_latitude=60; view_longitude=0;    plot_pos=[0.05,0.05,0.9,0.9]
  
- #need to set alpha linearly increasing in the colormap so that it blends into background for 
- #small values
- cmap = plt.get_cmap(colormap_input)  # Choose colormap
- my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
- my_cmap[:,-1] = np.linspace(0, 1, cmap.N)  # Set alpha
- my_cmap = ListedColormap(my_cmap) # Create new colormap
+ #use my custom colormap suitable for aurora probabilities
+ if type=='prob': my_cmap = aurora_cmap()
+ #for flux, hot is fine
+ if type=='flux':  
+    cmap = plt.get_cmap('hot')  # Choose colormap
+    my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
+    my_cmap[:,-1] = np.linspace(0, 1, cmap.N)  # Set alpha
+    my_cmap = ListedColormap(my_cmap) # Create new colormap
 
+  
  crs=ccrs.PlateCarree()
 
+ ################### make figure
+ plt.close(2)
  fig = plt.figure(2,figsize=[12, 12],dpi=80) 
  fig.set_facecolor('black') 
- fig.text(0.99,0.01,'C. Möstl / IWF-helio, Austria', color='white',fontsize=10,ha='right',va='bottom')
- 
- 
- ax = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(global_plot_longitude, global_plot_latitude))
+ ax = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(view_longitude, view_latitude),position=plot_pos)
 
+ fig.text(0.99,0.01,'Möstl, Bailey, IWF-helio, Austria', color='white',fontsize=10,ha='right',va='bottom')
+ fig.text(0.01,0.01,'PREDSTORM  Ovation Prime 2010  cartopy', color='white',fontsize=10,ha='left',va='bottom')
+ 
+ 
+ ###########define map extents
+ 
+ #define extent of the produced ovation maps - defined as: west east south north
+ global_mapextent=[-180,180,-90,90]  
+ 
+ canada_east = -65; canada_west = -135; canada_north = 75; canada_south = 20
+ if region == 'canada': ax.set_extent([canada_west, canada_east, canada_south, canada_north])
+ 
+ europe_east = 35; europe_west = -25; europe_north = 75; europe_south = 30 
+ if region == 'europe': ax.set_extent([europe_west, europe_east, europe_south, europe_north])
+ 
  ax.background_patch.set_facecolor('k')    
+ #show loaded image of world map (all in plate carree)
+ #in order to speed up plotting, this is only done once, and other features like the aurora 
+ #and day-night border are plotted and removed with each new frame
+ ax.imshow(map_img,origin='upper',transform=crs, extent=[-180,180,-90,90])
  
  
  gl=ax.gridlines(linestyle='--',alpha=0.5,color='white') #make grid
  gl.n_steps=100   #make grid finer
- ax.stock_img()  
- 
- #ax.coastlines('50m',color='black',alpha=0.5)
- ax.coastlines('50m',color='white',alpha=0.9)
- ax.add_feature(provinces_50m,alpha=0.2)    #,zorder=2,alpha=0.8)
- ax.add_feature(carfeat.BORDERS, alpha=0.2) #,zorder=2,alpha=0.5)
-  
+ #make grid 
+ gl.xlocator = matplotlib.ticker.FixedLocator(np.arange(-180,190,45))
+ gl.ylocator = matplotlib.ticker.FixedLocator(np.arange(-90,100,10))
 
- 
+
+ #get high res country borders  
+ #https://www.naturalearthdata.com/downloads/10m-cultural-vectors/
+ borders_10m = carfeat.NaturalEarthFeature('cultural', 'admin_0_countries', '10m', facecolor='none',edgecolor=bordercolor)
+ ax.add_feature(borders_10m,alpha=borderalpha)
+ #get high res state borders
+ provinces_50m = carfeat.NaturalEarthFeature('cultural','admin_1_states_provinces_lines','50m',facecolor='none',edgecolor=bordercolor)
+ ax.add_feature(provinces_50m,alpha=borderalpha)
+ #add coastlines
+ ax.coastlines('10m', color=coastcolor,alpha=coastalpha)
+
  #these are calls that create the first object to be removed from the plot with each frame
- txt=fig.text(0.5,0.92,'')
- border=ax.add_feature(Nightshade(dt[0]))  #add day night border
- img=ax.imshow(wic[:,:,0])
- bound_e=ax.plot(0,color='k') #equatorial boundary
- bound_v=ax.plot(0,color='k') #equatorial boundary
+ txt=fig.text(0.5,0.92,''); txt2=fig.text(0.5,0.85,''); txt3=fig.text(0.5,0.85,''); txt4=fig.text(0.5,0.85,'')
+ txt5=fig.text(0.5,0.92,''); txt6=fig.text(0.5,0.85,''); txt7=fig.text(0.5,0.85,''); txt8=fig.text(0.5,0.85,'')
 
+ #set levels in plot and used in colorbar
+ if type=='prob': min_level=10; max_level=100
+ 
+ #Maximum level for flux plots erg cm-2 -s-1 is dynamic depending on map
+ if type=='flux': min_level=0; max_level=np.max(wic)+0.1
+
+ border1=ax.add_feature(Nightshade(dt[0]))  #add day night border
+ img1=ax.imshow(wic[:,:,0],vmin=min_level, vmax=max_level,cmap=my_cmap) #needed to show because of the colorbar
+ bound_e1=ax.plot(0,color='k') #equatorial boundary
+ bound_v1=ax.plot(0,color='k') #viewing line
+
+ #colorbars
+ fg_color = 'white'
+ plt.style.use("dark_background") #for white ticks and labels
+ 
+ if type=='prob': #probability
+  
+   cbaxes = fig.add_axes([0.3, 0.07, 0.4, 0.02]) 
+   cbar = plt.colorbar(img1, cax = cbaxes,orientation='horizontal',ticks=np.arange(10,100,10))  
+   cbar.set_alpha(1)
+   cbar.draw_all()
+   cbar.ax.tick_params(labelsize=15)
+   cbar.set_label('aurora viewing probability %', color=fg_color, fontsize=18)
+
+ if type=='flux': #flux
+ 
+   cbaxes = fig.add_axes([0.3, 0.07, 0.4, 0.02]) 
+   cbar = plt.colorbar(img1, cax = cbaxes,orientation='horizontal') 
+   cbar.set_alpha(1)
+   cbar.draw_all()
+   cbar.ax.tick_params(labelsize=15)
+   cbar.set_label(r'aurora flux $\mathrm{erg\/cm^{-2}\/s^{-2}}$', color=fg_color, fontsize=16)
+ 
+ #get times for specific cities
+ dt_cities=get_selected_timezones(dt)
+ 
+   
+ #draw all frames
  for i in np.arange(0,np.size(dt)):
 
-     print('global movie frame',i)
+     print(maptype+' '+region+' '+type+' movie frame',i)
+
+     #clear previous texts
+     txt.set_visible(False);txt2.set_visible(False);txt3.set_visible(False);txt4.set_visible(False)     
+     if region != 'global':  txt5.set_visible(False);txt6.set_visible(False);txt7.set_visible(False);txt8.set_visible(False)     
  
-     #plt.cla()  #clear axes
-     txt.set_visible(False)  #clear previous plot title
+     img1.remove(); border1.remove()    #remove previous wic, remove previous nightshade
+     bound_e1[0].remove(); bound_v1[0].remove() # remove equatorial boundary, remove view line
+
      #plot title with time
-     txt=fig.text(0.5,0.92,'PREDSTORM aurora  '+dt[i].strftime('%Y-%m-%d %H:%M UT'), color='white',fontsize=15, ha='center')
-     img.remove()     #remove previous wic
-     border.remove()  #remove previous nightshade
-     bound_e[0].remove() #remove equatorial boundary
-     bound_v[0].remove() #remove view line
-     bound_e=ax.plot(longitude_bound,equatorial_bound[i,:],transform=crs,color='k',alpha=0.8) #equatorial boundary
-     #***cut view line at longitudes which are in daylight
-     bound_v=ax.plot(longitude_bound,equatorial_bound[i,:]-8,transform=crs,color='r',linestyle='--',alpha=0.8) #viewing line after Case et al. 2016
+     txt=fig.text(0.45,0.92,dt[i].strftime('%Y %b %d  %H:%M UT'), color='white',fontsize=25, ha='center')
+     txt2=fig.text(0.69,0.92,dt[i].strftime('%A'), color='white',fontsize=25, ha='center')
+
+     #frame time difference to model run time,**only for real time mode!
+     diff=dt[i]-utcnow
+     diff_hours=np.float(np.round(diff.total_seconds()/3600,1))
+     txt3=fig.text(0.80,0.92,'T = {0:+}'.format(diff_hours)+' h', color='white',fontsize=25, ha='left')
+
+     #current 4-hour weighted Newell coupling for this frame normalized to solar cycle average (4421) on plot
+     txt4=fig.text(0.05,0.92,'Nc = '+str(np.round(ec[i]/4421,1)), color='white',fontsize=25, ha='left')      
+     
+     #add times for selected cities
+     if region == 'canada':   
+         txt5=fig.text(0.01,0.08,dt_cities['Fairbanks'][i].strftime('%H:%M')+' Fairbanks', color='white',fontsize=15, ha='left')      
+         txt6=fig.text(0.01,0.05,dt_cities['Calgary'][i].strftime('%H:%M')+' Calgary', color='white',fontsize=15, ha='left')      
+         txt7=fig.text(0.99,0.08,'Minneapolis '+dt_cities['Minneapolis'][i].strftime('%H:%M'), color='white',fontsize=15, ha='right')      
+         txt8=fig.text(0.99,0.05,'Halifax '+dt_cities['Halifax'][i].strftime('%H:%M'), color='white',fontsize=15, ha='right')      
+ 
+     if region == 'europe':   
+         txt5=fig.text(0.01,0.08,dt_cities['Iceland'][i].strftime('%H:%M')+' Iceland', color='white',fontsize=15, ha='left')      
+         txt6=fig.text(0.01,0.05,dt_cities['Edinburgh'][i].strftime('%H:%M')+' Edinburgh', color='white',fontsize=15, ha='left')      
+         txt7=fig.text(0.99,0.08,'Oslo '+dt_cities['Oslo'][i].strftime('%H:%M'), color='white',fontsize=15, ha='right')      
+         txt8=fig.text(0.99,0.05,'Helsinki '+dt_cities['Helsinki'][i].strftime('%H:%M'), color='white',fontsize=15, ha='right')      
 
      
-     border=ax.add_feature(Nightshade(dt[i]))  #add day night border
-     img=ax.imshow(wic[:,:,i], vmin=0.01, vmax=max_level, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap) #aurora
- 
-     #save as image with timestamp in filename
-     #plot_Nhemi_filename='results/forecast_global/predstorm_aurora_real_Nhemi_'+dt.strftime("%Y_%m_%d_%H%M")  +'.jpg'
-     #fig.savefig(plot_Nhemi_filename,dpi=150,facecolor=fig.get_facecolor())
-     
-     
+     #plot current frame     
+     bound_e1=ax.plot(eb['long'],eb['smooth'][i,:],transform=crs,color=bordercolor,alpha=0.8) #equatorial boundary
+     bound_v1=ax.plot(eb['long'],eb['smooth'][i,:]-8,transform=crs,color=bordercolor,linestyle='--',alpha=0.8) #viewing line after Case et al. 2016
+     border1=ax.add_feature(Nightshade(dt[i]),alpha=0.3)  #add day night border
+     img1=ax.imshow(wic[:,:,i], vmin=min_level, vmax=max_level, transform=crs, extent=global_mapextent, origin='lower', zorder=3,alpha=0.8, cmap=my_cmap) #aurora
+      
+     #for debugging  
+     #plt.show()
+     #sys.exit()  
+       
      #save as movie frame
      framestr = '%05i' % (i)  
-     fig.savefig('results/'+outputdir+'/frames_global/aurora_'+framestr+'.jpg',dpi=150,facecolor=fig.get_facecolor())
-     
-     #print('Saved image:  ',plot_Nhemi_filename)
-     
-     
+     fig.savefig('results/'+outputdir+'/'+type+'_'+region+'/aurora_'+framestr+'.jpg',dpi=150,facecolor=fig.get_facecolor())
+
+ print()     
+
+
+
+
+
+
+################################### END ###########################################################
 
 
 
@@ -660,10 +869,76 @@ def ovation_global_north(wic,dt,colormap_input,max_level, outputdir,longitude_bo
 
 
 
-      
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     
     
-    
+
+
+''' OLD CODE
     
 
 
@@ -703,51 +978,6 @@ def aurora_now():
   
     return img, dt
 
-
-
-def aurora_cmap():
-    """Return a colormap with aurora like colors"""
-    stops = {'red': [(0.00, 0.1725, 0.1725),
-                     (0.50, 0.1725, 0.1725),
-                     (1.00, 0.95, 0.95)],
-
-             'green': [(0.00, 0.9294, 0.9294),
-                       (0.50, 0.9294, 0.9294),
-                       (1.00, 0., 0.)],
-
-             'blue': [(0.00, 0.3843, 0.3843),
-                      (0.50, 0.3843, 0.3843),
-                      (1.00, 0., 0.)],
-
-             'alpha': [(0.00, 0.0, 0.0),
-                       (0.50, 1.0, 1.0),
-                       (1.00, 1.0, 1.0)]}
-
-    return LinearSegmentedColormap('aurora', stops)
-
-def aurora_cmap2 ():
-    """Return a colormap with aurora like colors"""
-    stops = {'red': [(0.00, 0.1725, 0.1725),
-                     (0.50, 0.1725, 0.1725),
-                     (1.00, 0.8353, 0.8353)],
-
-             'green': [(0.00, 0.9294, 0.9294),
-                       (0.50, 0.9294, 0.9294),
-                       (1.00, 0.8235, 0.8235)],
-
-             'blue': [(0.00, 0.3843, 0.3843),
-                      (0.50, 0.3843, 0.3843),
-                      (1.00, 0.6549, 0.6549)],
-
-             'alpha': [(0.00, 0.0, 0.0),
-                       (0.50, 1.0, 1.0),
-                       (1.00, 1.0, 1.0)]}
-
-    return LinearSegmentedColormap('aurora', stops)
-    
-    
-    
-  
     
     
 
@@ -916,121 +1146,6 @@ def global_ovation_flux(magnetic_latitude,magnetic_local_time,flux,dt):
 
 
 
-
-
-def europe_canada_predstorm(world_image,dt,counter,colormap_input):
-
-
- plt.close('all')
- #Night map from VIIRS
- #https://wiki.earthdata.nasa.gov/display/GIBS/GIBS+Available+Imagery+Products#expand-EarthatNight4Products
- #nightmap = 'https://map1c.vis.earthdata.nasa.gov/wmts-geo/wmts.cgi'
-
-
- #define extent of the produced world maps - defined as: west east south north
- mapextent=[-180,180,-90,90]   
-
-
- #not so good: layer='VIIRS_Black_Marble'
- #better but takes time
- #layer = 'VIIRS_CityLights_2012'
-
- 
- #need to set alpha linearly increasing in the colormap
- cmap = plt.get_cmap(colormap_input)  # Choose colormap
- my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
- my_cmap[:,-1] = np.linspace(0.3, 1, cmap.N)  # Set alpha
- my_cmap = ListedColormap(my_cmap) # Create new colormap
-
-
- land_50m = carfeat.NaturalEarthFeature('physical', 'land', '50m',
-                                        edgecolor='k',
-                                        facecolor=carfeat.COLORS['land'])
- ocean_50m = carfeat.NaturalEarthFeature('physical', 'ocean', '50m',
-                                        edgecolor='k',
-                                        facecolor='steelblue')#carfeat.COLORS['water'])                                        
- provinces_50m = carfeat.NaturalEarthFeature('cultural',
-                                             'admin_1_states_provinces_lines',
-                                             '50m',
-                                             facecolor='none',edgecolor='black')
- crs=ccrs.PlateCarree()
-
-
-
- #16/9 ration for full hd output
- fig = plt.figure(2,figsize=[16, 9],dpi=100) 
- fig.set_facecolor('black') 
- plt.cla()
-
- # ax1 Europe
- ax1 = plt.subplot(1, 2, 2, projection=ccrs.Orthographic(0, 60),position=[0.51,0.05,0.48,0.9])#[left, bottom, width, height]
- # ax2 northern America
- ax2 = plt.subplot(1, 2, 1, projection=ccrs.Orthographic(-100, 60), position=[0.01,0.05,0.48,0.9])
-
- #define map extents
- canada_east = -65
- canada_west = -135 
- canada_north = 75
- canada_south = 20
-
- europe_east = 50
- europe_west = -20
- europe_north = 75
- europe_south = 30
-
-
- #plot one axis after another
- for ax in [ax1, ax2]:
-
-    #ax.gridlines(linestyle='--',alpha=0.2,color='white')
-    #ax.coastlines(alpha=0.5,zorder=3)
-
-    #ax.add_feature(carfeat.LAND,zorder=2,alpha=1)
-    #ax.add_feature(land_50m, color='darkgreen')
-    #ax.add_feature(land_50m, color='darkslategrey')
-    ax.add_feature(land_50m, color='dimgrey')
-    ax.add_feature(provinces_50m,alpha=0.5)#,zorder=2,alpha=0.8)
-
-  
-    #ax.add_feature(carfeat.COASTLINE)#,zorder=2,alpha=0.5)
-    #ax.add_feature(carfeat.OCEAN,color='mediumslateblue')#,zorder=2,alpha=1)
-    ax.add_feature(ocean_50m, color='darkblue')
-
-    #ax.add_feature(carfeat.RIVERS)#,zorder=2,alpha=0.8)
-    ax.add_feature(carfeat.LAKES,color='darkblue')#,zorder=2,alpha=1) color navy?
-    
-    ax.add_feature(carfeat.BORDERS, alpha=0.5)#,zorder=2,alpha=0.5)
-  
-    ax.add_feature(Nightshade(dt))
-  
-    #ax.stock_img()
-    
-    #ax.add_wmts(nightmap, layer)
-  
-    ax.imshow(world_image, vmin=0.001, vmax=5, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap)
-    
-    if ax == ax1: ax.set_extent([europe_west, europe_east, europe_south, europe_north])
-    if ax == ax2: ax.set_extent([canada_west, canada_east, canada_south, canada_north])
-
- fig.text(0.01,0.92,'PREDSTORM aurora forecast   '+dt.strftime('%Y-%m-%d %H:%M UT' ), color='white',fontsize=15)
- fig.text(0.99,0.02,'C. Möstl / IWF-helio, Austria', color='white',fontsize=8,ha='right')
-
- 
- #save as image with timestamp in filename
- plot_europe_canada_filename='results/forecast_europe_canada/predstorm_aurora_real_'+dt.strftime("%Y_%m_%d_%H%M")  +'.jpg'
- fig.savefig(plot_europe_canada_filename,dpi=120,facecolor=fig.get_facecolor())
-
-
- #save as movie frame
- framestr = '%05i' % (counter)  
- fig.savefig('results/frames_europe_canada/aurora_'+framestr+'.jpg',dpi=120,facecolor=fig.get_facecolor())
- #plt.show()
- print('Saved image:  ',plot_europe_canada_filename)
-
-
-
-
-'''
 
 def global_predstorm_north2(world_image,dt,counter,colormap_input):
 
@@ -1213,6 +1328,448 @@ def calc_avg_solarwind_predstorm_1min(dt,l1wind):
             
     #return averaged solar l1wind for the input time dt
     return avgsw
+ 
+ 
+ 
+
+def ovation_europe_canada_old(world_image,dt,counter,colormap_input):
+
+
+ plt.close('all')
+ #Night map from VIIRS
+ #https://wiki.earthdata.nasa.gov/display/GIBS/GIBS+Available+Imagery+Products#expand-EarthatNight4Products
+ #nightmap = 'https://map1c.vis.earthdata.nasa.gov/wmts-geo/wmts.cgi'
+
+
+ #define extent of the produced world maps - defined as: west east south north
+ mapextent=[-180,180,-90,90]   
+
+
+ #not so good: layer='VIIRS_Black_Marble'
+ #better but takes time
+ #layer = 'VIIRS_CityLights_2012'
+
+ 
+ #need to set alpha linearly increasing in the colormap
+ cmap = plt.get_cmap(colormap_input)  # Choose colormap
+ my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
+ my_cmap[:,-1] = np.linspace(0.3, 1, cmap.N)  # Set alpha
+ my_cmap = ListedColormap(my_cmap) # Create new colormap
+
+
+ land_50m = carfeat.NaturalEarthFeature('physical', 'land', '50m',
+                                        edgecolor='k',
+                                        facecolor=carfeat.COLORS['land'])
+ ocean_50m = carfeat.NaturalEarthFeature('physical', 'ocean', '50m',
+                                        edgecolor='k',
+                                        facecolor='steelblue')#carfeat.COLORS['water'])                                        
+ provinces_50m = carfeat.NaturalEarthFeature('cultural',
+                                             'admin_1_states_provinces_lines',
+                                             '50m',
+                                             facecolor='none',edgecolor='black')
+ crs=ccrs.PlateCarree()
+
+
+
+ #16/9 ration for full hd output
+ fig = plt.figure(2,figsize=[16, 9],dpi=100) 
+ fig.set_facecolor('black') 
+ plt.cla()
+
+ # ax1 Europe
+ ax1 = plt.subplot(1, 2, 2, projection=ccrs.Orthographic(0, 60),position=[0.51,0.05,0.48,0.9])#[left, bottom, width, height]
+ # ax2 northern America
+ ax2 = plt.subplot(1, 2, 1, projection=ccrs.Orthographic(-100, 60), position=[0.01,0.05,0.48,0.9])
+
+ #define map extents
+ canada_east = -65
+ canada_west = -135 
+ canada_north = 75
+ canada_south = 20
+
+ europe_east = 50
+ europe_west = -20
+ europe_north = 75
+ europe_south = 30
+
+
+ #plot one axis after another
+ for ax in [ax1, ax2]:
+
+    #ax.gridlines(linestyle='--',alpha=0.2,color='white')
+    #ax.coastlines(alpha=0.5,zorder=3)
+
+    #ax.add_feature(carfeat.LAND,zorder=2,alpha=1)
+    #ax.add_feature(land_50m, color='darkgreen')
+    #ax.add_feature(land_50m, color='darkslategrey')
+    ax.add_feature(land_50m, color='dimgrey')
+    ax.add_feature(provinces_50m,alpha=0.5)#,zorder=2,alpha=0.8)
+
+  
+    #ax.add_feature(carfeat.COASTLINE)#,zorder=2,alpha=0.5)
+    #ax.add_feature(carfeat.OCEAN,color='mediumslateblue')#,zorder=2,alpha=1)
+    ax.add_feature(ocean_50m, color='darkblue')
+
+    #ax.add_feature(carfeat.RIVERS)#,zorder=2,alpha=0.8)
+    ax.add_feature(carfeat.LAKES,color='darkblue')#,zorder=2,alpha=1) color navy?
+    
+    ax.add_feature(carfeat.BORDERS, alpha=0.5)#,zorder=2,alpha=0.5)
+  
+    ax.add_feature(Nightshade(dt))
+  
+    #ax.stock_img()
+    
+    #ax.add_wmts(nightmap, layer)
+  
+    ax.imshow(world_image, vmin=0.001, vmax=5, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap)
+    
+    if ax == ax1: ax.set_extent([europe_west, europe_east, europe_south, europe_north])
+    if ax == ax2: ax.set_extent([canada_west, canada_east, canada_south, canada_north])
+
+ fig.text(0.01,0.92,'PREDSTORM aurora forecast   '+dt.strftime('%Y-%m-%d %H:%M UT' ), color='white',fontsize=15)
+ fig.text(0.99,0.02,'C. Möstl / IWF-helio, Austria', color='white',fontsize=8,ha='right')
+
+ 
+ #save as image with timestamp in filename
+ plot_europe_canada_filename='results/forecast_europe_canada/predstorm_aurora_real_'+dt.strftime("%Y_%m_%d_%H%M")  +'.jpg'
+ fig.savefig(plot_europe_canada_filename,dpi=120,facecolor=fig.get_facecolor())
+
+
+ #save as movie frame
+ framestr = '%05i' % (counter)  
+ fig.savefig('results/frames_europe_canada/aurora_'+framestr+'.jpg',dpi=120,facecolor=fig.get_facecolor())
+ #plt.show()
+ print('Saved image:  ',plot_europe_canada_filename)
+
+
+ def stock_img(self, name='ne_shaded'):
+        """
+        Add a standard image to the map.
+        Currently, the only (and default) option is a downsampled version of
+        the Natural Earth shaded relief raster.
+        """
+        if name == 'ne_shaded':
+            import os
+            source_proj = ccrs.PlateCarree()
+            fname = os.path.join(config["repo_data_dir"],
+                                 'raster', 'natural_earth',
+                                 '50-natural-earth-1-downsampled.png')
+
+            return self.imshow(imread(fname), origin='upper',
+                               transform=source_proj,
+                               extent=[-180, 180, -90, 90])
+        else:
+            raise ValueError('Unknown stock image %r.' % name)
+
+
+
+
+def ovation_probability_europe_canada(wicf,dt, outputdir,longitude_bound,equatorial_bound):
+
+ plots the ovation aurora on the northern hemisphere from a polar view, makes movie frames
+ wic is a world image cube with ovation results 512x1024
+ dt are the datetimes for each frame
+ colormap_input is the colormap
+ max_level is the maximum level for the colorbar
+ eb***
+ #plotting parameters
+ #-100 for North America, +10 or 0 for Europe
+ global_plot_longitude=+10
+ #global_plot_longitude=0
+ global_plot_latitude=90
+
+
+ provinces_50m = carfeat.NaturalEarthFeature('cultural',
+                                             'admin_1_states_provinces_lines',
+                                             '50m',
+                                             facecolor='none',edgecolor='black')
+
+
+
+ #define extent of the produced world maps - defined as: west east south north
+ mapextent=[-180,180,-90,90]   
+
+
+ #use custom colormap suitable for aurora
+ my_cmap = aurora_cmap()
+
+
+ crs=ccrs.PlateCarree()
+
+ fig = plt.figure(2,figsize=[16, 8],dpi=80) 
+ fig.set_facecolor('black') 
+ fig.text(0.99,0.01,'C. Möstl / IWF-helio, Austria', color='white',fontsize=10,ha='right',va='bottom')
+ 
+ 
+ # ax1 Europe
+ ax1 = plt.subplot(1, 2, 2, projection=ccrs.Orthographic(0, 60),position=[0.51,0.05,0.48,0.9])#[left, bottom, width, height]
+ # ax2 northern America
+ ax2 = plt.subplot(1, 2, 1, projection=ccrs.Orthographic(-100, 60), position=[0.01,0.05,0.48,0.9])
+
+ #define map extents
+ canada_east = -65
+ canada_west = -135 
+ canada_north = 75
+ canada_south = 20
+
+ europe_east = 50
+ europe_west = -20
+ europe_north = 75
+ europe_south = 30
+ 
+ 
+ ################ Scalers for displaying aurora probabilities from read_data_local.pro line 73
+ imult = 10.
+ iadd = 0.
+ wic = iadd + imult*wicf # where je_array is the auroral flux array
+
+ # Remove spurios noise
+ wic[np.where(wic<1)] = 0
+
+ # Rescale aurora again based on geoconvert.pro line 73
+ wic = 5*np.sqrt(wic)
+ wic[np.where(wic<4)] = 0
+ wic[np.where(wic>100)] = 100
+ ####################################################
+
+
+ #plot one axis after another
+ for ax in [ax1, ax2]:
+
+   ax.background_patch.set_facecolor('k')    
+ 
+   gl=ax.gridlines(linestyle='--',alpha=0.5,color='white') #make grid
+   gl.n_steps=100   #make grid finer
+   ax.stock_img()  
+  
+   #ax.coastlines('50m',color='black',alpha=0.5)
+   ax.coastlines('50m',color='white',alpha=0.9)
+   ax.add_feature(carfeat.LAKES, alpha=0.8) #,zorder=2,alpha=0.5)
+
+   ax.add_feature(provinces_50m,alpha=0.3)    #,zorder=2,alpha=0.8)
+   ax.add_feature(carfeat.BORDERS, alpha=0.3) #,zorder=2,alpha=0.5)
+ 
+   if ax == ax1: 
+     ax.set_extent([europe_west, europe_east, europe_south, europe_north])
+     #these are calls that create the first object to be removed from the plot with each frame
+     txt=fig.text(0.5,0.92,'')
+     border1=ax.add_feature(Nightshade(dt[0]))  #add day night border
+     img1=ax.imshow(wic[:,:,0],vmin=10, vmax=100,cmap=my_cmap)
+     bound_e1=ax.plot(0,color='k') #equatorial boundary
+     bound_v1=ax.plot(0,color='k') #equatorial boundary
+   
+   if ax == ax2: 
+     ax.set_extent([canada_west, canada_east, canada_south, canada_north])
+     border2=ax.add_feature(Nightshade(dt[0]))  #add day night border
+     img2=ax.imshow(wic[:,:,0],vmin=10, vmax=100,cmap=my_cmap)
+     bound_e2=ax.plot(0,color='k') #equatorial boundary
+     bound_v2=ax.plot(0,color='k') #equatorial boundary
+
+
+
+ 
+ #colorbar
+ fg_color = 'white'
+ plt.style.use("dark_background") #for white ticks and labels
+ cbaxes = fig.add_axes([0.3, 0.07, 0.4, 0.02]) 
+ cbar = plt.colorbar(img1, cax = cbaxes,orientation='horizontal',ticks=np.arange(10,100,10) )  
+ cbar.set_alpha(1)
+ cbar.draw_all()
+ cbar.set_label('aurora viewing probability %', color=fg_color)
+
+
+ for i in np.arange(0,np.size(dt)):
+
+     print('europe/canada movie frame',i)
+
+     #plt.cla()  #clear axes
+     txt.set_visible(False)  #clear previous plot title
+     #plot title with time
+     txt=fig.text(0.5,0.92,'PREDSTORM + Ovation Prime 2010 aurora   '+dt[i].strftime('%Y-%m-%d %H:%M UT'), color='white',fontsize=15, ha='center')
+     
+     #Europe
+    
+     img1.remove()     #remove previous wic
+     border1.remove()  #remove previous nightshade
+     bound_e1[0].remove() #remove equatorial boundary
+     bound_v1[0].remove() #remove view line
+          
+     bound_e1=ax1.plot(longitude_bound,equatorial_bound[i,:],transform=crs,color='k',alpha=0.8) #equatorial boundary
+     bound_v1=ax1.plot(longitude_bound,equatorial_bound[i,:]-8,transform=crs,color='r',linestyle='--',alpha=0.8) #viewing line after Case et al. 2016
+     border1=ax1.add_feature(Nightshade(dt[i]))  #add day night border
+     img1=ax1.imshow(wic[:,:,i], vmin=10, vmax=100, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap) #aurora
+
+     #Canada USA
+     
+     img2.remove()     #remove previous wic
+     border2.remove()  #remove previous nightshade
+     bound_e2[0].remove() #remove equatorial boundary
+     bound_v2[0].remove() #remove view line
+
+     bound_e2=ax2.plot(longitude_bound,equatorial_bound[i,:],transform=crs,color='k',alpha=0.8) #equatorial boundary
+     bound_v2=ax2.plot(longitude_bound,equatorial_bound[i,:]-8,transform=crs,color='r',linestyle='--',alpha=0.8) #viewing line after Case et al. 2016
+     border2=ax2.add_feature(Nightshade(dt[i]))  #add day night border
+     img2=ax2.imshow(wic[:,:,i], vmin=10, vmax=100, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap) #aurora
+
+      
+     
+     #save as movie frame
+     framestr = '%05i' % (i)  
+     fig.savefig('results/'+outputdir+'/prob_europe_canada/aurora_'+framestr+'.jpg',dpi=150,facecolor=fig.get_facecolor())
+     
+
+
+
+
+
+
+
+
+def ovation_europe_canada(wic,dt,colormap_input,max_level, outputdir,longitude_bound,equatorial_bound):
+
+ plots the ovation aurora on the northern hemisphere from a polar view, makes movie frames
+ wic is a world image cube with ovation results 512x1024
+ dt are the datetimes for each frame
+ colormap_input is the colormap
+ max_level is the maximum level for the colorbar
+ eb***
+ #plotting parameters
+ #-100 for North America, +10 or 0 for Europe
+ global_plot_longitude=+10
+ #global_plot_longitude=0
+ global_plot_latitude=90
+
+
+ provinces_50m = carfeat.NaturalEarthFeature('cultural',
+                                             'admin_1_states_provinces_lines',
+                                             '50m',
+                                             facecolor='none',edgecolor='black')
+
+
+
+ #define extent of the produced world maps - defined as: west east south north
+ mapextent=[-180,180,-90,90]   
+ 
+ #need to set alpha linearly increasing in the colormap so that it blends into background for 
+ #small values
+ cmap = plt.get_cmap(colormap_input)  # Choose colormap
+ my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
+ my_cmap[:,-1] = np.linspace(0, 1, cmap.N)  # Set alpha
+ my_cmap = ListedColormap(my_cmap) # Create new colormap
+
+ crs=ccrs.PlateCarree()
+
+ fig = plt.figure(3,figsize=[16, 8],dpi=80) 
+ fig.set_facecolor('black') 
+ fig.text(0.99,0.01,'C. Möstl / IWF-helio, Austria', color='white',fontsize=10,ha='right',va='bottom')
+ 
+ 
+ # ax1 Europe
+ ax1 = plt.subplot(1, 2, 2, projection=ccrs.Orthographic(0, 60),position=[0.51,0.05,0.48,0.9])#[left, bottom, width, height]
+ # ax2 northern America
+ ax2 = plt.subplot(1, 2, 1, projection=ccrs.Orthographic(-100, 60), position=[0.01,0.05,0.48,0.9])
+
+ #define map extents
+ canada_east = -65
+ canada_west = -135 
+ canada_north = 75
+ canada_south = 20
+
+ europe_east = 50
+ europe_west = -20
+ europe_north = 75
+ europe_south = 30
+
+
+ #plot one axis after another
+ for ax in [ax1, ax2]:
+
+   ax.background_patch.set_facecolor('k')    
+ 
+   gl=ax.gridlines(linestyle='--',alpha=0.5,color='white') #make grid
+   gl.n_steps=100   #make grid finer
+   ax.stock_img()  
+  
+   #ax.coastlines('50m',color='black',alpha=0.5)
+   ax.coastlines('50m',color='white',alpha=0.9)
+   ax.add_feature(carfeat.LAKES, alpha=0.8) #,zorder=2,alpha=0.5)
+
+   ax.add_feature(provinces_50m,alpha=0.3)    #,zorder=2,alpha=0.8)
+   ax.add_feature(carfeat.BORDERS, alpha=0.3) #,zorder=2,alpha=0.5)
+ 
+   if ax == ax1: 
+     ax.set_extent([europe_west, europe_east, europe_south, europe_north])
+     #these are calls that create the first object to be removed from the plot with each frame
+     txt=fig.text(0.5,0.92,'')
+     border1=ax.add_feature(Nightshade(dt[0]))  #add day night border
+     img1=ax.imshow(wic[:,:,0])
+     bound_e1=ax.plot(0,color='k') #equatorial boundary
+     bound_v1=ax.plot(0,color='k') #equatorial boundary
+   
+   if ax == ax2: 
+     ax.set_extent([canada_west, canada_east, canada_south, canada_north])
+     border2=ax.add_feature(Nightshade(dt[0]))  #add day night border
+     img2=ax.imshow(wic[:,:,0])
+     bound_e2=ax.plot(0,color='k') #equatorial boundary
+     bound_v2=ax.plot(0,color='k') #equatorial boundary
+
+  
+
+
+ for i in np.arange(0,np.size(dt)):
+
+     print('europe/canada movie frame',i)
+
+     #plt.cla()  #clear axes
+     txt.set_visible(False)  #clear previous plot title
+     #plot title with time
+     txt=fig.text(0.5,0.92,'PREDSTORM/OP10 aurora  '+dt[i].strftime('%Y-%m-%d %H:%M UT'), color='white',fontsize=15, ha='center')
+     
+     #Europe
+    
+     img1.remove()     #remove previous wic
+     border1.remove()  #remove previous nightshade
+     bound_e1[0].remove() #remove equatorial boundary
+     bound_v1[0].remove() #remove view line
+          
+     bound_e1=ax1.plot(longitude_bound,equatorial_bound[i,:],transform=crs,color='k',alpha=0.8) #equatorial boundary
+     bound_v1=ax1.plot(longitude_bound,equatorial_bound[i,:]-8,transform=crs,color='r',linestyle='--',alpha=0.8) #viewing line after Case et al. 2016
+     border1=ax1.add_feature(Nightshade(dt[i]))  #add day night border
+     img1=ax1.imshow(wic[:,:,i], vmin=0.01, vmax=max_level, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap) #aurora
+
+     #Canada USA
+     
+     img2.remove()     #remove previous wic
+     border2.remove()  #remove previous nightshade
+     bound_e2[0].remove() #remove equatorial boundary
+     bound_v2[0].remove() #remove view line
+
+     bound_e2=ax2.plot(longitude_bound,equatorial_bound[i,:],transform=crs,color='k',alpha=0.8) #equatorial boundary
+     bound_v2=ax2.plot(longitude_bound,equatorial_bound[i,:]-8,transform=crs,color='r',linestyle='--',alpha=0.8) #viewing line after Case et al. 2016
+     border2=ax2.add_feature(Nightshade(dt[i]))  #add day night border
+     img2=ax2.imshow(wic[:,:,i], vmin=0.01, vmax=max_level, transform=crs, extent=mapextent, origin='lower', zorder=3, alpha=0.8, cmap=my_cmap) #aurora
+
+ 
+     #save as image with timestamp in filename
+     #plot_Nhemi_filename='results/forecast_global/predstorm_aurora_real_Nhemi_'+dt.strftime("%Y_%m_%d_%H%M")  +'.jpg'
+     #fig.savefig(plot_Nhemi_filename,dpi=150,facecolor=fig.get_facecolor())
+     
+     
+     #save as movie frame
+     framestr = '%05i' % (i)  
+     fig.savefig('results/'+outputdir+'/flux_europe_canada/aurora_'+framestr+'.jpg',dpi=150,facecolor=fig.get_facecolor())
+     
+
+
+
+
+
+
+
+
+
+
+
  
 '''
 

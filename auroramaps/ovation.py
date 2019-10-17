@@ -24,17 +24,6 @@ published under GNU Lesser General Public License v3.0
 
 last update October 2019
 
-
-
-
-
-
-if you change this do 
->> import importlib
->> import auroramaps.ovation as amo
->> importlib.reload(amo)  
-in main program to use altered functions in main program
-
  
 
 """
@@ -46,10 +35,129 @@ from numba import njit, jit, jitclass
 import pdb
 import sys
 import pickle
+import time	
+import aacgmv2
+import scipy
 
-#reload for debugging
-#import importlib
-#importlib.reload(oup) 
+
+
+
+
+def make_aurora_cube(ts, ec,diff,mono):
+  '''
+  single processor version
+  '''
+  #this is the array with the final world maps for each timestep
+  ovation_img=np.zeros([512,1024,np.size(ts)])
+  #make a world map grid in latitude 512 pixels, longitude 1024 pixel like NOAA
+  wx,wy=np.mgrid[-90:90:180/512,-180:180:360/1024]
+
+  #if ts is a single not a list, change to list to make it subscriptable
+  if type(ts)!=list: ts=[ts]
+
+  for k in np.arange(0,np.size(ts)): #go through all times
+ 
+    print('Frame number and time:', k, '  ',ts[k])
+    
+
+    #########################################  (2a) get solar wind 
+    startflux=time.time()
+   
+    #sw=oup.calc_avg_solarwind_predstorm(ts[k],l1wind)   #make solarwind with averaging over last 4 hours, only for command line 
+    #print('Byz =',sw.by[0],sw.bz[0],' nT   V =',int(sw.v[0]), 'km/s')
+    #for the Newell coupling Ec, normalized to cycle average, smoothed for high time resolution
+    #print('Ec to cycle average: ',np.round(swav.ec[k]/coup_cycle,1), ' <Ec> =',int(swav.ec[k]))  
+    
+    #get fluxes for northern hemisphere 
+    mlatN, mltN, fluxNd=diff.get_flux_for_time(ts[k],ec[k])
+    mlatN, mltN, fluxNm=mono.get_flux_for_time(ts[k],ec[k])
+    #mlatN, mltN, fluxNw=we.get_flux_for_time(ts[k],inputfile, hemi='N')  #wave flux not correct yet
+    fluxN=fluxNd+fluxNm #+fluxNw
+    #endflux=time.time()
+    #print('OVATION: ', np.round(endflux-startflux,2),' sec')
+    
+    #for debugging
+    #making flux images for comparison to OVATION IDL output
+    #change IDL file in this function for flux comparison
+    #oup.global_ovation_flux(mlatN,mltN,fluxNw,ts[0])
+    #oup.global_ovation_flux(mlatN,mltN,fluxNd,ts[k])
+    #sys.exit()
+  
+    #if k==3: sys.exit()
+
+ 
+    #####################################  (2b) coordinate conversion magnetic to geographic 
+    #Coordinate conversion MLT to AACGM mlon/lat to geographic coordinates
+    #startcoo=time.time()
+    #magnetic coordinates are  mltN mlonN in 2D grids
+    #so we need to convert magnetic local time (MLT) to longitude first
+    #extract from mltN first 96 MLTs for 1 latitude bin convert to magnetic longitude 
+    mlonN_1D_small=aacgmv2.convert_mlt(mltN[0],ts[k],m2a=True)
+    #copy result  80 times because MLT is same for all latitudes
+    mlonN_1D=np.tile(mlonN_1D_small,mlatN.shape[0])
+    
+    #this will make a 1D array for the latitudes compatible with the 1D array created above    
+    mlatN_1D=np.squeeze(mlatN.reshape(np.size(mltN),1))
+   
+    #magnetic coordinates are now mlatN mlonN, convert to geographic
+    (glatN_1D, glonN_1D, galtN) = aacgmv2.convert_latlon_arr(mlatN_1D,mlonN_1D, 100,ts[k], code="A2G")
+    #endcoo = time.time()
+    #print('Coordinates: ', np.round(endcoo-startcoo,2),' sec')
+   
+
+    #####################################  (2c) interpolate to world map 
+    #geographic coordinates are glatN, glonN, electron flux values are fluxN
+    #change shapes from glatN (80, 96) glonN  (80, 96) to a single array with 7680,2
+    #startworld=time.time()
+ 
+    #glatN_1D=glatN.reshape(np.size(fluxN),1)  
+    #glonN_1D=glonN.reshape(np.size(fluxN),1)    
+    geo_2D=np.vstack((glatN_1D,glonN_1D)).T      #stack 2 (7680,) arrays to a single 7680,2 arrays, .T is needed
+    #smooth small array first - but strange results!
+    #fluxN=scipy.ndimage.gaussian_filter(fluxN,sigma=(5,5))
+    fluxN_1D=fluxN.reshape(7680,1)   #also change flux values to 1D array
+
+    #bottleneck, maybe make own interpolation and accelerate with numba
+    #https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.interpolate.griddata.html
+
+    #interpolate to world grid, and remove 1 dimension with squeeze
+    aimg=np.squeeze(scipy.interpolate.griddata(geo_2D, fluxN_1D, (wx, wy), method='linear',fill_value=0))
+    #filter large array
+    aimg = scipy.ndimage.gaussian_filter(aimg,sigma=(5,7),mode='wrap') #wrap means wrapping at the 180 degree edge
+    ovation_img[:,:,k]=aimg
+    #endworld = time.time()
+    #print('World map: ', np.round(endworld-startworld,2),' sec')
+    
+   
+
+  return ovation_img
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

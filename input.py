@@ -44,14 +44,14 @@ frame_rate=5
 #------------------------------------------   
 
 #flux maps
-global_flux_map=False         #northern polar view
+global_flux_map=True         #northern polar view
 europe_flux_map=False       #Europe
 canada_flux_map=False           #Europe
 
 
 #probability maps
 global_probability_map=False
-europe_probability_map=False
+europe_probability_map=True
 canada_probability_map=True
 
 

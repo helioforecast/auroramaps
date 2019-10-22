@@ -10,7 +10,7 @@ https://github.com/IWF-helio/auroramaps
 
 input parameters are given in the input.py file
 
-by C. Moestl, IWF-helio group, Graz, Austria.
+by C. Moestl, Rachel L. Bailey, IWF-helio group, Graz, Austria.
 Contributions by Liam Kilcommons and Diana Morosan
 
 twitter @chrisoutofspace

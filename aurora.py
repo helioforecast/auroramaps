@@ -181,7 +181,7 @@ utcnow=amu.round_to_minute(datetime.datetime.now(tz=tz.tzutc()))
 
 print()
 print('Making aurora forecasts with OVATION PRIME 2010')
-print('with the PREDSTORM solar wind predictions (DSCOVR/STEREO-A) or OMNI2 data')
+print('with the PREDSTORM solar wind predictions (ACE/DSCOVR+STEREO-A) or OMNI2 data')
 print()
 print('UTC time now:')
 print(utcnow.strftime(format="%Y-%m-%d %H:%M") )
@@ -450,37 +450,76 @@ plt.plot(eb['long'],eb['smooth'][0,:],'-b')
 #https://docs.python.org/dev/library/multiprocessing.html#multiprocessing.pool.Pool
 
 print('Make all movie frames')  
-print()
 start = time.time()
 
-############ load background image
-map_img=amu.load_high_res_background(map_type)
 
-#flux maps
-if global_flux_map==True:
-  amu.plot_ovation(ovation_img, ts, output_directory, eb, map_type, map_img, 'global', 'flux',utcnow,swav.ec)
+if calc_mode_frame == 'single':  
+    print('with single processing')  
 
-if europe_flux_map==True:
-  amu.plot_ovation(ovation_img, ts, output_directory, eb, map_type, map_img, 'europe', 'flux',utcnow,swav.ec)
+    ############ load background image
+    map_img=amu.load_high_res_background(map_type)
 
-if canada_flux_map==True:
-  amu.plot_ovation(ovation_img, ts, output_directory, eb, map_type, map_img, 'canada', 'flux',utcnow,swav.ec)
+    #flux maps
+    if global_flux_map > 0:
+      amu.plot_ovation(ovation_img, ts, output_directory, eb, map_type, map_img, 'global', 'flux',utcnow,swav.ec)
 
-########### same for probability maps
+    if europe_flux_map > 0:
+      amu.plot_ovation(ovation_img, ts, output_directory, eb, map_type, map_img, 'europe', 'flux',utcnow,swav.ec)
+    
+    if canada_flux_map > 0:
+      amu.plot_ovation(ovation_img, ts, output_directory, eb, map_type, map_img, 'canada', 'flux',utcnow,swav.ec)
 
-#first convert flux to probability
-ovation_img_prob=amu.flux_to_probability(ovation_img)
+    ########### same for probability maps
 
-if global_probability_map==True:
-  amu.plot_ovation(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'global', 'prob',utcnow,swav.ec)
+    #first convert flux to probability
+    ovation_img_prob=amu.flux_to_probability(ovation_img)
 
-if europe_probability_map==True:
-  amu.plot_ovation(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'europe', 'prob',utcnow,swav.ec)
+    if global_probability_map > 0:
+      amu.plot_ovation(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'global', 'prob',utcnow,swav.ec)
 
-if canada_probability_map==True:
-  amu.plot_ovation(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'canada', 'prob',utcnow,swav.ec)
+    if europe_probability_map > 0:
+      amu.plot_ovation(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'europe', 'prob',utcnow,swav.ec)
 
-#####
+    if canada_probability_map > 0:
+      amu.plot_ovation(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'canada', 'prob',utcnow,swav.ec)
+
+
+
+
+if calc_mode_frame == 'multi':  
+    print('with multiprocessing')  
+
+    ############ load background image
+    map_img=amu.load_high_res_background(map_type)
+
+    #flux maps
+    if global_flux_map > 0:
+      amu.plot_ovation_multi(ovation_img, ts, output_directory, eb, map_type, map_img, 'global', 'flux',utcnow,swav.ec)
+
+    if europe_flux_map > 0:
+      amu.plot_ovation_multi(ovation_img, ts, output_directory, eb, map_type, map_img, 'europe', 'flux',utcnow,swav.ec)
+    
+    if canada_flux_map > 0:
+      amu.plot_ovation_multi(ovation_img, ts, output_directory, eb, map_type, map_img, 'canada', 'flux',utcnow,swav.ec)
+
+    ########### same for probability maps
+
+    #first convert flux to probability
+    ovation_img_prob=amu.flux_to_probability(ovation_img)
+
+    if global_probability_map > 0:
+      amu.plot_ovation_multi(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'global', 'prob',utcnow,swav.ec)
+
+    if europe_probability_map > 0:
+      amu.plot_ovation_multi(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'europe', 'prob',utcnow,swav.ec)
+
+    if canada_probability_map > 0:
+      amu.plot_ovation_multi(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'canada', 'prob',utcnow,swav.ec)
+
+
+
+
+######################################
 
 number_of_maps=sum([global_flux_map, europe_flux_map, canada_flux_map, global_probability_map,europe_probability_map, canada_probability_map])
 end = time.time()
@@ -496,34 +535,34 @@ print('For all results see: results/'+output_directory)
 
 #frame rate is set in input.py
 
-if global_flux_map==True:
+if global_flux_map > 0:
   os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_global/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_global.mp4 -y -loglevel quiet')
   os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_global/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_global.gif -y -loglevel quiet')
   ########## convert mp4 to gif and makes smaller
   os.system('ffmpeg -i results/'+output_directory+'/flux_global.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_global_small.gif  -y -loglevel quiet ')
 
-if europe_flux_map==True:
+if europe_flux_map > 0:
   os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_europe/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_europe.mp4 -y -loglevel quiet')
   os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_europe/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_europe.gif -y -loglevel quiet')
   os.system('ffmpeg -i results/'+output_directory+'/flux_europe.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_europe_small.gif  -y -loglevel quiet ')
 
-if canada_flux_map==True:
+if canada_flux_map > 0:
   os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_canada.mp4 -y -loglevel quiet')
   os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_canada.gif -y -loglevel quiet')
   os.system('ffmpeg -i results/'+output_directory+'/flux_canada.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_canada_small.gif  -y -loglevel quiet ')
 
 
-if global_probability_map==True:
+if global_probability_map > 0:
   os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_global/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_global.mp4 -y -loglevel quiet')
   os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_global/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_global.gif -y -loglevel quiet')
   os.system('ffmpeg -i results/'+output_directory+'/prob_global.mp4  -vf scale=1000:-1 results/'+output_directory+'/prob_global_small.gif  -y -loglevel quiet ')
 
-if europe_probability_map==True:
+if europe_probability_map > 0:
   os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_europe/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_europe.mp4 -y -loglevel quiet')
   os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_europe/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_europe.gif -y -loglevel quiet')
   os.system('ffmpeg -i results/'+output_directory+'/prob_europe.mp4  -vf scale=1000:-1 results/'+output_directory+'/prob_europe_small.gif  -y -loglevel quiet ')
 
-if canada_probability_map==True:
+if canada_probability_map > 0:
   os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_canada.mp4 -y -loglevel quiet')
   os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_canada.gif -y -loglevel quiet')
   os.system('ffmpeg -i results/'+output_directory+'/prob_canada.mp4  -vf scale=1000:-1 results/'+output_directory+'/prob_canada_small.gif  -y -loglevel quiet ')

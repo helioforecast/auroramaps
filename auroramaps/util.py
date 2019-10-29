@@ -51,6 +51,7 @@ import pickle
 import scipy
 import pdb
 import sys
+import multiprocessing
 
 
 
@@ -854,6 +855,207 @@ def plot_ovation(wic,dt, outputdir, eb, maptype, map_img, region, type, utcnow,e
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def plot_ovation_multi(wic,dt, outputdir, eb, maptype, map_img, region, type, utcnow,ec):
+     '''
+     plots high-res probability and flux maps on northern polar views, Europe and Canada, with 
+     different background images
+     '''
+
+     #for very high res maps if needed later
+     #import cartopy.io.img_tiles as cimgt
+     # stamen_terrain = cimgt.Stamen('terrain-background')
+     #ax = fig.add_subplot(1, 1, 1, projection=ccrs.Orthographic(0, 60))
+     #ax.add_image(stamen_terrain, 6)
+
+
+     ##### borders and coasts parameters depending on background image
+     if maptype=='marble': bordercolor='white'; borderalpha=0.4; coastcolor='white';coastalpha=0.5
+     if maptype=='viirs':  bordercolor='white'; borderalpha=0.5; coastcolor='white';coastalpha=0.3
+     if maptype=='topography': bordercolor='black'; borderalpha=0.4; coastcolor='black';coastalpha=0.1
+
+     if region == 'global':  view_latitude=90; view_longitude=-100; plot_pos=[0.1,0.1,0.8,0.8]  #[left, bottom, width, height]
+     if region == 'canada':  view_latitude=60; view_longitude=-100; plot_pos=[0.05,0.05,0.9,0.9]
+     if region == 'europe':  view_latitude=60; view_longitude=0;    plot_pos=[0.05,0.05,0.9,0.9]
+ 
+     #use my custom colormap suitable for aurora probabilities
+     if type=='prob': my_cmap = aurora_cmap()
+     #for flux, hot is fine
+     if type=='flux':  
+        cmap = plt.get_cmap('hot')  # Choose colormap
+        my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
+        my_cmap[:,-1] = np.linspace(0, 1, cmap.N)  # Set alpha
+        my_cmap = ListedColormap(my_cmap) # Create new colormap
+
+  
+     crs=ccrs.PlateCarree()
+
+     ################### make figure
+     plt.close(2)
+     fig = plt.figure(2,figsize=[12, 12],dpi=80) 
+     fig.set_facecolor('black') 
+     ax = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(view_longitude, view_latitude),position=plot_pos)
+
+     fig.text(0.99,0.01,'Möstl, Bailey, IWF-helio, Austria', color='white',fontsize=10,ha='right',va='bottom')
+     fig.text(0.01,0.01,'PREDSTORM  Ovation Prime 2010  cartopy', color='white',fontsize=10,ha='left',va='bottom')
+ 
+ 
+     ###########define map extents
+ 
+     #define extent of the produced ovation maps - defined as: west east south north
+     global_mapextent=[-180,180,-90,90]  
+ 
+     canada_east = -65; canada_west = -135; canada_north = 75; canada_south = 20
+     if region == 'canada': ax.set_extent([canada_west, canada_east, canada_south, canada_north])
+ 
+     europe_east = 35; europe_west = -25; europe_north = 75; europe_south = 30 
+     if region == 'europe': ax.set_extent([europe_west, europe_east, europe_south, europe_north])
+ 
+     ax.background_patch.set_facecolor('k')    
+     #show loaded image of world map (all in plate carree)
+     #in order to speed up plotting, this is only done once, and other features like the aurora 
+     #and day-night border are plotted and removed with each new frame
+     ax.imshow(map_img,origin='upper',transform=crs, extent=[-180,180,-90,90])
+ 
+ 
+     gl=ax.gridlines(linestyle='--',alpha=0.5,color='white') #make grid
+     gl.n_steps=100   #make grid finer
+     #make grid 
+     gl.xlocator = matplotlib.ticker.FixedLocator(np.arange(-180,190,45))
+     gl.ylocator = matplotlib.ticker.FixedLocator(np.arange(-90,100,10))
+
+
+     #get high res country borders  
+     #https://www.naturalearthdata.com/downloads/10m-cultural-vectors/
+     borders_10m = carfeat.NaturalEarthFeature('cultural', 'admin_0_countries', '10m', facecolor='none',edgecolor=bordercolor)
+     ax.add_feature(borders_10m,alpha=borderalpha)
+     #get high res state borders
+     provinces_50m = carfeat.NaturalEarthFeature('cultural','admin_1_states_provinces_lines','50m',facecolor='none',edgecolor=bordercolor)
+     ax.add_feature(provinces_50m,alpha=borderalpha)
+     #add coastlines
+     ax.coastlines('10m', color=coastcolor,alpha=coastalpha)
+
+     #these are calls that create the first object to be removed from the plot with each frame
+     txt=fig.text(0.5,0.92,''); txt2=fig.text(0.5,0.85,''); txt3=fig.text(0.5,0.85,''); txt4=fig.text(0.5,0.85,'')
+     txt5=fig.text(0.5,0.92,''); txt6=fig.text(0.5,0.85,''); txt7=fig.text(0.5,0.85,''); txt8=fig.text(0.5,0.85,'')
+
+     #set levels in plot and used in colorbar
+     if type=='prob': min_level=10; max_level=100
+ 
+     #Maximum level for flux plots erg cm-2 -s-1 is dynamic depending on map
+     if type=='flux': min_level=0; max_level=np.max(wic)+0.1
+
+     border1=ax.add_feature(Nightshade(dt[0]))  #add day night border
+     img1=ax.imshow(wic[:,:,0],vmin=min_level, vmax=max_level,cmap=my_cmap) #needed to show because of the colorbar
+     bound_e1=ax.plot(0,color='k') #equatorial boundary
+     bound_v1=ax.plot(0,color='k') #viewing line
+
+     #colorbars
+     fg_color = 'white'
+     plt.style.use("dark_background") #for white ticks and labels
+ 
+     if type=='prob': #probability
+  
+       cbaxes = fig.add_axes([0.3, 0.07, 0.4, 0.02]) 
+       cbar = plt.colorbar(img1, cax = cbaxes,orientation='horizontal',ticks=np.arange(10,100,10))  
+       cbar.set_alpha(1)
+       cbar.draw_all()
+       cbar.ax.tick_params(labelsize=15)
+       cbar.set_label('aurora viewing probability %', color=fg_color, fontsize=18)
+
+     if type=='flux': #flux
+ 
+       cbaxes = fig.add_axes([0.3, 0.07, 0.4, 0.02]) 
+       cbar = plt.colorbar(img1, cax = cbaxes,orientation='horizontal') 
+       cbar.set_alpha(1)
+       cbar.draw_all()
+       cbar.ax.tick_params(labelsize=15)
+       cbar.set_label(r'aurora flux $\mathrm{erg\/cm^{-2}\/s^{-2}}$', color=fg_color, fontsize=16)
+ 
+     #get times for specific cities
+     dt_cities=get_selected_timezones(dt)
+     print()
+     print(maptype+' '+region+' '+type+' movie frames ...')
+     
+     pool = multiprocessing.Pool()
+     input = zip(len(dt),fig,ax,crs,dt_cities,outputdir,type,region,bordercolor,wic,min_level,max_level,global_mapextent, my_cmap,dt,utcnow,ec,eb,txt,txt2,txt3,txt4,txt5,txt6,txt7,txt8,img1,border1,bound_e1,bound_v1)
+     pool.map(draw_frames_multi, input)
+     #draw_frames_multi(fig,ax,crs,dt_cities,outputdir,type,region,bordercolor,wic,min_level,max_level,global_mapextent, my_cmap,dt,utcnow,ec,eb,txt,txt2,txt3,txt4,txt5,txt6,txt7,txt8,img1,border1,bound_e1,bound_v1)
+
+     print()     
+
+
+
+
+
+def draw_frames_multi(fig,ax,crs,dt_cities,outputdir,type,region,bordercolor,wic,min_level,max_level,global_mapextent, my_cmap,dt,utcnow,ec,eb,txt,txt2,txt3,txt4,txt5,txt6,txt7,txt8,img1,border1,bound_e1,bound_v1):
+
+     #'''draw frames for multiprocessing'''
+     #draw all frames
+     #for i in np.arange(0,np.size(dt)):
+
+         print(i)
+
+         #clear previous texts
+         txt.set_visible(False);txt2.set_visible(False);txt3.set_visible(False);txt4.set_visible(False)     
+         if region != 'global':  txt5.set_visible(False);txt6.set_visible(False);txt7.set_visible(False);txt8.set_visible(False)     
+ 
+         img1.remove(); border1.remove()    #remove previous wic, remove previous nightshade
+         bound_e1[0].remove(); bound_v1[0].remove() # remove equatorial boundary, remove view line
+
+         #plot title with time
+         txt=fig.text(0.45,0.92,dt[i].strftime('%Y %b %d  %H:%M UT'), color='white',fontsize=25, ha='center')
+         txt2=fig.text(0.69,0.92,dt[i].strftime('%A'), color='white',fontsize=25, ha='center')
+
+         #frame time difference to model run time,**only for real time mode!
+         diff=dt[i]-utcnow
+         diff_hours=np.float(np.round(diff.total_seconds()/3600,1))
+         txt3=fig.text(0.80,0.92,'T = {0:+}'.format(diff_hours)+' h', color='white',fontsize=25, ha='left')
+
+         #current 4-hour weighted Newell coupling for this frame normalized to solar cycle average (4421) on plot
+         txt4=fig.text(0.05,0.92,'Nc = '+str(np.round(ec[i]/4421,1)), color='white',fontsize=25, ha='left')      
+     
+         #add times for selected cities
+         if region == 'canada':   
+             txt5=fig.text(0.01,0.08,dt_cities['Fairbanks'][i].strftime('%H:%M')+' Fairbanks', color='white',fontsize=15, ha='left')      
+             txt6=fig.text(0.01,0.05,dt_cities['Calgary'][i].strftime('%H:%M')+' Calgary', color='white',fontsize=15, ha='left')      
+             txt7=fig.text(0.99,0.08,'Minneapolis '+dt_cities['Minneapolis'][i].strftime('%H:%M'), color='white',fontsize=15, ha='right')      
+             txt8=fig.text(0.99,0.05,'Halifax '+dt_cities['Halifax'][i].strftime('%H:%M'), color='white',fontsize=15, ha='right')      
+ 
+         if region == 'europe':   
+             txt5=fig.text(0.01,0.08,dt_cities['Iceland'][i].strftime('%H:%M')+' Iceland', color='white',fontsize=15, ha='left')      
+             txt6=fig.text(0.01,0.05,dt_cities['Edinburgh'][i].strftime('%H:%M')+' Edinburgh', color='white',fontsize=15, ha='left')      
+             txt7=fig.text(0.99,0.08,'Oslo '+dt_cities['Oslo'][i].strftime('%H:%M'), color='white',fontsize=15, ha='right')      
+             txt8=fig.text(0.99,0.05,'Helsinki '+dt_cities['Helsinki'][i].strftime('%H:%M'), color='white',fontsize=15, ha='right')      
+
+     
+         #plot current frame     
+         bound_e1=ax.plot(eb['long'],eb['smooth'][i,:],transform=crs,color=bordercolor,alpha=0.8) #equatorial boundary
+         bound_v1=ax.plot(eb['long'],eb['smooth'][i,:]-8,transform=crs,color=bordercolor,linestyle='--',alpha=0.8) #viewing line after Case et al. 2016
+         border1=ax.add_feature(Nightshade(dt[i]),alpha=0.3)  #add day night border
+         img1=ax.imshow(wic[:,:,i], vmin=min_level, vmax=max_level, transform=crs, extent=global_mapextent, origin='lower', zorder=3,alpha=0.8, cmap=my_cmap) #aurora
+      
+         #for debugging  
+         #plt.show()
+         #sys.exit()  
+       
+         #save as movie frame
+         framestr = '%05i' % (i)  
+         fig.savefig('results/'+outputdir+'/'+type+'_'+region+'/aurora_'+framestr+'.jpg',dpi=150,facecolor=fig.get_facecolor())
 
 
 ################################### END ###########################################################

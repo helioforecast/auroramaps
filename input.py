@@ -17,42 +17,45 @@ last update October 2019
 '''
 
 
+
+
 mode=0                      # select mode: 0 for real time mode, 1 for local file, 2 for OMNI2 data
 
-time_resolution = 20         # time resolution of resulting auroramaps in minutes
+time_resolution = 5         # time resolution of resulting auroramaps in minutes
 
-output_directory='aurora_1'            #specify output directory of frames and movies under "results/"
+frame_rate=20           #output movie frame rate frame rate 20 is good for 10 minute resolution if 3 days want to be seen quickly
 
-#--------------------------------- select map types 
+# --------------------------- mode 0 settings
+                                  # in real time mode, start time is always now in UTC
+past_hours      =  4             # in real time mode, start time with previous hours, negative = past
+future_hours    =  20              # in real time mode, number of hours into future, 0 for one frame only
 
 
-#---------- valid for all maps --------------
+output_directory='aurora_oct_24_2019'            #specify output directory of frames and movies under "results/"
 
-#marble, viirs or topography
-map_type = 'marble'#'viirs' #'marble'#'topography'
+#----------------------------- select map types 
+
+map_type = 'marble'   #marble, viirs or topography
+
 #map_type = 'topography'
 #map_type = 'viirs'
 
 #1.0 erg /cm^2 /s is the threshold in flux for visible aurora
 equatorial_boundary_flux_threshold=1.0
 
-#output movie frame rate
-frame_rate=25
-#frame rate 20 is good for 10 minute resolution if 3 days want to be seen quickly
-
-
-#------------------------------------------   
+# set 1 for making the map, 0 for not making the map
 
 #flux maps
-global_flux_map=True         #northern polar view
-europe_flux_map=False       #Europe
-canada_flux_map=False           #Europe
+global_flux_map=0         #northern polar view
+europe_flux_map=0       #Europe
+canada_flux_map=0       #North America
 
 
 #probability maps
-global_probability_map=False
-europe_probability_map=False
-canada_probability_map=False
+global_probability_map=0
+europe_probability_map=1
+canada_probability_map=0
+
 
 
 #------------------------------- controls for computation
@@ -60,19 +63,10 @@ canada_probability_map=False
 window_minutes=20                #window in minutes for smoothing the coupling with a running mean; ignored if time_resolution larger than window_minutes; standard=20
 
 calc_mode='multi'               #multi or single processing mode for calculating the aurora image cube
-#calc_mode='single'
-
-
-# --------------------------- mode 0 settings
-
-                                   # in real time mode, start time is always now in UTC
-past_hours      =  -1             # in real time mode, start time with previous hours, negative = past
-future_hours    =  1              # in real time mode, number of hours into future, 0 for one frame only
+calc_mode_frame='single'        #multi or single processing mode for drawing and saving the aurora frames
 
 #online source file for real time mode
 predstorm_url='https://www.iwf.oeaw.ac.at/fileadmin//staff/SP/cmoestl/readtime/predstorm_real.txt'
-
-
 
 # --------------------------  mode 1/2 settings
 
@@ -89,7 +83,6 @@ local_input_file='data/predstorm/predstorm_v1_realtime_stereo_a_save_2019-05-14-
 
 
 # --------------------------  mode 2 settings OMNI data is automatically loaded 
-
 
 
 

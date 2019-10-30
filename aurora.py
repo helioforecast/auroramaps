@@ -10,7 +10,7 @@ https://github.com/IWF-helio/auroramaps
 
 input parameters are given in the input.py file
 
-by C. Moestl, Rachel L. Bailey, IWF-helio group, Graz, Austria.
+by C. Moestl, Rachel L. Bailey, A. J. Weiss, Helio4Cast group, Graz, Austria.
 Contributions by Liam Kilcommons and Diana Morosan
 
 twitter @chrisoutofspace
@@ -408,10 +408,10 @@ if calc_mode == 'multi':
     arrsize=oshape[0]*oshape[1]*oshape[2]  #define size of 1D array
     
     ovation_img_multi = Array('d', arrsize) #make 1D array to be used by the processes simultaneously for the ovation map
-    p = Pool(processes=cpu_count()*2)                                              #make multiprocessing Pool object  
+    p = Pool()                                              #make multiprocessing Pool object  
     res=p.starmap(make_aurora_cube_multi, zip(tsm,ecm,km))  #goes through all ts times, needs Ec and counter too
-    #p.close()
-    #p.join()
+    p.close()
+    p.join()
     oim=np.frombuffer(ovation_img_multi.get_obj())          #get calculated array values into 1D array
 
     #make final array 512*1024*size(ts) out of 1D array that is used in make_aurora_cube_multi

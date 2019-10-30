@@ -915,9 +915,7 @@ def plot_ovation_multi(wic,dt, outputdir, eb, maptype, map_img, region, type, ut
      #get times for specific cities
      dt_cities=get_selected_timezones(dt)
      
-     print('MULTI2 ---------------------------------')
      print(maptype+' '+region+' '+type+' movie frames ...')
-     
      
      #run multiprocessing pool to make all movie frames, depending only on frame number
      pool = multiprocessing.Pool()

@@ -53,8 +53,8 @@ canada_flux_map=0       #North America
 
 #probability maps
 global_probability_map=1
-europe_probability_map=0
-canada_probability_map=0
+europe_probability_map=1
+canada_probability_map=1
 
 
 

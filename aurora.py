@@ -85,6 +85,7 @@ import scipy
 import aacgmv2
 import pdb
 import os
+import getopt
 import time
 import pickle
 import seaborn as sns
@@ -103,10 +104,6 @@ from auroramaps import util as amu
 
 importlib.reload(amu) #reload again while debugging
 importlib.reload(amo) #reload again while debugging
-
-import input
-importlib.reload(input)   #make sure it reads file again
-from input import *       #gets all variables from this file
 
 
 
@@ -161,12 +158,48 @@ def make_aurora_cube_multi(ts,ec,k):
 #######################################################################################
 
 
-#if new background images need to be saved in auroramaps/data/wmts, some are included!
+#if new background images need to be saved in auroramaps/data/wmts do this, some are included!
 #amu.save_gibs_earth_image('BlueMarble_NextGeneration',300)    
 #amu.save_gibs_earth_image('VIIRS_CityLights_2012',300)    
 #amu.save_gibs_earth_image('BlueMarble_NextGeneration',600)    
 #amu.save_gibs_earth_image('VIIRS_CityLights_2012',600)    
         
+
+
+
+################ READ INPUT OPTIONS FROM COMMAND LINE
+argv = sys.argv[1:]
+opts, args = getopt.getopt(argv,"hv=",["server", "real"])#, "help", "historic=", "verbose="])
+
+server = False
+if "--server" in [o for o, v in opts]:
+    server = True
+    print("in server mode")
+
+if server:
+    matplotlib.use('Agg') 
+else:
+    matplotlib.use('Qt5Agg') # figures are shown on mac
+
+#real switch set to True different input file
+real = False
+
+if "--real" in [o for o, v in opts]:
+    real = True
+    print("using input_realtime.py")
+else: 
+    print("using input.py")    
+    
+if real:
+    import input_realtime
+    importlib.reload(input_realtime)   #make sure it reads file again
+    from input_realtime import *       #gets all variables from this file
+
+else:
+    import input
+    importlib.reload(input)   #make sure it reads file again
+    from input import *       #gets all variables from this file
+
 
 
 ############### (0) get input data, get PREDSTORM solar wind files mode ###############
@@ -375,10 +408,10 @@ if calc_mode == 'multi':
     arrsize=oshape[0]*oshape[1]*oshape[2]  #define size of 1D array
     
     ovation_img_multi = Array('d', arrsize) #make 1D array to be used by the processes simultaneously for the ovation map
-    p = Pool()                                              #make multiprocessing Pool object  
+    p = Pool(processes=cpu_count()*2)                                              #make multiprocessing Pool object  
     res=p.starmap(make_aurora_cube_multi, zip(tsm,ecm,km))  #goes through all ts times, needs Ec and counter too
-    p.close()
-    p.join()
+    #p.close()
+    #p.join()
     oim=np.frombuffer(ovation_img_multi.get_obj())          #get calculated array values into 1D array
 
     #make final array 512*1024*size(ts) out of 1D array that is used in make_aurora_cube_multi
@@ -461,13 +494,13 @@ if calc_mode_frame == 'single':
 
     #flux maps
     if global_flux_map > 0:
-      amu.plot_ovation(ovation_img, ts, output_directory, eb, map_type, map_img, 'global', 'flux',utcnow,swav.ec)
+      amu.plot_ovation_single(ovation_img, ts, output_directory, eb, map_type, map_img, 'global', 'flux',utcnow,swav.ec)
 
     if europe_flux_map > 0:
-      amu.plot_ovation(ovation_img, ts, output_directory, eb, map_type, map_img, 'europe', 'flux',utcnow,swav.ec)
+      amu.plot_ovation_single(ovation_img, ts, output_directory, eb, map_type, map_img, 'europe', 'flux',utcnow,swav.ec)
     
     if canada_flux_map > 0:
-      amu.plot_ovation(ovation_img, ts, output_directory, eb, map_type, map_img, 'canada', 'flux',utcnow,swav.ec)
+      amu.plot_ovation_single(ovation_img, ts, output_directory, eb, map_type, map_img, 'canada', 'flux',utcnow,swav.ec)
 
     ########### same for probability maps
 
@@ -475,13 +508,13 @@ if calc_mode_frame == 'single':
     ovation_img_prob=amu.flux_to_probability(ovation_img)
 
     if global_probability_map > 0:
-      amu.plot_ovation(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'global', 'prob',utcnow,swav.ec)
+      amu.plot_ovation_single(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'global', 'prob',utcnow,swav.ec)
 
     if europe_probability_map > 0:
-      amu.plot_ovation(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'europe', 'prob',utcnow,swav.ec)
+      amu.plot_ovation_single(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'europe', 'prob',utcnow,swav.ec)
 
     if canada_probability_map > 0:
-      amu.plot_ovation(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'canada', 'prob',utcnow,swav.ec)
+      amu.plot_ovation_single(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'canada', 'prob',utcnow,swav.ec)
 
 
 

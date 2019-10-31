@@ -21,7 +21,7 @@ last update October 2019
 
 mode=0                      # select mode: 0 for real time wind from URL, 1 for local file, 2 for OMNI2 data
 
-time_resolution = 50        # time resolution of resulting auroramaps in minutes
+time_resolution = 60        # time resolution of resulting auroramaps in minutes
 
 frame_rate=20           #output movie frame rate frame rate 20 is good for 10 minute resolution if 3 days want to be seen quickly
 
@@ -31,7 +31,7 @@ past_hours      =  -12            # in real time mode, start time with previous 
 future_hours    =  30              # in real time mode, number of hours into future, 0 for one frame only
 
 
-output_directory='aurora_test_real'            #specify output directory of frames and movies under "results/"
+output_directory='aurora_test_real2'            #specify output directory of frames and movies under "results/"
 
 #----------------------------- select map types 
 
@@ -53,8 +53,8 @@ canada_flux_map=0       #North America
 
 #probability maps
 global_probability_map=1
-europe_probability_map=1
-canada_probability_map=1
+europe_probability_map=0
+canada_probability_map=0
 
 
 

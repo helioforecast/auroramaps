@@ -565,7 +565,7 @@ print()
 print('Make mp4 and gif movies')
 print()
 if server:
-   ffmpeg_path='/nas/helio/AURORAMAPS/ffmpeg'
+   ffmpeg_path='/nas/helio/ffmpeg/ffmpeg'
 else:
    ffmpeg_path='ffmpeg'   
 print(ffmpeg_path)

@@ -62,6 +62,7 @@ plotting ideas:
 '''
 
 import matplotlib
+matplotlib.use('Agg') 
 #matplotlib.use('Qt5Agg') 
 #matplotlib.use('Agg') 
 #matplotlib.use('GTK3Agg')
@@ -69,7 +70,8 @@ import matplotlib
 import urllib
 from urllib.request import urlopen
 from io import StringIO
-from sunpy.time import parse_time
+#from sunpy.time import parse_time
+from astropy.time import Time
 import numpy as np
 from datetime import datetime
 from dateutil import tz
@@ -89,13 +91,13 @@ import getopt
 import time
 import pickle
 import seaborn as sns
-import pandas as pd
+#import pandas as pd
 from numba import njit
 import importlib
 from multiprocessing import Pool, cpu_count, Array
 
-from pandas.plotting import register_matplotlib_converters               
-register_matplotlib_converters()                                        
+#from pandas.plotting import register_matplotlib_converters               
+#register_matplotlib_converters()                                        
 
 #import auroramaps
 #importlib.reload(auroramaps) 
@@ -104,7 +106,6 @@ from auroramaps import util as amu
 
 importlib.reload(amu) #reload again while debugging
 importlib.reload(amo) #reload again while debugging
-
 
 
 
@@ -134,7 +135,7 @@ def make_aurora_cube_multi(ts,ec,k):
     mlonN_1D_small=aacgmv2.convert_mlt(mltN[0],ts,m2a=True)
     mlonN_1D=np.tile(mlonN_1D_small,mlatN.shape[0])
     mlatN_1D=np.squeeze(mlatN.reshape(np.size(mltN),1))
-    (glatN_1D, glonN_1D, galtN) = aacgmv2.convert_latlon_arr(mlatN_1D,mlonN_1D, 100,ts, code="A2G") #**check 100 km
+    (glatN_1D, glonN_1D, galtN) = aacgmv2.convert_latlon_arr(mlatN_1D,mlonN_1D, 100,ts, method_code="A2G") #**check 100 km
 
     ##############  (2c) interpolate to world map 
     geo_2D=np.vstack((glatN_1D,glonN_1D)).T      #stack 2 (7680,) arrays to a single 7680,2 arrays, .T is needed
@@ -176,10 +177,13 @@ if "--server" in [o for o, v in opts]:
     server = True
     print("in server mode")
 
-if server:
-    matplotlib.use('Agg') 
-else:
-    matplotlib.use('Qt5Agg') # figures are shown on mac
+print( matplotlib.get_backend())
+
+
+#if server:
+#    matplotlib.use('Agg') 
+#else:
+#    matplotlib.use('Qt5Agg') # figures are shown on mac
 
 #real switch set to True different input file
 real = False
@@ -227,13 +231,13 @@ if mode==0:
     
 if mode==1:
     print('mode '+str(mode)+': PREDSTORM local file')
-    t0   = parse_time(start_time).datetime   #parse start time from string to datetime
-    tend = parse_time(end_time).datetime
+    t0   = Time.strptime(start_time).datetime   #parse start time from string to datetime
+    tend = Time.strptime(end_time).datetime
 
 if mode==2:
     print('mode '+str(mode)+': OMNI2 data')
-    t0   = parse_time(start_time).datetime   #parse start time from string to datetime
-    tend = parse_time(end_time).datetime     
+    t0   = Time.strptime(start_time).datetime   #parse start time from string to datetime
+    tend = Time.strptime(end_time).datetime     
 
 tdiff=(tend-t0)     #difference between start and end time
 n_hours=int(tdiff.total_seconds()/3600)  #for how many hours the model runs
@@ -272,6 +276,8 @@ if mode==0:
        print('loaded from', predstorm_url)
    except urllib.error.URLError as e:
        print('Failed downloading ', predstorm_url,' ',e.reason)
+       
+   inputfile='/nas/helio/realcode/test/predstorm/predstorm_real.txt'
 
 if mode==1:     
      inputfile=local_input_file

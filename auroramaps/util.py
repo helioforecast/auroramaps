@@ -1012,7 +1012,7 @@ def draw_frames_multi(i, wic,dt,outputdir,eb,maptype,map_img,region,type,utcnow,
          ####################plot boundaries    
          bound_e1=ax.plot(eb['long'],eb['smooth'][i,:],transform=crs,color=bordercolor,alpha=0.8) #equatorial boundary
          bound_v1=ax.plot(eb['long'],eb['smooth'][i,:]-8,transform=crs,color=bordercolor,linestyle='--',alpha=0.5) #viewing line after Case et al. 2016
-         border1=ax.add_feature(Nightshade(dt),alpha=0.3)  #add day night border
+         #border1=ax.add_feature(Nightshade(dt),alpha=0.3)  #add day night border
          
          #plot ovation image
          

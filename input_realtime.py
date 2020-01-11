@@ -20,14 +20,14 @@ last update October 2019
 
 mode=0                      # select mode: 0 for real time mode, 1 for local file, 2 for OMNI2 data
 
-time_resolution = 30         # time resolution of resulting auroramaps in minutes
+time_resolution = 10         # time resolution of resulting auroramaps in minutes
 
 frame_rate=20           #output movie frame rate frame rate 20 is good for 10 minute resolution if 3 days want to be seen quickly
 
 # --------------------------- mode 0 settings
                                   # in real time mode, start time is always now in UTC
 past_hours      =  0             # in real time mode, start time with previous hours, negative = past
-future_hours    =  10              # in real time mode, number of hours into future, 0 for one frame only
+future_hours    =  24              # in real time mode, number of hours into future, 0 for one frame only
 
 
 output_directory='aurora_realtime'            #specify output directory of frames and movies under "results/"

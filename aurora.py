@@ -62,7 +62,49 @@ plotting ideas:
 '''
 
 import matplotlib
-matplotlib.use('Agg') 
+import sys
+import getopt
+import importlib
+
+################ READ INPUT OPTIONS FROM COMMAND LINE
+argv = sys.argv[1:]
+opts, args = getopt.getopt(argv,"hv=",["server", "real"])#, "help", "historic=", "verbose="])
+
+server = False
+if "--server" in [o for o, v in opts]:
+    server = True
+    print("in server mode")
+
+
+
+if server:
+    matplotlib.use('Agg') 
+else:
+    matplotlib.use('Qt5Agg') # figures are shown on mac
+print( matplotlib.get_backend())
+
+
+#real switch set to True different input file
+real = False
+
+if "--real" in [o for o, v in opts]:
+    real = True
+    print("using input_realtime.py")
+else: 
+    print("using input.py")    
+    
+if real:
+    import input_realtime
+    importlib.reload(input_realtime)   #make sure it reads file again
+    from input_realtime import *       #gets all variables from this file
+
+else:
+    import input
+    importlib.reload(input)   #make sure it reads file again
+    from input import *       #gets all variables from this file
+
+
+#matplotlib.use('Agg') 
 #matplotlib.use('Qt5Agg') 
 #matplotlib.use('Agg') 
 #matplotlib.use('GTK3Agg')
@@ -80,14 +122,13 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.dates import  DateFormatter
 import mpl_toolkits  
 import matplotlib.dates as mdates
-import sys
 import datetime
 import skimage.transform
 import scipy
 import aacgmv2
 import pdb
 import os
-import getopt
+
 import time
 import pickle
 import seaborn as sns
@@ -167,42 +208,6 @@ def make_aurora_cube_multi(ts,ec,k):
         
 
 
-
-################ READ INPUT OPTIONS FROM COMMAND LINE
-argv = sys.argv[1:]
-opts, args = getopt.getopt(argv,"hv=",["server", "real"])#, "help", "historic=", "verbose="])
-
-server = False
-if "--server" in [o for o, v in opts]:
-    server = True
-    print("in server mode")
-
-print( matplotlib.get_backend())
-
-
-#if server:
-#    matplotlib.use('Agg') 
-#else:
-#    matplotlib.use('Qt5Agg') # figures are shown on mac
-
-#real switch set to True different input file
-real = False
-
-if "--real" in [o for o, v in opts]:
-    real = True
-    print("using input_realtime.py")
-else: 
-    print("using input.py")    
-    
-if real:
-    import input_realtime
-    importlib.reload(input_realtime)   #make sure it reads file again
-    from input_realtime import *       #gets all variables from this file
-
-else:
-    import input
-    importlib.reload(input)   #make sure it reads file again
-    from input import *       #gets all variables from this file
 
 
 

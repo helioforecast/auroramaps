@@ -20,9 +20,9 @@ last update October 2019
 
 mode=0                      # select mode: 0 for real time mode, 1 for local file, 2 for OMNI2 data
 
-time_resolution = 10         # time resolution of resulting auroramaps in minutes
+time_resolution = 10        # time resolution of resulting auroramaps in minutes
 
-frame_rate=20           #output movie frame rate frame rate 20 is good for 10 minute resolution if 3 days want to be seen quickly
+frame_rate=25           #output movie frame rate frame rate 20 is good for 10 minute resolution if 3 days want to be seen quickly
 
 # --------------------------- mode 0 settings
                                   # in real time mode, start time is always now in UTC
@@ -65,7 +65,7 @@ calc_mode='multi'               #'multi' or 'single' processing mode for calcula
 calc_mode_frame='multi'         #'multi' or 'single' processing mode for drawing and saving the aurora frames
 #calc_mode_frame='single'         #'multi' or 'single' processing mode for drawing and saving the aurora frames
 
-#online source file for real time mode
+#online source file for real time mode #set to helioforecast.space
 predstorm_url='https://www.iwf.oeaw.ac.at/fileadmin//staff/SP/cmoestl/readtime/predstorm_real.txt'
 
 # --------------------------  mode 1/2 settings

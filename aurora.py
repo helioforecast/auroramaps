@@ -592,35 +592,35 @@ print('For all results see: results/'+output_directory)
 #frame rate is set in input.py
 
 if global_flux_map > 0:
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_global/aurora_%05d.png -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_global.mp4 -y -loglevel quiet')
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_global/aurora_%05d.png -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_global.gif -y -loglevel quiet')
+  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_global/aurora_%05d.png -b:v 7000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_global.mp4 -y -loglevel quiet')
+  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_global/aurora_%05d.png -b:v 7000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_global.gif -y -loglevel quiet')
   ########## convert mp4 to gif and makes smaller
   os.system(ffmpeg_path+' -i results/'+output_directory+'/flux_global.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_global_small.gif  -y -loglevel quiet ')
 
 if europe_flux_map > 0:
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_europe/aurora_%05d.png -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_europe.mp4 -y -loglevel quiet')
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_europe/aurora_%05d.png -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_europe.gif -y -loglevel quiet')
+  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_europe/aurora_%05d.png -b:v 7000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_europe.mp4 -y -loglevel quiet')
+  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_europe/aurora_%05d.png -b:v 7000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_europe.gif -y -loglevel quiet')
   os.system(ffmpeg_path+' -i results/'+output_directory+'/flux_europe.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_europe_small.gif  -y -loglevel quiet ')
 
 if canada_flux_map > 0:
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_canada/aurora_%05d.png -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_canada.mp4 -y -loglevel quiet')
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_canada/aurora_%05d.png -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_canada.gif -y -loglevel quiet')
+  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_canada/aurora_%05d.png -b:v 7000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_canada.mp4 -y -loglevel quiet')
+  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_canada/aurora_%05d.png -b:v 7000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_canada.gif -y -loglevel quiet')
   os.system(ffmpeg_path+' -i results/'+output_directory+'/flux_canada.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_canada_small.gif  -y -loglevel quiet ')
 
 
 if global_probability_map > 0:
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_global/aurora_%05d.png -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_global.mp4 -y -loglevel quiet')
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_global/aurora_%05d.png -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_global.gif -y -loglevel quiet')
+  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_global/aurora_%05d.png -b:v 7000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_global.mp4 -y -loglevel quiet')
+  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_global/aurora_%05d.png -b:v 7000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_global.gif -y -loglevel quiet')
   os.system(ffmpeg_path+' -i results/'+output_directory+'/prob_global.mp4  -vf scale=1000:-1 results/'+output_directory+'/prob_global_small.gif  -y -loglevel quiet ')
 
 if europe_probability_map > 0:
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_europe/aurora_%05d.png -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_europe.mp4 -y -loglevel quiet')
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_europe/aurora_%05d.png -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_europe.gif -y -loglevel quiet')
+  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_europe/aurora_%05d.png -b:v 7000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_europe.mp4 -y -loglevel quiet')
+  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_europe/aurora_%05d.png -b:v 7000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_europe.gif -y -loglevel quiet')
   os.system(ffmpeg_path+' -i results/'+output_directory+'/prob_europe.mp4  -vf scale=1000:-1 results/'+output_directory+'/prob_europe_small.gif  -y -loglevel quiet ')
 
 if canada_probability_map > 0:
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_canada/aurora_%05d.png -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_canada.mp4 -y -loglevel quiet')
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_canada/aurora_%05d.png -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_canada.gif -y -loglevel quiet')
+  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_canada/aurora_%05d.png -b:v 7000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_canada.mp4 -y -loglevel quiet')
+  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_canada/aurora_%05d.png -b:v 7000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_canada.gif -y -loglevel quiet')
   os.system(ffmpeg_path+' -i results/'+output_directory+'/prob_canada.mp4  -vf scale=1000:-1 results/'+output_directory+'/prob_canada_small.gif  -y -loglevel quiet ')
 
 

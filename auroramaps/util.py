@@ -1044,7 +1044,7 @@ def draw_frames_multi(i, wic,dt,outputdir,eb,maptype,map_img,region,type,utcnow,
        
          #save as movie frame
          framestr = '%05i' % (i)  
-         fig.savefig('results/'+outputdir+'/'+type+'_'+region+'/aurora_'+framestr+'.png',dpi=150,facecolor=fig.get_facecolor())
+         fig.savefig('results/'+outputdir+'/'+type+'_'+region+'/aurora_'+framestr+'.png',dpi=100,facecolor=fig.get_facecolor())
          plt.close()
 
 

@@ -4,29 +4,29 @@ This is an open-source version of the OVATION Prime 2010 (OP10) aurora model in 
 
 Current status (January 2020): **Work in progress!** Debugging is ongoing for OP10, and updating to OP13 is underway.
 
-by C. Möstl, Rachel L. Bailey, IWF Graz, Austria. 
+by [C. Möstl](https://www.iwf.oeaw.ac.at/en/user-site/christian-moestl/), [Rachel L. Bailey](https://www.iwf.oeaw.ac.at/user-site/rachel-bailey/), IWF Graz, Austria. 
 Contributions by  Diana E. Morosan and Liam Kilcommons.
 https://www.iwf.oeaw.ac.at/en/user-site/christian-moestl/  
 
 If you want to use parts of this code for generating results for peer-reviewed scientific publications, please contact me per email (christian.moestl@oeaw.ac.at) or via https://twitter.com/chrisoutofspace .
 
 The solar wind input comes either from OMNI2 historic data or from the [PREDSTORM](https://github.com/helioforecast/predstorm) L1 solar wind forecast, which is based on data from the DSCOVR or ACE and STEREO-A spacecraft. The results are plotted with [cartopy](https://scitools.org.uk/cartopy/docs/latest/) on different types of world maps. 
-OVATION has been largely rewritten based on https://github.com/lkilcommons/OvationPyme and open source versions thankfully made available by NOAA and the UK MetOffice.
+OVATION has been largely rewritten based on [Ovation Pyme](https://github.com/lkilcommons/OvationPyme) and open source versions thankfully made available by NOAA and the UK MetOffice.
 
 ## Installation
 
-I use a python 3.7.6 miniconda installation with standard packages (numpy, numba, scipy, matplotlib) as well as cartopy (0.17.0), aacgmv2 (2.6.0), and heliosat (0.3.1). It is recommended to make a conda environment to run the code. For full installation instructions with such an environment including *environment.yml* and *requirements.txt* files see: 
+I use a python 3.7.6 miniconda installation with standard packages (numpy, numba, scipy, matplotlib) as well as cartopy (0.17.0), aacgmv2 (2.6.0), and heliosat (0.3.1). It is recommended to make a conda environment to run the code. For full installation instructions for such an environment including *environment.yml* (for conda) and *requirements.txt* files (for pip) see: 
 https://github.com/helioforecast/helio4cast
 
-After installation, do in a directory of your choice:
+After the installation of the environment, go to a directory of your choice:
 
     git clone https://github.com/helioforecast/auroramaps
 
-*auroramaps* is currently not distributed via PyPI.
+*auroramaps* is not yet distributed via PyPI.
 
 ## Usage
 
-Run this file - the input variables are controlled in input.py and can be changed there:
+Activate the conda environment, and run this file - the input variables are controlled in *input.py* or *input_realtime.py* and can be changed there:
 
     python aurora.py
 
@@ -39,7 +39,7 @@ For a real time version use this (note the solar wind input file needs to be spe
     python aurora.py --real
 
     
-This produces a folder in the results directory named as given in *input.py* or *input_realtime.py* that contains aurora movies (gif, mp4) and frames for the event, and a plot on the Newell coupling. For the animation, it is assumed that ffmpeg (https://ffmpeg.org/download.html) is available in a given directory.
+This produces a folder in the results directory named as given in *input.py* or *input_realtime.py* that contains aurora movies (gif, mp4) and frames for the event, and a plot on the Newell coupling. For the animation, it is assumed that ffmpeg (https://ffmpeg.org/download.html) is available in a given directory (to be added to *input.py*).
 
 
 

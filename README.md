@@ -4,7 +4,7 @@ This is an open-source version of the OVATION Prime 2010 (OP10) aurora model in 
 
 Current status (January 2020): **Work in progress!** Debugging is ongoing for OP10, and updating to OP13 is underway.
 
-by C. Moestl, Rachel L. Bailey, IWF-helio group, Graz, Austria. https://www.iwf.oeaw.ac.at/en/user-site/christian-moestl/  
+by C. Möstl, Rachel L. Bailey, IWF-helio group, Graz, Austria. https://www.iwf.oeaw.ac.at/en/user-site/christian-moestl/  
 Contributions by  Diana E. Morosan and Liam Kilcommons.
 
 If you want to use parts of this code for generating results for peer-reviewed scientific publications, please contact me per email (christian.moestl@oeaw.ac.at) or via twitter @chrisoutofspace.

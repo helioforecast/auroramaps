@@ -10,7 +10,7 @@ https://www.iwf.oeaw.ac.at/en/user-site/christian-moestl/
 
 If you want to use parts of this code for generating results for peer-reviewed scientific publications, please contact me per email (christian.moestl@oeaw.ac.at) or via https://twitter.com/chrisoutofspace .
 
-The solar wind input comes either from OMNI2 historic data or from the PREDSTORM L1 solar wind forecast, which is based on data from the DSCOVR or ACE and STEREO-A spacecraft (https://github.com/IWF-helio/PREDSTORM). The results are plotted with cartopy on different types of world maps. 
+The solar wind input comes either from OMNI2 historic data or from the [PREDSTORM](https://github.com/helioforecast/predstorm) L1 solar wind forecast, which is based on data from the DSCOVR or ACE and STEREO-A spacecraft. The results are plotted with [cartopy](https://scitools.org.uk/cartopy/docs/latest/) on different types of world maps. 
 OVATION has been largely rewritten based on https://github.com/lkilcommons/OvationPyme and open source versions thankfully made available by NOAA and the UK MetOffice.
 
 ## Installation

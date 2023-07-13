@@ -7,9 +7,9 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="auroramaps",
-    version="0.1",
+    version="0.2",
     author="Christian Moestl",
-    author_email="christian.moestl@oeaw.ac.at",
+    author_email="chris.moestl@outlook.com",
     keywords=["geophysics", "heliophysics", "space weather"],
     description="Aurora model OVATION PRIME 2010 open source",
     long_description=long_description,
@@ -21,5 +21,5 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.7',
+    python_requires='>=3.10',
 )

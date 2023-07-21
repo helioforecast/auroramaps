@@ -1,132 +1,155 @@
-#!/usr/bin/env python
-# coding: utf-8
+'''
+aurora.py
 
-# ### aurora.py
-# 
-# Main program for running the OVATION PRIME 2010 model to make an aurora forecast/hindcast 
-# based on the PREDSTORM solar wind prediction method, or OMNI2 data for historic events.
-# 
-# A major update is in progress as July 2023 as we are transitioning this to the Austrian Space Weather Office.
-# 
-# Part of the auroramaps package
-# https://github.com/helioforecast/auroramaps
-# 
-# uses environment 'envs/aurora1.yml'
-# 
-# by C. Möstl, Austrian Space Weather Office, GeoSphere Austria.
-# twitter @chrisoutofspace
-# https://helioforecast.space
-# 
-# Contributions by Rachel L. Bailey, A. J. Weiss, Liam Kilcommons and Diana Morosan
-# 
-# Input parameters are given in the input.py or input_realtime.py files
-# 
-# This package uses a rewritten version of the ovationpyme aurora model 
-# by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
-# 
-# published under GNU Lesser General Public License v3.0
-# 
-# -----------------------------------------------------------------------------------
-# #### Issues: 
-# 
-# 
-# core:
-# - run with new aurora1 environment
-# - check with IDL code, debuggen, both hemispheres correct?
-# - check with direct comparison with NOAA global images nowcast
-# - get flux for time -> weights for both seasons? how correctly?, compare further with ovationpyme and IDL version
-# - add wave flux (needs good interpolation like OP13)
-# - add southern hemisphere maps (with coordinate conversion etc.)
-# - use numba or multiprocessing somewhere further for speed? 
-# - multiprocessing for saving the frames does not work on MacOS! 
-#   maybe on linux simply use the plotting function with multiprocessing.pool
-#   and multiple arguments (starmap) like for the data cubes
-# 
-# test bottlenecks: 
-#     python -m cProfile -s tottime aurora_forecast.py
-# 
-# 
-# plotting ideas:
-# - transparent to white colormap so that it looks like viirs images for direct comparison
-# - split land on dayside / night lights on night side 
-#   this should work in global_predstorm_north by loading background only once
-#   need to figure out how to get pixels from nightshade day/night and how to plot 
-#   only specific pixels (but then each background image must be updated)
-# - indicate moon phase with astropy
-# - cloud cover for local location? https://pypi.org/project/weather-api/ ? at least for locations
+main program for running the OVATION PRIME 2010 model to make an aurora forecast/hindcast 
+based on the PREDSTORM solar wind prediction method, or OMNI2 data for historic events
 
-# In[11]:
+uses the python "auroramaps" package
+https://github.com/helioforecast/auroramaps
+
+by C. Moestl, Austrian Space Weather Office, GeoSphere Austria.
+twitter @chrisoutofspace
+https://helioforecast.space
+
+input parameters are given in the input.py or input_realtime.py files
+
+by C. Moestl, Rachel L. Bailey, A. J. Weiss, Helio4Cast group, Graz, Austria.
+Contributions by Liam Kilcommons and Diana Morosan
+
+twitter @chrisoutofspace
+https://www.iwf.oeaw.ac.at/user-site/christian-moestl/
+
+This package uses a rewritten version of the ovationpyme aurora model 
+by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
+
+published under GNU Lesser General Public License v3.0
+
+last update October 2019
+
+-----------------------------------------------------------------------------------
+open issues: 
+
+core:
+- check with IDL code, debuggen, both hemispheres correct?
+- check with direct comparison with NOAA global images nowcast
+- get flux for time -> weights for both seasons? how correctly?, compare further with ovationpyme and IDL version
+- add wave flux (needs good interpolation like OP13)
+- add southern hemisphere maps (with coordinate conversion etc.)
+- use numba or multiprocessing somewhere further for speed? 
+- multiprocessing for saving the frames does not work on MacOS! 
+  maybe on linux simply use the plotting function with multiprocessing.pool
+  and multiple arguments (starmap) like for the data cubes
+
+test bottlenecks: 
+>> python -m cProfile -s tottime aurora_forecast.py
+
+or use in ipython for function run times:
+>> %timeit function_name()
+>> %time  function_name()
 
 
+plotting ideas:
+- transparent to white colormap so that it looks like viirs images for direct comparison
+- split land on dayside / night lights on night side 
+  this should work in global_predstorm_north by loading background only once
+  need to figure out how to get pixels from nightshade day/night and how to plot 
+  only specific pixels (but then each background image must be updated)
+- indicate moon phase with astropy
+- cloud cover for local location? https://pypi.org/project/weather-api/ ? at least for locations
+
+
+
+-----------------------------------------------------------------------------------
+'''
+
+import matplotlib
 import sys
-import os
 import getopt
 import importlib
+
+################ READ INPUT OPTIONS FROM COMMAND LINE
+argv = sys.argv[1:]
+opts, args = getopt.getopt(argv,"hv=",["server", "real"])#, "help", "historic=", "verbose="])
+
+server = False
+if "--server" in [o for o, v in opts]:
+    server = True
+    print("in server mode")
+
+if server:
+    matplotlib.use('Agg') 
+else:
+    matplotlib.use('Qt5Agg') # figures are shown on mac
+print( matplotlib.get_backend())
+
+
+#real switch set to True different input file
+real = False
+
+if "--real" in [o for o, v in opts]:
+    real = True
+    print("using input_realtime.py")
+else: 
+    print("using input.py")    
+    
+if real:
+    import input_realtime
+    importlib.reload(input_realtime)   #make sure it reads file again
+    from input_realtime import *       #gets all variables from this file
+
+else:
+    import input
+    importlib.reload(input)   #make sure it reads file again
+    from input import *       #gets all variables from this file
+
+
+#matplotlib.use('Agg') 
+#matplotlib.use('Qt5Agg') 
+#matplotlib.use('Agg') 
+#matplotlib.use('GTK3Agg')
+
 import urllib
-import datetime
-from dateutil import tz
 from urllib.request import urlopen
 from io import StringIO
-import time
-import pickle
-
+#from sunpy.time import parse_time
+from astropy.time import Time
 import numpy as np
-import matplotlib
+from datetime import datetime
+from dateutil import tz
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.dates import  DateFormatter
 import mpl_toolkits  
 import matplotlib.dates as mdates
-import seaborn as sns
-from astropy.time import Time
+import datetime
 import skimage.transform
 import scipy
 import aacgmv2
 import pdb
+import os
+
+import time
+import pickle
+import seaborn as sns
+#import pandas as pd
 from numba import njit
+import importlib
 from multiprocessing import Pool, cpu_count, Array
 
-from auroramaps import ovation as ao
-from auroramaps import util as au
+#from pandas.plotting import register_matplotlib_converters               
+#register_matplotlib_converters()                                        
 
-print('aacgmv2 version:',aacgmv2.__version__)
+#import auroramaps
+#importlib.reload(auroramaps) 
+from auroramaps import ovation as amo
+from auroramaps import util as amu
 
-
-##### check for system type
-#server
-if sys.platform == 'linux': 
-    print('system is linux')
-    matplotlib.use('Agg') 
-    from config_server import *   
-    
-#mac
-if sys.platform =='darwin':  
-    print('system is mac')
-    #for testing
-    get_ipython().run_line_magic('matplotlib', 'inline')
-    #matplotlib.use('Agg') 
-    from config_local import *   
- 
+importlib.reload(amu) #reload again while debugging
+importlib.reload(amo) #reload again while debugging
 
 
-#switches
 
-debug_mode=1
-
-print('imports done')
-
-
-#make sure to convert the current notebook to a script
-os.system('jupyter nbconvert --to script aurora.ipynb')   
-
-
-start_all=time.time()
-
-
-# #### Aurora Cube function
-
-# In[2]:
-
+##################################### FUNCTIONS #######################################
 
 def make_aurora_cube_multi(ts,ec,k):
     '''
@@ -169,28 +192,37 @@ def make_aurora_cube_multi(ts,ec,k):
     
 
 
-# #### Main Settings
-
-# In[3]:
 
 
-if debug_mode>0:
-    importlib.reload(au) #reload again while debugging
-    importlib.reload(ao) #reload again while debugging
+#######################################################################################
+##################################### Main ############################################
+#######################################################################################
+
 
 #if new background images need to be saved in auroramaps/data/wmts do this, some are included!
-#au.save_gibs_earth_image('BlueMarble_NextGeneration',300)    
-#au.save_gibs_earth_image('VIIRS_CityLights_2012',300)    
-#au.save_gibs_earth_image('BlueMarble_NextGeneration',600)    
-#au.save_gibs_earth_image('VIIRS_CityLights_2012',600)    
+#amu.save_gibs_earth_image('BlueMarble_NextGeneration',300)    
+#amu.save_gibs_earth_image('VIIRS_CityLights_2012',300)    
+#amu.save_gibs_earth_image('BlueMarble_NextGeneration',600)    
+#amu.save_gibs_earth_image('VIIRS_CityLights_2012',600)    
+        
 
 
+
+
+
+############### (0) get input data, get PREDSTORM solar wind files mode ###############
+
+
+start_all=time.time()
+plt.close('all')
+sns.set_style('darkgrid')
 
 #get current time as datetime object in UTC, rounded to minute and time zone aware
-utcnow=au.round_to_minute(datetime.datetime.now(tz=tz.tzutc())) 
+utcnow=amu.round_to_minute(datetime.datetime.now(tz=tz.tzutc())) 
 
 print()
-print('Making aurora forecasts with OVATION PRIME 2010 auroramaps')
+print('Making aurora forecasts with OVATION PRIME 2010')
+print('with the PREDSTORM solar wind predictions (ACE/DSCOVR+STEREO-A) or OMNI2 data')
 print()
 print('UTC time now:')
 print(utcnow.strftime(format="%Y-%m-%d %H:%M") )
@@ -236,33 +268,29 @@ if os.path.isdir('results/'+output_directory+'/prob_global') == False: os.mkdir(
 if os.path.isdir('results/'+output_directory+'/prob_europe') == False: os.mkdir('results/'+output_directory+'/prob_europe')
 if os.path.isdir('results/'+output_directory+'/prob_canada') == False: os.mkdir('results/'+output_directory+'/prob_canada')
 
-if os.path.isdir('data/predstorm') == False: os.mkdir('data/predstorm')
-if os.path.isdir('data/omni2') == False: os.mkdir('data/omni2')
-
-
-
-inputfile='data/predstorm/predstorm_real.txt'
-
-print(predstorm_url)
+if os.path.isdir('auroramaps/data/predstorm') == False: os.mkdir('auroramaps/data/predstorm')
+if os.path.isdir('auroramaps/data/omni2') == False: os.mkdir('auroramaps/data/omni2')
 
 
 # get or set input files
-
 if mode==0:    
+
+   #old version from IWF website
    try: 
-       inputfile='data/predstorm/predstorm_real.txt'
+       inputfile='auroramaps/data/predstorm/predstorm_real.txt'
        urllib.request.urlretrieve(predstorm_url,inputfile)
        print('loaded from', predstorm_url)
    except urllib.error.URLError as e:
        print('Failed downloading ', predstorm_url,' ',e.reason)
        
-##!!! or use internal server version!!!!
+   #internal on server    
+   inputfile='/nas/helio/realcode/real/predstorm/predstorm_real.txt'
 
 if mode==1:     
      inputfile=local_input_file
 
 if mode==2:     
-     au.omni_txt_generator(ts)   #make txt file from OMNI2 data in similar format as predstorm
+     amu.omni_txt_generator(ts)   #make txt file from OMNI2 data in similar format as predstorm
      inputfile='auroramaps/data/predstorm/predstorm_omni.txt'
     
 print('input data file:',inputfile)
@@ -272,30 +300,36 @@ print('output directory: results/'+output_directory)
 print('------------------------------------------------------')
 
 
-# #### (1) Initialize OVATION
-
-# In[8]:
 
 
-if debug_mode>0:
-    importlib.reload(au) #reload again while debugging
-    importlib.reload(ao) #reload again while debugging
+
+
+
+
+
+
+
+
+########################## (1) Initialize OVATION ########################################
+
+
 ########## load ovation for different types of aurora
-#atype - str, ['diff','mono','wave','ions']
-#         type of aurora for which to load regression coeffients
-#jtype - int or str
-#            1:"electron energy flux",
-#            2:"ion energy flux",
-#            3:"electron number flux",
-#            4:"ion number flux",
-#            5:"electron average energy",
-#            6:"ion average energy"
-
+'''
+atype - str, ['diff','mono','wave','ions']
+         type of aurora for which to load regression coeffients
+jtype - int or str
+            1:"electron energy flux",
+            2:"ion energy flux",
+            3:"electron number flux",
+            4:"ion number flux",
+            5:"electron average energy",
+            6:"ion average energy"
+'''
 jtype = 'electron energy flux'
 print('Initialize OVATION')
 start = time.time()
-de = ao.FluxEstimator('diff', jtype)
-me = ao.FluxEstimator('mono', jtype)
+de = amo.FluxEstimator('diff', jtype)
+me = amo.FluxEstimator('mono', jtype)
 #we = amo.FluxEstimator('wave', jtype)
 end = time.time()
 print('done, took ',np.round(end - start,2),' seconds.')
@@ -305,33 +339,17 @@ print()
 
 
 ###################### load input solar wind
-l1wind=au.load_predstorm_wind(inputfile)
-#convert to new matplotlib dates
-l1wind.time=l1wind.time+ mdates.date2num(np.datetime64('0000-12-31'))
-
-print('Solar wind data loaded from PREDSTORM input file')
-
-print(l1wind)
-
-swav=au.calc_avg_solarwind_predstorm(ts,l1wind)  # calculate average solar wind for Newell coupling 
+l1wind=amu.load_predstorm_wind(inputfile)
+print('Solar wind data loaded from PREDSTORM input file.')
+swav=amu.calc_avg_solarwind_predstorm(ts,l1wind)  # calculate average solar wind for Newell coupling 
 window=int(window_minutes/time_resolution)	#when time resolution < averaging window in minutes, do moving averages
 coup_cycle=4421 #average coupling for solar cycle (see e.g. Newell et al. 2010)
 
-print(ts[-1])
-print(mdates.num2date(l1wind[-1].time))
-
-print(swav)
-
-
 ####################### plot current coupling, the driver behind the ovation model
 fig, ax = plt.subplots(figsize=[10, 5],dpi=100)
-
 plt.plot_date(l1wind.time,np.ones(np.size(l1wind.time)),'k--',label='cycle average',linewidth=0.7)
-
 plt.plot_date(l1wind.time,l1wind.ec/coup_cycle,'k-', label='input solar wind')   
-
 plt.plot_date(swav.time,swav.ec/coup_cycle,'r-',label='4-hour weighted averages',markersize=2)   
-
 plt.title('Newell coupling Nc')
 plt.ylabel(r'Nc / 4421 $\mathrm{[(km/s)^{4/3}\/nT^{2/3}]}$')
 ax.xaxis.set_major_formatter( DateFormatter('%Y-%b-%d %Hh') )
@@ -339,15 +357,15 @@ plt.xticks(rotation=45)
 
 
 #plot moving averages and make them if time resolution high enough
-#if window > 0:
-#   print('running mean used for Nc with time window +/- ',window_minutes,'minutes')
-#   ec_run_mean=swav.ec
-#   for i in np.arange(window,np.size(ts)-window): ec_run_mean[i]=np.mean(swav.ec[i-window:i+window])  
-#   plt.plot_date(swav.time,ec_run_mean/coup_cycle,'b--',label='smoothed weighted averages' )   
+if window > 0:
+   print('running mean used for Nc with time window +/- ',window_minutes,'minutes')
+   ec_run_mean=swav.ec
+   for i in np.arange(window,np.size(ts)-window): ec_run_mean[i]=np.mean(swav.ec[i-window:i+window])  
+   plt.plot_date(swav.time,ec_run_mean/coup_cycle,'b--',label='smoothed weighted averages' )   
    #replace Ec average by running mean
-#   swav.ec=ec_run_mean
+   swav.ec=ec_run_mean
     
-#ax.set_xlim([swav.time[0]-4/24,swav.time[-1]])
+ax.set_xlim([swav.time[0]-4/24,swav.time[-1]])
 plt.legend()
 
 plt.tight_layout()
@@ -355,16 +373,23 @@ fig.savefig('results/'+output_directory+'/run_newell_coupling.png',dpi=150,facec
 
 
 
-# ### (2) RUN OVATION FOR EACH TIME STEP 
-# 
-
-# In[14]:
 
 
-if debug_mode>0:
-    importlib.reload(au) #reload again while debugging
-    importlib.reload(ao) #reload again while debugging
-    
+
+
+
+
+
+
+
+
+
+
+
+###################### (2) RUN OVATION FOR EACH TIME STEP ##############################
+
+
+
 ##################### (2a) get flux data cubes
 print()
 print('------------------------------------------------------')
@@ -378,7 +403,7 @@ if calc_mode == 'single':
     print()
     start = time.time()
     print('clock run time start ...')
-    ovation_img=ao.make_aurora_cube(ts,swav.ec,de,me) #ovation_img single processing - use ts and ec to make aurora world map; get back 512*1024 image cube
+    ovation_img=amo.make_aurora_cube(ts,swav.ec,de,me) #ovation_img single processing - use ts and ec to make aurora world map; get back 512*1024 image cube
     print('... end run time clock:  ',np.round(time.time() - start,2),' sec total, per frame: ',np.round((time.time() - start)/np.size(ts),2) )
 
 
@@ -403,7 +428,7 @@ if calc_mode == 'multi':
     oim=np.frombuffer(ovation_img_multi.get_obj())          #get calculated array values into 1D array
 
     #make final array 512*1024*size(ts) out of 1D array that is used in make_aurora_cube_multi
-    ovation_img=au.reshape_ovation_img_multi(np.zeros(oshape),oim,oshape) 
+    ovation_img=amu.reshape_ovation_img_multi(np.zeros(oshape),oim,oshape) 
  
     print('... end run time clock:  ',np.round(time.time() - start,2),' sec total, per frame: ',np.round((time.time() - start)/np.size(ts),2) )
 
@@ -411,11 +436,13 @@ if calc_mode == 'multi':
 print()
 print('------------------------------------------------------')
 
+'''
 #for testing conversion and image making - note that the image is upside down with north at bottom
-#plt.close('all')
-#plt.figure(1)
-#plt.imshow(aimg)
-#sys.exit()
+plt.close('all')
+plt.figure(1)
+plt.imshow(aimg)
+sys.exit()
+'''
 
 
 ##################### (2b) get lower equatorial boundary 
@@ -431,10 +458,10 @@ eb = {'lat':np.linspace(-90,90,512), 'long':np.linspace(-180,180,1024),       \
       'time': ts}#,'flux_map': ovation_img}
      
 #make the equatorial boundary
-eb['boundary']=au.make_equatorial_boundary(ovation_img,eb['boundary'],np.size(ts),eb['lat'],equatorial_boundary_flux_threshold) 
+eb['boundary']=amu.make_equatorial_boundary(ovation_img,eb['boundary'],np.size(ts),eb['lat'],equatorial_boundary_flux_threshold) 
 #the result is eb['data'] as function of longitude variable eb['long'] 
 ebwin=15 #size of filter window, apply filter
-eb['smooth']=au.smooth_boundary(ts,eb['boundary'],ebwin)
+eb['smooth']=amu.smooth_boundary(ts,eb['boundary'],ebwin)
    
 print('... end run time clock:  ',np.round(time.time() - start,2),' sec total, per frame: ',np.round((time.time() - start)/np.size(ts),2))
 print('total number of frames:', np.size(ts))
@@ -449,21 +476,19 @@ print('Boundary data saved as '+eb_save_filename)
 print()
    
         
-#for debugging equatorial boundary
-#plt.figure(13)
-#plt.plot(eb['long'],eb['boundary'][0,:],'-r')   
-#plt.plot(eb['long'],eb['smooth'][0,:],'-b')   
+'''for debugging equatorial boundary
+plt.figure(13)
+plt.plot(eb['long'],eb['boundary'][0,:],'-r')   
+plt.plot(eb['long'],eb['smooth'][0,:],'-b')   
+'''
 
 
-# ### (3) PLOTS and MOVIES
-# 
-
-# In[17]:
 
 
-if debug_mode>0:
-    importlib.reload(au) #reload again while debugging
-    importlib.reload(ao) #reload again while debugging
+
+
+#####################################  (3) PLOTS and MOVIES  #########################################
+
 
 ############################ (3a) Make global aurora plots 
 #maybe make faster with multiprocessing pool - does not work on MacOS but should on Linux
@@ -478,31 +503,31 @@ if calc_mode_frame == 'single':
     print('with single processing')  
 
     ############ load background image
-    map_img=au.load_high_res_background(map_type)
+    map_img=amu.load_high_res_background(map_type)
 
     #flux maps
     if global_flux_map > 0:
-      au.plot_ovation_single(ovation_img, ts, output_directory, eb, map_type, map_img, 'global', 'flux',utcnow,swav.ec)
+      amu.plot_ovation_single(ovation_img, ts, output_directory, eb, map_type, map_img, 'global', 'flux',utcnow,swav.ec)
 
     if europe_flux_map > 0:
-      au.plot_ovation_single(ovation_img, ts, output_directory, eb, map_type, map_img, 'europe', 'flux',utcnow,swav.ec)
+      amu.plot_ovation_single(ovation_img, ts, output_directory, eb, map_type, map_img, 'europe', 'flux',utcnow,swav.ec)
     
     if canada_flux_map > 0:
-      au.plot_ovation_single(ovation_img, ts, output_directory, eb, map_type, map_img, 'canada', 'flux',utcnow,swav.ec)
+      amu.plot_ovation_single(ovation_img, ts, output_directory, eb, map_type, map_img, 'canada', 'flux',utcnow,swav.ec)
 
     ########### same for probability maps
 
     #first convert flux to probability
-    ovation_img_prob=au.flux_to_probability(ovation_img)
+    ovation_img_prob=amu.flux_to_probability(ovation_img)
 
     if global_probability_map > 0:
-      au.plot_ovation_single(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'global', 'prob',utcnow,swav.ec)
+      amu.plot_ovation_single(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'global', 'prob',utcnow,swav.ec)
 
     if europe_probability_map > 0:
-      au.plot_ovation_single(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'europe', 'prob',utcnow,swav.ec)
+      amu.plot_ovation_single(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'europe', 'prob',utcnow,swav.ec)
 
     if canada_probability_map > 0:
-      au.plot_ovation_single(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'canada', 'prob',utcnow,swav.ec)
+      amu.plot_ovation_single(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'canada', 'prob',utcnow,swav.ec)
 
 
 
@@ -511,31 +536,31 @@ if calc_mode_frame == 'multi':
     print('with multiprocessing')  
 
     ############ load background image
-    map_img=au.load_high_res_background(map_type)
+    map_img=amu.load_high_res_background(map_type)
 
     #flux maps
     if global_flux_map > 0:
-      au.plot_ovation_multi(ovation_img, ts, output_directory, eb, map_type, map_img, 'global', 'flux',utcnow,swav.ec)
+      amu.plot_ovation_multi(ovation_img, ts, output_directory, eb, map_type, map_img, 'global', 'flux',utcnow,swav.ec)
 
     if europe_flux_map > 0:
-      au.plot_ovation_multi(ovation_img, ts, output_directory, eb, map_type, map_img, 'europe', 'flux',utcnow,swav.ec)
+      amu.plot_ovation_multi(ovation_img, ts, output_directory, eb, map_type, map_img, 'europe', 'flux',utcnow,swav.ec)
     
     if canada_flux_map > 0:
-      au.plot_ovation_multi(ovation_img, ts, output_directory, eb, map_type, map_img, 'canada', 'flux',utcnow,swav.ec)
+      amu.plot_ovation_multi(ovation_img, ts, output_directory, eb, map_type, map_img, 'canada', 'flux',utcnow,swav.ec)
 
     ########### same for probability maps
 
     #first convert flux to probability
-    ovation_img_prob=au.flux_to_probability(ovation_img)
+    ovation_img_prob=amu.flux_to_probability(ovation_img)
 
     if global_probability_map > 0:
-      au.plot_ovation_multi(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'global', 'prob',utcnow,swav.ec)
+      amu.plot_ovation_multi(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'global', 'prob',utcnow,swav.ec)
 
     if europe_probability_map > 0:
-      au.plot_ovation_multi(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'europe', 'prob',utcnow,swav.ec)
+      amu.plot_ovation_multi(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'europe', 'prob',utcnow,swav.ec)
 
     if canada_probability_map > 0:
-      au.plot_ovation_multi(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'canada', 'prob',utcnow,swav.ec)
+      amu.plot_ovation_multi(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'canada', 'prob',utcnow,swav.ec)
 
 
 
@@ -621,8 +646,6 @@ plt.style.use('seaborn-whitegrid') #for white ticks and labels, resetting the da
 
 ##################################### END ################################################
 
-
-# In[ ]:
 
 
 

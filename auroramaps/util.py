@@ -6,10 +6,10 @@ part of the "auroramaps" package
 utilities for the ovation prime 2010 model in python
 
 ---------------------
-by C. Moestl, IWF-helio group, Graz, Austria.
-https://github.com/IWF-helio/auroramaps
+by C. Moestl, Austrian Space Weather Office, GeoSphere Austria.
+https://github.com/helioforecast/auroramaps
 twitter @chrisoutofspace
-https://www.iwf.oeaw.ac.at/user-site/christian-moestl/
+https://helioforecast.space
 
 using a rewritten version of the ovationpyme aurora model 
 by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
@@ -370,7 +370,7 @@ def omni_txt_generator(dt):
 
    #description
    #np.savetxt(filename_save, ['time     Dst [nT]     Kp     aurora [GW]   B [nT]    Bx [nT]     By [nT]     Bz [nT]    N [ccm-3]   V [km/s]    '])
-   filename_save='auroramaps/data/predstorm/predstorm_omni.txt'
+   filename_save='data/predstorm/predstorm_omni.txt'
    np.savetxt(filename_save, vartxtout,  delimiter='',fmt='%4i %2i %2i %2i %2i %2i %10.6f %5.1f %5.1f %5.1f %5.1f   %7.0f %7.0f ',\
                header='        time      matplotlib_time B[nT] Bx   By     Bz   N[ccm-3] V[km/s] ')
 
@@ -383,30 +383,30 @@ def omni_txt_generator(dt):
 
 def omni_loader():
    '''
-   downloads all omni2 data into the "auroramaps/data/omni2" folder
+   downloads all omni2 data into the "data/omni2" folder
    converts to pickle file for faster reloading and returns object with data
    '''
   
-   if not os.path.exists('auroramaps/data/omni2/omni2_all_years.dat'):
+   if not os.path.exists('data/omni2/omni2_all_years.dat'):
       #see http://omniweb.gsfc.nasa.gov/html/ow_data.html
       print('OMNI2 .dat file not in "data" directory, so download OMNI2 data from')
       omni2_url='https://spdf.gsfc.nasa.gov/pub/data/omni/low_res_omni/omni2_all_years.dat'
       print(omni2_url)
-      try: urllib.request.urlretrieve(omni2_url, 'auroramaps/data/omni2/omni2_all_years.dat')
+      try: urllib.request.urlretrieve(omni2_url, 'data/omni2/omni2_all_years.dat')
       except urllib.error.URLError as e:
           print(' ', omni2_url,' ',e.reason)
           sys.exit()
 
    #if omni2 hourly data is not yet converted and saved as pickle, do it:
-   if not os.path.exists('auroramaps/data/omni2/omni2_all_years_pickle.p'):
+   if not os.path.exists('data/omni2/omni2_all_years_pickle.p'):
        #load OMNI2 dataset from .dat file with a function from dst_module.py
        print('OMNI2 .p file not in "data" directory, so convert to pickle')
        o=get_omni_data()
        #contains: o. time,day,hour,btot,bx,by,bz,bygsm,bzgsm,speed,speedx,den,pdyn,dst,kp
        #save for faster loading later
-       pickle.dump(o, open('auroramaps/data/omni2/omni2_all_years_pickle.p', 'wb') )
+       pickle.dump(o, open('data/omni2/omni2_all_years_pickle.p', 'wb') )
 
-   else:  o=pickle.load(open('auroramaps/data/omni2/omni2_all_years_pickle.p', 'rb') )
+   else:  o=pickle.load(open('data/omni2/omni2_all_years_pickle.p', 'rb') )
    print('loaded OMNI2 data')
    return o
    
@@ -427,7 +427,7 @@ def get_omni_data():
     """
 
     #check how many rows exist in this file
-    f=open('auroramaps/data/omni2/omni2_all_years.dat')
+    f=open('data/omni2/omni2_all_years.dat')
     dataset= len(f.readlines())
     #print(dataset)
     #global Variables
@@ -457,7 +457,7 @@ def get_omni_data():
     
     j=0
     print('Read OMNI2 data ...')
-    with open('auroramaps/data/omni2/omni2_all_years.dat') as f:
+    with open('data/omni2/omni2_all_years.dat') as f:
         for line in f:
             line = line.split() # to deal with blank 
             #print line #41 is Dst index, in nT
@@ -604,7 +604,7 @@ def get_selected_timezones(dt):
 
 
 def save_gibs_earth_image(layer, dpi_in):
-    '''load NASA GIBS maps and save them in auroramaps/data/wmts/
+    '''load NASA GIBS maps and save them in data/wmts/
     to be able to quickly load them when producing high-resolution aurora maps
     default layer is blue marble_NextGeneration
     URL: 'https://map1c.vis.earthdata.nasa.gov/wmts-geo/wmts.cgi'
@@ -622,7 +622,7 @@ def save_gibs_earth_image(layer, dpi_in):
     res=''
     if dpi_in==300: res='_6k'
     if dpi_in==600: res='_12k'    
-    fig.savefig('auroramaps/data/wmts/'+layer+'_plate_carree'+res+'.jpg',dpi=dpi_in,facecolor='black')
+    fig.savefig('data/wmts/'+layer+'_plate_carree'+res+'.jpg',dpi=dpi_in,facecolor='black')
 
 
 
@@ -634,11 +634,11 @@ def load_high_res_background(maptype):
     '''
     
     if maptype=='marble': 
-        img=imread('auroramaps/data/wmts/BlueMarble_NextGeneration_plate_carree_6k.jpg')        
+        img=imread('data/wmts/BlueMarble_NextGeneration_plate_carree_6k.jpg')        
     if maptype=='viirs':  
-        img=imread('auroramaps/data/wmts/VIIRS_CityLights_2012_plate_carree_6k.jpg')
+        img=imread('data/wmts/VIIRS_CityLights_2012_plate_carree_6k.jpg')
     if maptype=='topography': 
-        img=imread('auroramaps/data/wmts/natural-earth-1_large4096px.png')
+        img=imread('data/wmts/natural-earth-1_large4096px.png')
     
     return img
 
@@ -736,7 +736,7 @@ def plot_ovation_single(wic,dt, outputdir, eb, maptype, map_img, region, type, u
      europe_east = 35; europe_west = -25; europe_north = 75; europe_south = 30 
      if region == 'europe': ax.set_extent([europe_west, europe_east, europe_south, europe_north])
  
-     ax.background_patch.set_facecolor('k')    
+     #ax.background_patch.set_facecolor('k')    
      #show loaded image of world map (all in plate carree)
      #in order to speed up plotting, this is only done once, and other features like the aurora 
      #and day-night border are plotted and removed with each new frame
@@ -1617,7 +1617,7 @@ def global_ovation_flux(magnetic_latitude,magnetic_local_time,flux,dt):
  
  
  #read in IDL output for comparison
- idl_file_in='auroramaps/data/idl_output/ov_diff_Eflux_2017_1230_2330.txt'
+ idl_file_in='data/idl_output/ov_diff_Eflux_2017_1230_2330.txt'
  #idl_file_in='ovation_output/ov_mono_Eflux_2017_1230_2330.txt'
  #idl_file_in='ovation_output/ov_wave_Eflux_2017_1230_2330.txt'
  

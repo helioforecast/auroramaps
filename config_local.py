@@ -1,19 +1,20 @@
 '''
-input.py
+config_local.py
 
 part of the "auroramaps" package
 
 CONFIGURATION PARAMETERS for main program aurora.py 
 
 ---------------------
-by C. Moestl, IWF-helio group, Graz, Austria.
-https://github.com/IWF-helio/auroramaps
+by C. Moestl, Austrian Space Weather Office, GeoSphere Austria.
+https://github.com/helioforecast/auroramaps
 twitter @chrisoutofspace
-https://www.iwf.oeaw.ac.at/user-site/christian-moestl/
+https://helioforecast.space
+
 
 published under GNU Lesser General Public License v3.0
 
-last update October 2019
+last update July 2023
 '''
 
 
@@ -23,12 +24,12 @@ mode=0                      # select mode: 0 for real time wind from URL, 1 for 
 
 time_resolution = 60        # time resolution of resulting auroramaps in minutes
 
-frame_rate=20           #output movie frame rate frame rate 20 is good for 10 minute resolution if 3 days want to be seen quickly
+frame_rate=10           #output movie frame rate frame rate 20 is good for 10 minute resolution if 3 days want to be seen quickly
 
 # --------------------------- mode 0 settings
                                   # in real time mode, start time is always now in UTC
 past_hours      =  -12            # in real time mode, start time with previous hours, negative = past
-future_hours    =  30              # in real time mode, number of hours into future, 0 for one frame only
+future_hours    =  2              # in real time mode, number of hours into future, 0 for one frame only
 
 
 output_directory='aurora_test_real2'            #specify output directory of frames and movies under "results/"
@@ -46,13 +47,13 @@ equatorial_boundary_flux_threshold=1.0
 # set 1 for making the map, 0 for not making the map
 
 #flux maps
-global_flux_map=0         #northern polar view
+global_flux_map=1         #northern polar view
 europe_flux_map=0       #Europe
 canada_flux_map=0       #North America
 
 
 #probability maps
-global_probability_map=1
+global_probability_map=0
 europe_probability_map=0
 canada_probability_map=0
 
@@ -62,11 +63,15 @@ canada_probability_map=0
 
 window_minutes=20                #window in minutes for smoothing the coupling with a running mean; ignored if time_resolution larger than window_minutes; standard=20
 
-calc_mode='multi'               #'multi' or 'single' processing mode for calculating the aurora image cube
-calc_mode_frame='multi'         #'multi' or 'single' processing mode for drawing and saving the aurora frames
+#calc_mode='multi'               #'multi' or 'single' processing mode for calculating the aurora image cube
+#calc_mode_frame='multi'         #'multi' or 'single' processing mode for drawing and saving the aurora frames
+
+calc_mode='single'               #'multi' or 'single' processing mode for calculating the aurora image cube
+calc_mode_frame='single'         #'multi' or 'single' processing mode for drawing and saving the aurora frames
+
 
 #online source file for real time mode
-predstorm_url='https://www.iwf.oeaw.ac.at/fileadmin//staff/SP/cmoestl/readtime/predstorm_real.txt'
+predstorm_url='https://helioforecast.space/static/sync/predstorm_real_1m.txt'
 
 # --------------------------  mode 1/2 settings
 
@@ -77,15 +82,11 @@ start_time = '2017-Sep-7 13:00'
 end_time   = '2017-Sep-7 14:00'
 
 
-
 # --------------------------  mode 1 settings
-local_input_file='data/predstorm/predstorm_v1_realtime_stereo_a_save_2019-05-14-21_00.txt'
+local_input_file='data/predstorm/predstorm_real_test_2023_jul_22.txt'
 
 
 # --------------------------  mode 2 settings OMNI data is automatically loaded 
-
-
-
 
 
 

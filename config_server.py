@@ -1,19 +1,20 @@
 '''
-input.py
+config_server.py
 
 part of the "auroramaps" package
 
 CONFIGURATION PARAMETERS for main program aurora.py 
 
 ---------------------
-by C. Moestl, IWF-helio group, Graz, Austria.
-https://github.com/IWF-helio/auroramaps
+by C. Moestl, Austrian Space Weather Office, GeoSphere Austria.
+https://github.com/helioforecast/auroramaps
 twitter @chrisoutofspace
-https://www.iwf.oeaw.ac.at/user-site/christian-moestl/
+https://helioforecast.space
+
 
 published under GNU Lesser General Public License v3.0
 
-last update October 2019
+last update July 2023
 '''
 
 
@@ -26,8 +27,8 @@ frame_rate=2           #output movie frame rate frame rate 20 is good for 10 min
 
 # --------------------------- mode 0 settings
                                   # in real time mode, start time is always now in UTC
-past_hours      =  0             # in real time mode, start time with previous hours, negative = past
-future_hours    =  24              # in real time mode, number of hours into future, 0 for one frame only
+past_hours      =  -12             # in real time mode, start time with previous hours, negative = past
+future_hours    =  1             # in real time mode, number of hours into future, 0 for one frame only
 
 
 output_directory='aurora_realtime'            #specify output directory of frames and movies under "results/"
@@ -66,7 +67,7 @@ calc_mode_frame='multi'         #'multi' or 'single' processing mode for drawing
 #calc_mode_frame='single'         #'multi' or 'single' processing mode for drawing and saving the aurora frames
 
 #online source file for real time mode #set to helioforecast.space
-predstorm_url='https://www.iwf.oeaw.ac.at/fileadmin//staff/SP/cmoestl/readtime/predstorm_real.txt'
+predstorm_url=''
 
 # --------------------------  mode 1/2 settings
 

@@ -7,14 +7,14 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="auroramaps",
-    version="0.2",
+    version="0.3",
     author="Christian Moestl",
     author_email="chris.moestl@outlook.com",
     keywords=["geophysics", "heliophysics", "space weather"],
     description="Aurora model OVATION PRIME 2010 open source",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/IWF-helio/AURORAMAPS",
+    url="https://github.com/helioforecast/auroramaps",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",

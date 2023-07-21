@@ -11,11 +11,10 @@ from https://github.com/lkilcommons/OvationPyme
 This module contains the main model routines for 
 Ovation Prime (historically called season_epoch.pro in the IDL version)
 
----------------------
-by C. Moestl, IWF-helio group, Graz, Austria.
-https://github.com/IWF-helio/auroramaps
+by C. Moestl, Austrian Space Weather Office, GeoSphere Austria.
+https://github.com/helioforecast/auroramaps
 twitter @chrisoutofspace
-https://www.iwf.oeaw.ac.at/user-site/christian-moestl/
+https://helioforecast.space
 
 using a rewritten version of the ovationpyme aurora model 
 by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
@@ -31,7 +30,7 @@ import os
 import datetime
 import numpy as np
 from scipy import interpolate
-from numba import njit, jit, jitclass
+from numba import njit, jit
 import pdb
 import sys
 import pickle
@@ -100,7 +99,7 @@ def make_aurora_cube(ts, ec,diff,mono):
     mlatN_1D=np.squeeze(mlatN.reshape(np.size(mltN),1))
    
     #magnetic coordinates are now mlatN mlonN, convert to geographic
-    (glatN_1D, glonN_1D, galtN) = aacgmv2.convert_latlon_arr(mlatN_1D,mlonN_1D, 100,ts[k], code="A2G")
+    (glatN_1D, glonN_1D, galtN) = aacgmv2.convert_latlon_arr(mlatN_1D,mlonN_1D, 100,ts[k], method_code="A2G")
     #endcoo = time.time()
     #print('Coordinates: ', np.round(endcoo-startcoo,2),' sec')
    
@@ -324,13 +323,14 @@ class SeasonalFluxEstimator(object):
             6:"ion average energy"
         """
 
-        self.premodel_directory='auroramaps/data/premodel/'         #define premodel directory
+        self.premodel_directory='data/premodel/'         #define premodel directory
         nmlt = 96              #number of mag local times in arrays (resolution of 15 minutes)
         nmlat = 160            #number of mag latitudes in arrays (resolution of 0.5 degree, for two hemispheres))
         nEc = 12               #number of coupling strength bins
         self.jtype, self.atype = jtype, atype
         self.n_mlt_bins, self.n_mlat_bins, self.n_Ec_bins = nmlt, nmlat, nEc
-        
+
+
         #The mlat bins are organized like -50:-dlat:-90, 50:dlat:90
         self.mlats = np.concatenate([np.linspace(-90., -50., self.n_mlat_bins//2)[::-1],
                                      np.linspace(50., 90., self.n_mlat_bins//2)])

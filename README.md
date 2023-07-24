@@ -1,6 +1,6 @@
 # auroramaps
 
-This is an open-source version of the OVATION Prime 2010 (OP10) aurora model in python. O
+This is an open-source version of the OVATION Prime 2010 (OP10) aurora model in python. 
 
 Current status (July 2023): This code is redone for usage at the Austrian Space Weather Office. Upgrade to OP13 is expected to proceed in the next few months.
 
@@ -42,24 +42,16 @@ After the installation of the environment, go to a directory of your choice:
 
 ## Usage
 
-Activate the conda environment, and run this file - the input variables are controlled in *input.py* or *input_realtime.py* and can be changed there:
+Activate the conda environment, and run 
 
     python aurora.py
 
-For matplotlib backend 'Agg' use this:
-    
-    python aurora.py --server
-
-For a real time version use this (note the solar wind input file needs to be specified in *input_realtime.py*):
-
-    python aurora.py --real
-
-    
-This produces a folder in the results directory named as given in *input.py* or *input_realtime.py* that contains aurora movies (gif, mp4) and frames for the event, and a plot on the Newell coupling. For the animation, it is assumed that ffmpeg (https://ffmpeg.org/download.html) is available in a given directory (to be added to *input.py*).
+or open the .ipynb file in a notebook - the input variables are controlled in *config_local.py* or *config_server.py*.
+   
+This produces a folder in the results directory named as given in the config files that contains aurora movies (gif, mp4) and frames for the event, and a plot on the Newell coupling. For the animation, it is assumed that ffmpeg (https://ffmpeg.org/download.html) is available system-wide.
 
 
-
-## Documentation
+## Documentation (to be updated)
 
 
 3 modes are available, selected in input.py

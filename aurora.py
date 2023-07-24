@@ -55,7 +55,7 @@
 # - indicate moon phase with astropy
 # - cloud cover for local location? https://pypi.org/project/weather-api/ ? at least for locations
 
-# In[11]:
+# In[2]:
 
 
 import sys
@@ -274,7 +274,7 @@ print('------------------------------------------------------')
 
 # #### (1) Initialize OVATION
 
-# In[8]:
+# In[4]:
 
 
 if debug_mode>0:
@@ -358,7 +358,7 @@ fig.savefig('results/'+output_directory+'/run_newell_coupling.png',dpi=150,facec
 # ### (2) RUN OVATION FOR EACH TIME STEP 
 # 
 
-# In[14]:
+# In[5]:
 
 
 if debug_mode>0:
@@ -458,7 +458,7 @@ print()
 # ### (3) PLOTS and MOVIES
 # 
 
-# In[17]:
+# In[11]:
 
 
 if debug_mode>0:
@@ -550,13 +550,7 @@ print('All movie frames took ',np.round(end - start,2),'sec or ', np.round((end 
 
 ################################# (3b) make movies 
 print()
-print('Make mp4 and gif movies')
-print()
-if server:
-   ffmpeg_path='/nas/helio/ffmpeg/ffmpeg'
-else:
-   ffmpeg_path='ffmpeg'   
-print(ffmpeg_path)
+print('Make mp4 and gif movies (ffmpeg needs to be installed)')
 print()
 print('For all results see: results/'+output_directory)
 
@@ -565,10 +559,10 @@ print('For all results see: results/'+output_directory)
 
 if global_flux_map > 0:
 
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_global/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_global.mp4 -y -loglevel quiet')
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_global/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_global.gif -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_global/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_global.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_global/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_global.gif -y -loglevel quiet')
   ########## convert mp4 to gif and makes smaller
-  os.system(ffmpeg_path+' -i results/'+output_directory+'/flux_global.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_global_small.gif  -y -loglevel quiet ')
+  os.system('ffmpeg -i results/'+output_directory+'/flux_global.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_global_small.gif  -y -loglevel quiet ')
 
 if europe_flux_map > 0:
   os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_europe/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_europe.mp4 -y -loglevel quiet')
@@ -587,9 +581,9 @@ if global_probability_map > 0:
   #os.system(ffmpeg_path+' -i results/'+output_directory+'/prob_global/aurora_%05d.png results/'+output_directory+'/prob_global/aurora_%05d.jpg -y -loglevel quiet')
   #os.system('rm results/'+output_directory+'/prob_global/*.png -f ')
 
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_global/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_global.mp4 -y -loglevel quiet')
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_global/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_global.gif -y -loglevel quiet')
-  os.system(ffmpeg_path+' -i results/'+output_directory+'/prob_global.mp4  -vf scale=800:-1 results/'+output_directory+'/prob_global_small.gif  -y -loglevel quiet ')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_global/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_global.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_global/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_global.gif -y -loglevel quiet')
+  os.system('ffmpeg -i results/'+output_directory+'/prob_global.mp4  -vf scale=800:-1 results/'+output_directory+'/prob_global_small.gif  -y -loglevel quiet ')
 
 if europe_probability_map > 0:
 
@@ -605,9 +599,9 @@ if canada_probability_map > 0:
   #os.system(ffmpeg_path+' -i results/'+output_directory+'/prob_canada/aurora_%05d.png results/'+output_directory+'/prob_canada/aurora_%05d.jpg -y -loglevel quiet')
   #os.system('rm results/'+output_directory+'/prob_canada/*.png -f ')
  
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_canada.mp4 -y -loglevel quiet')
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_canada.gif -y -loglevel quiet')
-  os.system(ffmpeg_path+' -i results/'+output_directory+'/prob_canada.mp4  -vf scale=800:-1 results/'+output_directory+'/prob_canada_small.gif  -y -loglevel quiet ')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_canada.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_canada.gif -y -loglevel quiet')
+  os.system('ffmpeg -i results/'+output_directory+'/prob_canada.mp4  -vf scale=800:-1 results/'+output_directory+'/prob_canada_small.gif  -y -loglevel quiet ')
 
 
 
@@ -620,6 +614,30 @@ plt.style.use('seaborn-whitegrid') #for white ticks and labels, resetting the da
 
 
 ##################################### END ################################################
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
 
 
 # In[ ]:

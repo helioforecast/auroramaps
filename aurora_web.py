@@ -1,10 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# ### aurora.py
+# ### aurora_web.py
 # 
 # Main program for running the OVATION PRIME 2010 model to make an aurora forecast/hindcast 
 # based on the PREDSTORM solar wind prediction method, or OMNI2 data for historic events.
+# 
+# THIS IS THE VERSION USED FOR WEB DEPLOYMENT. 
+# 
+# Use aurora.py or aurora.ipynb for testing out new developments.
 # 
 # A major update is in progress as July 2023 as we are transitioning this to the Austrian Space Weather Office.
 # 
@@ -55,7 +59,7 @@
 # - indicate moon phase with astropy
 # - cloud cover for local location? https://pypi.org/project/weather-api/ ? at least for locations
 
-# In[11]:
+# In[1]:
 
 
 import sys
@@ -97,7 +101,7 @@ print('aacgmv2 version:',aacgmv2.__version__)
 if sys.platform == 'linux': 
     print('system is linux')
     matplotlib.use('Agg') 
-    from config_server import *   
+    from config_server_web import *   
     
 #mac
 if sys.platform =='darwin':  
@@ -105,7 +109,7 @@ if sys.platform =='darwin':
     #for testing
     get_ipython().run_line_magic('matplotlib', 'inline')
     #matplotlib.use('Agg') 
-    from config_local import *   
+    from config_local_web import *   
  
 
 
@@ -117,7 +121,7 @@ print('imports done')
 
 
 #make sure to convert the current notebook to a script
-os.system('jupyter nbconvert --to script aurora.ipynb')   
+os.system('jupyter nbconvert --to script aurora_web.ipynb')   
 
 
 start_all=time.time()
@@ -125,7 +129,7 @@ start_all=time.time()
 
 # #### Aurora Cube function
 
-# In[6]:
+# In[2]:
 
 
 def make_aurora_cube_multi(ts,ec,k):
@@ -171,7 +175,7 @@ def make_aurora_cube_multi(ts,ec,k):
 
 # #### Main Settings
 
-# In[7]:
+# In[3]:
 
 
 if debug_mode>0:
@@ -274,7 +278,7 @@ print('------------------------------------------------------')
 
 # #### (1) Initialize OVATION
 
-# In[8]:
+# In[4]:
 
 
 if debug_mode>0:
@@ -358,7 +362,7 @@ fig.savefig('results/'+output_directory+'/run_newell_coupling.png',dpi=150,facec
 # ### (2) RUN OVATION FOR EACH TIME STEP 
 # 
 
-# In[9]:
+# In[5]:
 
 
 if debug_mode>0:
@@ -458,7 +462,7 @@ print()
 # ### (3) PLOTS and MOVIES
 # 
 
-# In[10]:
+# In[4]:
 
 
 if debug_mode>0:

@@ -1,7 +1,7 @@
 """
 ovation.py
 
-part of the "auroramaps" package
+part of the "auroramaps" package
 
 The module for the ovation prime 2010 model in python
 

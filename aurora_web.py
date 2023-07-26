@@ -59,7 +59,7 @@
 # - indicate moon phase with astropy
 # - cloud cover for local location? https://pypi.org/project/weather-api/ ? at least for locations
 
-# In[1]:
+# In[2]:
 
 
 import sys
@@ -101,7 +101,8 @@ print('aacgmv2 version:',aacgmv2.__version__)
 if sys.platform == 'linux': 
     print('system is linux')
     matplotlib.use('Agg') 
-    from config_server_web import *   
+    from config_web import *   
+    
     
 #mac
 if sys.platform =='darwin':  
@@ -109,9 +110,11 @@ if sys.platform =='darwin':
     #for testing
     get_ipython().run_line_magic('matplotlib', 'inline')
     #matplotlib.use('Agg') 
-    from config_local_web import *   
- 
-
+    from config_web import * 
+    get_ipython().run_line_magic('load_ext', 'autoreload')
+    get_ipython().run_line_magic('autoreload', '2')
+    
+    
 
 #switches
 
@@ -129,7 +132,7 @@ start_all=time.time()
 
 # #### Aurora Cube function
 
-# In[2]:
+# In[3]:
 
 
 def make_aurora_cube_multi(ts,ec,k):
@@ -175,7 +178,7 @@ def make_aurora_cube_multi(ts,ec,k):
 
 # #### Main Settings
 
-# In[3]:
+# In[4]:
 
 
 if debug_mode>0:
@@ -247,23 +250,19 @@ if os.path.isdir('data/omni2') == False: os.mkdir('data/omni2')
 
 inputfile='data/predstorm/predstorm_real.txt'
 
-print(predstorm_url)
-
-
 # get or set input files
 
 if mode==0:    
    try: 
+       print('use online predstorm file')
        inputfile='data/predstorm/predstorm_real.txt'
        urllib.request.urlretrieve(predstorm_url,inputfile)
        print('loaded from', predstorm_url)
    except urllib.error.URLError as e:
        print('Failed downloading ', predstorm_url,' ',e.reason)
        
-##!!! or use internal server version!!!!
-
 if mode==1:     
-     inputfile=local_input_file
+     inputfile=server_input_file
 
 if mode==2:     
      au.omni_txt_generator(ts)   #make txt file from OMNI2 data in similar format as predstorm
@@ -278,7 +277,7 @@ print('------------------------------------------------------')
 
 # #### (1) Initialize OVATION
 
-# In[4]:
+# In[5]:
 
 
 if debug_mode>0:
@@ -307,15 +306,36 @@ print('OVATION uses',jtype,'with diffuse + monoenergetic aurora')
 print('fluxes for southern hemisphere are currently not calculated.')
 print()
 
+print(inputfile)
 
 ###################### load input solar wind
 l1wind=au.load_predstorm_wind(inputfile)
 #convert to new matplotlib dates
-l1wind.time=l1wind.time+ mdates.date2num(np.datetime64('0000-12-31'))
-
+l1wind.time=l1wind.time
 print('Solar wind data loaded from PREDSTORM input file')
 
-print(l1wind)
+l1wind
+
+
+# In[6]:
+
+
+sns.set_style('darkgrid')
+plt.figure(1,figsize=(15,5))
+
+plt.plot_date(l1wind.time,l1wind.bz,'--b')
+plt.plot_date(l1wind.time,l1wind.ec/4421,'-k')
+plt.tight_layout()
+
+
+# In[7]:
+
+
+ts
+
+
+# In[8]:
+
 
 swav=au.calc_avg_solarwind_predstorm(ts,l1wind)  # calculate average solar wind for Newell coupling 
 window=int(window_minutes/time_resolution)	#when time resolution < averaging window in minutes, do moving averages
@@ -323,7 +343,6 @@ coup_cycle=4421 #average coupling for solar cycle (see e.g. Newell et al. 2010)
 
 print(ts[-1])
 print(mdates.num2date(l1wind[-1].time))
-
 print(swav)
 
 
@@ -336,10 +355,11 @@ plt.plot_date(l1wind.time,l1wind.ec/coup_cycle,'k-', label='input solar wind')
 
 plt.plot_date(swav.time,swav.ec/coup_cycle,'r-',label='4-hour weighted averages',markersize=2)   
 
+plt.xlim((ts[0],ts[-1]))
 plt.title('Newell coupling Nc')
 plt.ylabel(r'Nc / 4421 $\mathrm{[(km/s)^{4/3}\/nT^{2/3}]}$')
-ax.xaxis.set_major_formatter( DateFormatter('%Y-%b-%d %Hh') )
-plt.xticks(rotation=45)
+ax.xaxis.set_major_formatter( DateFormatter('%Y-%b-%d %H') )
+plt.xticks(rotation=20)
 
 
 #plot moving averages and make them if time resolution high enough
@@ -358,11 +378,10 @@ plt.tight_layout()
 fig.savefig('results/'+output_directory+'/run_newell_coupling.png',dpi=150,facecolor=fig.get_facecolor()) #save plot in outputdirectory
 
 
-
 # ### (2) RUN OVATION FOR EACH TIME STEP 
 # 
 
-# In[5]:
+# In[9]:
 
 
 if debug_mode>0:
@@ -462,7 +481,7 @@ print()
 # ### (3) PLOTS and MOVIES
 # 
 
-# In[4]:
+# In[11]:
 
 
 if debug_mode>0:
@@ -569,14 +588,14 @@ if global_flux_map > 0:
   os.system('ffmpeg -i results/'+output_directory+'/flux_global.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_global_small.gif  -y -loglevel quiet ')
 
 if europe_flux_map > 0:
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_europe/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_europe.mp4 -y -loglevel quiet')
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_europe/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_europe.gif -y -loglevel quiet')
-  os.system(ffmpeg_path+' -i results/'+output_directory+'/flux_europe.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_europe_small.gif  -y -loglevel quiet ')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_europe/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_europe.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_europe/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_europe.gif -y -loglevel quiet')
+  os.system('ffmpeg -i results/'+output_directory+'/flux_europe.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_europe_small.gif  -y -loglevel quiet ')
 
 if canada_flux_map > 0:
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_canada.mp4 -y -loglevel quiet')
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_canada.gif -y -loglevel quiet')
-  os.system(ffmpeg_path+' -i results/'+output_directory+'/flux_canada.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_canada_small.gif  -y -loglevel quiet ')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_canada.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_canada.gif -y -loglevel quiet')
+  os.system('ffmpeg -i results/'+output_directory+'/flux_canada.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_canada_small.gif  -y -loglevel quiet ')
 
 
 
@@ -594,9 +613,9 @@ if europe_probability_map > 0:
   #os.system(ffmpeg_path+' -i results/'+output_directory+'/prob_europe/aurora_%05d.png results/'+output_directory+'/prob_europe/aurora_%05d.jpg -y -loglevel quiet')
   #os.system('rm results/'+output_directory+'/prob_europe/*.png -f ')
 
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_europe/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_europe.mp4 -y -loglevel quiet')
-  os.system(ffmpeg_path+' -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_europe/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_europe.gif -y -loglevel quiet')
-  os.system(ffmpeg_path+' -i results/'+output_directory+'/prob_europe.mp4  -vf scale=800:-1 results/'+output_directory+'/prob_europe_small.gif  -y -loglevel quiet ')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_europe/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_europe.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_europe/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_europe.gif -y -loglevel quiet')
+  os.system('ffmpeg -i results/'+output_directory+'/prob_europe.mp4  -vf scale=800:-1 results/'+output_directory+'/prob_europe_small.gif  -y -loglevel quiet ')
 
 if canada_probability_map > 0:
 

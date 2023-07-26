@@ -721,8 +721,8 @@ def plot_ovation_single(wic,dt, outputdir, eb, maptype, map_img, region, type, u
      fig.set_facecolor('black') 
      ax = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(view_longitude, view_latitude),position=plot_pos)
 
-     fig.text(0.99,0.01,'Möstl, Bailey, Helio4Cast, Austria', color='white',fontsize=10,ha='right',va='bottom')
-     fig.text(0.01,0.01,'PREDSTORM  Ovation Prime 2010  cartopy', color='white',fontsize=10,ha='left',va='bottom')
+     fig.text(0.99,0.01,'Austrian Space Weather Office  helioforecast.space', color='white',fontsize=10,ha='right',va='bottom')
+     fig.text(0.01,0.01,'PREDSTORM  OP10 cartopy', color='white',fontsize=10,ha='left',va='bottom')
  
  
      ###########define map extents
@@ -814,7 +814,7 @@ def plot_ovation_single(wic,dt, outputdir, eb, maptype, map_img, region, type, u
          bound_e1[0].remove(); bound_v1[0].remove() # remove equatorial boundary, remove view line
 
          #plot title with time
-         txt=fig.text(0.45,0.92,dt[i].strftime('%Y %b %d  %H:%M UT'), color='white',fontsize=25, ha='center')
+         txt=fig.text(0.42,0.92,dt[i].strftime('%Y %b %d  %H:%M UT'), color='white',fontsize=25, ha='center')
          txt2=fig.text(0.69,0.92,dt[i].strftime('%A'), color='white',fontsize=25, ha='center')
 
          #frame time difference to model run time,**only for real time mode!

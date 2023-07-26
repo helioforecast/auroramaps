@@ -35,6 +35,8 @@ Create a conda environment using the "envs/env_aurora1.yml", and activate the en
     
     conda activate aurora1
 
+In order to load the aacgmv2 package, the gcc compiler needs to be installed.    
+
 After the installation of the environment, go to a directory of your choice:
 
     git clone https://github.com/helioforecast/auroramaps

@@ -6,7 +6,7 @@
 # Main program for running the OVATION PRIME 2010 model to make an aurora forecast/hindcast 
 # based on the PREDSTORM solar wind prediction method, or OMNI2 data for historic events.
 # 
-# THIS IS THE VERSION USED FOR WEB DEPLOYMENT. 
+# THIS IS THE NOTEBOOK USED FOR WEB DEPLOYMENT. 
 # 
 # Use aurora.py or aurora.ipynb for testing out new developments.
 # 
@@ -59,7 +59,7 @@
 # - indicate moon phase with astropy
 # - cloud cover for local location? https://pypi.org/project/weather-api/ ? at least for locations
 
-# In[2]:
+# In[38]:
 
 
 import sys
@@ -126,13 +126,15 @@ print('imports done')
 #make sure to convert the current notebook to a script
 os.system('jupyter nbconvert --to script aurora_web.ipynb')   
 
+import warnings
+warnings.filterwarnings("ignore")
 
 start_all=time.time()
 
 
 # #### Aurora Cube function
 
-# In[3]:
+# In[39]:
 
 
 def make_aurora_cube_multi(ts,ec,k):
@@ -178,7 +180,7 @@ def make_aurora_cube_multi(ts,ec,k):
 
 # #### Main Settings
 
-# In[4]:
+# In[40]:
 
 
 if debug_mode>0:
@@ -277,7 +279,7 @@ print('------------------------------------------------------')
 
 # #### (1) Initialize OVATION
 
-# In[5]:
+# In[41]:
 
 
 if debug_mode>0:
@@ -317,7 +319,7 @@ print('Solar wind data loaded from PREDSTORM input file')
 l1wind
 
 
-# In[6]:
+# In[42]:
 
 
 sns.set_style('darkgrid')
@@ -328,22 +330,24 @@ plt.plot_date(l1wind.time,l1wind.ec/4421,'-k')
 plt.tight_layout()
 
 
-# In[7]:
+# In[43]:
 
 
 ts
 
 
-# In[8]:
+# In[44]:
 
+
+#print(mdates.num2date(l1wind[-1].time))
+print('Start time for Nc',ts[0])
+print('End time for Nc',ts[-1])
 
 swav=au.calc_avg_solarwind_predstorm(ts,l1wind)  # calculate average solar wind for Newell coupling 
 window=int(window_minutes/time_resolution)	#when time resolution < averaging window in minutes, do moving averages
 coup_cycle=4421 #average coupling for solar cycle (see e.g. Newell et al. 2010)
 
-print(ts[-1])
-print(mdates.num2date(l1wind[-1].time))
-print(swav)
+
 
 
 ####################### plot current coupling, the driver behind the ovation model
@@ -381,7 +385,7 @@ fig.savefig('results/'+output_directory+'/run_newell_coupling.png',dpi=150,facec
 # ### (2) RUN OVATION FOR EACH TIME STEP 
 # 
 
-# In[9]:
+# In[45]:
 
 
 if debug_mode>0:
@@ -481,7 +485,7 @@ print()
 # ### (3) PLOTS and MOVIES
 # 
 
-# In[11]:
+# In[46]:
 
 
 if debug_mode>0:

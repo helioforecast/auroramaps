@@ -677,7 +677,26 @@ def aurora_cmap():
 
     return my_cmap
 
+def flux_cmap():
+    # Define the colors for the colormap
+    
+    colors = [
+            (0.0, 'black'),   # Black at 0 and below
+            (0.1, 'green'),   # Green at 0.1
+            (0.7, 'yellow'),  # Yellow at 0.5
+            (1.0, 'red')      # Red at 1
+        ]
+    #Create the colormap
+    cmap = matplotlib.colors.LinearSegmentedColormap.from_list('custom_colormap', colors,N=256)
+    #cmap.set_under(color='black', alpha=0)
 
+    my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
+    #set lowest 10 color alphas to 0
+    my_cmap[0:20, -1]=0
+    cmap = ListedColormap(my_cmap) # Create new colormap
+    
+
+    return cmap
 
 
 
@@ -695,34 +714,38 @@ def plot_ovation_single(wic,dt, outputdir, eb, maptype, map_img, region, type, u
 
 
      ##### borders and coasts parameters depending on background image
-     if maptype=='marble': bordercolor='white'; borderalpha=0.4; coastcolor='white';coastalpha=0.5
+     if maptype=='marble': bordercolor='white'; borderalpha=0.4; coastcolor='white';coastalpha=0.4
      if maptype=='viirs':  bordercolor='white'; borderalpha=0.5; coastcolor='white';coastalpha=0.3
      if maptype=='topography': bordercolor='black'; borderalpha=0.4; coastcolor='black';coastalpha=0.1
 
-     if region == 'global':  view_latitude=90; view_longitude=-100; plot_pos=[0.1,0.1,0.8,0.8]  #[left, bottom, width, height]
+     if region == 'global':  view_latitude=60; view_longitude=-40; plot_pos=[0.05,0.05,0.9,0.9]  #[left, bottom, width, height]
      if region == 'canada':  view_latitude=60; view_longitude=-100; plot_pos=[0.05,0.05,0.9,0.9]
      if region == 'europe':  view_latitude=60; view_longitude=0;    plot_pos=[0.05,0.05,0.9,0.9]
  
      #use my custom colormap suitable for aurora probabilities
      if type=='prob': my_cmap = aurora_cmap()
-     #for flux, hot is fine
+     
+    #for flux, hot is fine
      if type=='flux':  
-        cmap = plt.get_cmap('hot')  # Choose colormap
-        my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
-        my_cmap[:,-1] = np.linspace(0, 1, cmap.N)  # Set alpha
-        my_cmap = ListedColormap(my_cmap) # Create new colormap
+        #cmap = plt.get_cmap('hot')  # Choose colormap
+        #my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
+        #my_cmap[:,-1] = np.linspace(0, 1, cmap.N)  # Set alpha
+        #my_cmap = ListedColormap(my_cmap) # Create new colormap
+
+         my_cmap=flux_cmap()
 
   
      crs=ccrs.PlateCarree()
 
      ################### make figure
      plt.close(2)
-     fig = plt.figure(2,figsize=[12, 12],dpi=80) 
+     fig = plt.figure(2,figsize=[12, 12],dpi=100) 
      fig.set_facecolor('black') 
-     ax = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(view_longitude, view_latitude),position=plot_pos)
 
-     fig.text(0.99,0.01,'Austrian Space Weather Office  helioforecast.space', color='white',fontsize=10,ha='right',va='bottom')
-     fig.text(0.01,0.01,'PREDSTORM  OP10 cartopy', color='white',fontsize=10,ha='left',va='bottom')
+     ax = fig.add_subplot(1, 1, 1, projection=ccrs.Orthographic(view_longitude, view_latitude),position=plot_pos)
+
+     fig.text(0.99,0.01,'Austrian Space Weather Office  helioforecast.space', color='white',fontsize=11,ha='right',va='bottom')
+     fig.text(0.01,0.01,'PREDSTORM  OP10 cartopy', color='white',fontsize=11,ha='left',va='bottom')
  
  
      ###########define map extents
@@ -730,18 +753,24 @@ def plot_ovation_single(wic,dt, outputdir, eb, maptype, map_img, region, type, u
      #define extent of the produced ovation maps - defined as: west east south north
      global_mapextent=[-180,180,-90,90]  
  
-     canada_east = -65; canada_west = -135; canada_north = 75; canada_south = 20
-     if region == 'canada': ax.set_extent([canada_west, canada_east, canada_south, canada_north])
+     
+     if region == 'canada': 
+         canada_east = -65; canada_west = -135; canada_north = 75; canada_south = 20
+         ax.set_extent([canada_west, canada_east, canada_south, canada_north])
+         ax.axis('off')   
+
  
-     europe_east = 35; europe_west = -25; europe_north = 75; europe_south = 30 
-     if region == 'europe': ax.set_extent([europe_west, europe_east, europe_south, europe_north])
+     if region == 'europe': 
+         europe_east = 40; europe_west = -25; europe_north = 75; europe_south = 30 
+         ax.set_extent([europe_west, europe_east, europe_south, europe_north])
+         ax.axis('off')   
+
  
      #ax.background_patch.set_facecolor('k')    
      #show loaded image of world map (all in plate carree)
      #in order to speed up plotting, this is only done once, and other features like the aurora 
      #and day-night border are plotted and removed with each new frame
      ax.imshow(map_img,origin='upper',transform=crs, extent=[-180,180,-90,90])
- 
  
      gl=ax.gridlines(linestyle='--',alpha=0.5,color='white') #make grid
      gl.n_steps=100   #make grid finer
@@ -767,8 +796,8 @@ def plot_ovation_single(wic,dt, outputdir, eb, maptype, map_img, region, type, u
      #set levels in plot and used in colorbar
      if type=='prob': min_level=5; max_level=100
  
-     #Maximum level for flux plots erg cm-2 -s-1 is dynamic depending on map
-     if type=='flux': min_level=0; max_level=np.max(wic)+0.1
+     #Maximum level for flux plots erg cm-2 -s-1 is 5 or dynamic depending on map
+     if type=='flux': min_level=0; max_level=5 #max_level=np.max(wic)+0.1
 
      border1=ax.add_feature(Nightshade(dt[0]))  #add day night border
      img1=ax.imshow(wic[:,:,0],vmin=min_level, vmax=max_level,cmap=my_cmap) #needed to show because of the colorbar
@@ -840,18 +869,25 @@ def plot_ovation_single(wic,dt, outputdir, eb, maptype, map_img, region, type, u
 
      
          #plot current frame     
-         bound_e1=ax.plot(eb['long'],eb['smooth'][i,:],transform=crs,color=bordercolor,alpha=0.8) #equatorial boundary
-         bound_v1=ax.plot(eb['long'],eb['smooth'][i,:]-8,transform=crs,color=bordercolor,linestyle='--',alpha=0.8) #viewing line after Case et al. 2016
-         border1=ax.add_feature(Nightshade(dt[i]),alpha=0.3)  #add day night border
+         #equatorial boundary
+         bound_e1=ax.plot(eb['long'],eb['smooth'][i,:],transform=crs,color=bordercolor,alpha=0.8)
+         #viewing line after Case et al. 2016
+         bound_v1=ax.plot(eb['long'],eb['smooth'][i,:]-8,transform=crs,color=bordercolor,linestyle='--',alpha=0.8) 
+         border1=ax.add_feature(Nightshade(dt[i]),alpha=0.5)  #add day night border
          img1=ax.imshow(wic[:,:,i], vmin=min_level, vmax=max_level, transform=crs, extent=global_mapextent, origin='lower', zorder=3,alpha=0.8, cmap=my_cmap) #aurora
       
          #for debugging  
          #plt.show()
          #sys.exit()  
+
+         #plt.tight_layout()
+         
+   
        
          #save as movie frame
          framestr = '%05i' % (i)  
-         fig.savefig('results/'+outputdir+'/'+type+'_'+region+'/aurora_'+framestr+'.jpg',dpi=150,facecolor=fig.get_facecolor())
+         fig.savefig('results/'+outputdir+'/'+type+'_'+region+'/aurora_'+framestr+'.jpg',dpi=160,facecolor=fig.get_facecolor())
+
 
      print()     
 

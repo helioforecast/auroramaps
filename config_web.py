@@ -26,8 +26,8 @@ frame_rate=1          #output movie frame rate frame rate 20 is good for 10 minu
 
 # --------------------------- mode 0 settings
                                   # in real time mode, start time is always now in UTC
-past_hours      =  -8            # in real time mode, start time with previous hours, negative = past
-future_hours    =  1              # in real time mode, number of hours into future, 0 for one frame only
+past_hours      =  -12            # in real time mode, start time with previous hours, negative = past
+future_hours    =  -1              # in real time mode, number of hours into future, 0 for one frame only
 
 
 output_directory='aurora_real'            #specify output directory of frames and movies under "results/"

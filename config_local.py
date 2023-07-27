@@ -24,15 +24,15 @@ mode=0                      # select mode: 0 for real time wind from URL, 1 for 
 
 time_resolution = 60        # time resolution of resulting auroramaps in minutes
 
-frame_rate=10           #output movie frame rate frame rate 20 is good for 10 minute resolution if 3 days want to be seen quickly
+frame_rate=1           #output movie frame rate frame rate 20 is good for 10 minute resolution if 3 days want to be seen quickly
 
 # --------------------------- mode 0 settings
                                   # in real time mode, start time is always now in UTC
-past_hours      =  -12            # in real time mode, start time with previous hours, negative = past
-future_hours    =  2              # in real time mode, number of hours into future, 0 for one frame only
+past_hours      =  -6           # in real time mode, start time with previous hours, negative = past
+future_hours    =  -1              # in real time mode, number of hours into future, 0 for one frame only
 
 
-output_directory='aurora_test_real2'            #specify output directory of frames and movies under "results/"
+output_directory='aurora_test'            #specify output directory of frames and movies under "results/"
 
 #----------------------------- select map types 
 
@@ -48,8 +48,8 @@ equatorial_boundary_flux_threshold=1.0
 
 #flux maps
 global_flux_map=1         #northern polar view
-europe_flux_map=0       #Europe
-canada_flux_map=0       #North America
+europe_flux_map=1       #Europe
+canada_flux_map=1       #North America
 
 
 #probability maps

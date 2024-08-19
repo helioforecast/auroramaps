@@ -2,7 +2,7 @@
 
 This is an open-source version of the OVATION Prime 2010 (OP10) aurora model in python. 
 
-Current status (July 2023): This code is redone for usage at the Austrian Space Weather Office. Upgrade to OP13 is expected to proceed in the next few months.
+Current status (August 2024): This code is redone for usage at the Austrian Space Weather Office. It likely has some bugs, so use with caution. Upgrade to OP13 is foreseen at some point in the future.
 
 https://helioforecast.space
 
@@ -48,7 +48,7 @@ Activate the conda environment, and run
 
     python aurora.py
 
-or open the .ipynb file in a notebook - the input variables are controlled in *config_local.py* or *config_server.py*.
+or open the .ipynb file in a notebook - the input variables are controlled in *config_local.py* or *config_server.py*. For web deployment, the file *aurora_web.py* is used, which is controlled by the input variables found in *config_web.py*.
    
 This produces a folder in the results directory named as given in the config files that contains aurora movies (gif, mp4) and frames for the event, and a plot on the Newell coupling. For the animation, it is assumed that ffmpeg (https://ffmpeg.org/download.html) is available system-wide.
 
@@ -65,8 +65,7 @@ This produces a folder in the results directory named as given in the config fil
 In mode 2, the OMNI2 data are downloaded automatically from https://spdf.gsfc.nasa.gov/pub/data/omni/low_res_omni/omni2_all_years.dat on the first time, and then converted to a pickle for faster processing in new runs. If you want to update the OMNI2 data, just delete both files in "auroramaps/data/omni2/" to force a new download and conversion.
 
 There are 3 types of maps available - a global image of the northern hemisphere and high-resolution maps of Europe and North-America. 
-For both maps, flux and probability images can be made, andt here are 3 different background images available (blue marble, VIIRS night band and a topography image).
-Control all this with input.py. 
+For both maps, flux and probability images can be made, andt here are 3 different background images available (blue marble, VIIRS night band and a topography image). Control all this with files named *config_local.py* (defined for using a Macbook) or *config_server.py* (for Linux).
 
 These are samples with blue marble background for the flux map (global polar view) and the probability map (North America and Europe):
 

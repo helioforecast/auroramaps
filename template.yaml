@@ -1,0 +1,185 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AWS resources for generating aurora maps
+
+Parameters:
+  Stage:
+      Description: Stage type (dev/prod)
+      Type: String
+      Default: dev
+      AllowedValues:
+        - dev
+        - prod
+  ImageTag:
+    Description: tag name for image
+    Type: String
+    Default: latest
+  SubnetId:
+    Description: Subnet for task execution
+    Type: "AWS::EC2::Subnet::Id"
+    MinLength: "1"
+    MaxLength: "255"
+    ConstraintDescription: Must be a valid subnet.
+  ResultsBucketName:
+    Description: Name for the S3 bucket that will host forecast media
+    Type: String
+
+Resources:
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub AuroraMaps-${Stage}-ECSCluster
+      CapacityProviders: 
+        - FARGATE
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub AuroraMaps-${Stage}
+      Cpu: "1024"
+      Memory: "3072"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt MapsExecutionRole.Arn
+      TaskRoleArn: !GetAtt MapsTaskRole.Arn
+      RuntimePlatform:
+        CpuArchitecture: X86_64
+      ContainerDefinitions:
+        - Name: auroramaps
+          Cpu: 1024
+          Memory: 3072
+          Image: !Sub 'docker.io/becksteadn/auroramaps:${ImageTag}'
+          Environment:
+            - Name: RESULTS_BUCKET
+              Value: !Ref ResultsBucket
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              mode: non-blocking
+              max-buffer-size: 25m
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: containerlog
+
+  ResultsBucket:
+    Type: 'AWS::S3::Bucket'
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Sub ${Stage}-${ResultsBucketName}
+      PublicAccessBlockConfiguration:
+        BlockPublicPolicy: false
+
+  ResultsBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref ResultsBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub "${ResultsBucket.Arn}/*"
+
+  MapsTaskRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub AuroraMaps-${Stage}-Task
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - "ecs-tasks.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Policies: 
+        - PolicyName: !Sub AuroraMaps-${Stage}-UploadAuroraMaps
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - s3:PutObject
+                Resource: !Sub "${ResultsBucket.Arn}/*"
+
+  MapsExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub AuroraMaps-${Stage}-Execution
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: "ecs-tasks.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: !Sub AuroraMaps-${Stage}-ManageAuroraTask
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:CreateLogGroup
+                  - logs:PutLogEvents
+                  - logs:DescribeLogGroups
+                Resource: '*'
+
+  SchedulerRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub AuroraMaps-${Stage}-SchedulerRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "events.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: !Sub AuroraMaps-${Stage}-SchedulerRole
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecs:RunTask
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: "*"
+      Path: "/"
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /ecs/auroramaps-${Stage}
+
+  ScheduleRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Schedule aurora forecast
+      Name: !Sub AuroraMaps-${Stage}-Schedule
+      State: ENABLED
+      ScheduleExpression: "cron(0 */3 * * ? *)"
+      Targets:
+        - Arn: !GetAtt Cluster.Arn
+          Id: ScheduledTask
+          RoleArn: !GetAtt SchedulerRole.Arn
+          EcsParameters:
+            TaskCount: 1
+            TaskDefinitionArn: !Ref TaskDefinition
+            LaunchType: FARGATE
+            NetworkConfiguration:
+              AwsVpcConfiguration:
+                AssignPublicIp: ENABLED
+                Subnets:
+                  - !Ref SubnetId
+

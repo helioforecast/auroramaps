@@ -73,6 +73,7 @@ from urllib.request import urlopen
 from io import StringIO
 import time
 import pickle
+import boto3
 
 import numpy as np
 import matplotlib
@@ -124,7 +125,8 @@ print('imports done')
 
 
 #make sure to convert the current notebook to a script
-os.system('jupyter nbconvert --to script aurora.ipynb')   
+# TODO UNCOMMENT THIS AGAIN
+#os.system('jupyter nbconvert --to script aurora.ipynb')   
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -632,6 +634,23 @@ if canada_probability_map > 0:
   os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_canada.gif -y -loglevel quiet')
   os.system('ffmpeg -i results/'+output_directory+'/prob_canada.mp4  -vf scale=800:-1 results/'+output_directory+'/prob_canada_small.gif  -y -loglevel quiet ')
 
+def uploadDirectory(path,bucketname):
+      for root,dirs,files in os.walk(path):
+          for file in files:
+              print("Uploading " + file)
+              s3C.upload_file(os.path.join(root,file),bucketname,file)
+
+resultsbucket = os.environ.get("RESULTS_BUCKET")
+if resultsbucket:
+  print()
+  print("Uploading to S3")
+  print()
+  s3C = boto3.client('s3')
+  try:
+    uploadDirectory('results/'+output_directory, resultsbucket)
+  except Exception as e:
+   print(e)
+   exit(1)
 
 
 print()

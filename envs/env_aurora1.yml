@@ -19,3 +19,4 @@ dependencies:
     - pillow==9.4.0
     - h5py==3.8.0
     - aacgmv2==2.6.3
+    - boto3==1.35.70

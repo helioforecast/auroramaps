@@ -15,7 +15,24 @@ The solar wind input comes either from OMNI2 historic data or from the [PREDSTOR
 
 OVATION has been largely rewritten based on [Ovation Pyme](https://github.com/lkilcommons/OvationPyme) and open source versions thankfully made available by NOAA and the UK MetOffice.
 
-## Installation
+## Run locally with Docker
+
+```
+docker buildx build --platform linux/amd64 -t "aurora:latest" .
+docker run --name forecast aurora
+```
+
+## Run automatically in AWS
+
+```
+# 1. Build image
+# 2. Publish image to Docker Hub
+# 3. Deploy resources
+sam build
+sam deploy --capabilities CAPABILITY_NAMED_IAM
+```
+
+## Local Installation
 
 Install python with miniconda:
 
@@ -29,13 +46,16 @@ on MacOS:
     curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
     bash Miniconda3-latest-MacOSX-x86_64.sh
 
+In order to load the aacgmv2 package, the gcc compiler needs to be installed. For the animation, it is assumed that ffmpeg (https://ffmpeg.org/download.html) is available system-wide.
+
+    apt update -y
+    apt install -y build-essential ffmpeg
+
 Create a conda environment using the "envs/env_aurora1.yml", and activate the environment:
 
     conda env create -f envs/env_aurora1.yml
     
-    conda activate aurora1
-
-In order to load the aacgmv2 package, the gcc compiler needs to be installed.    
+    conda activate aurora1    
 
 After the installation of the environment, go to a directory of your choice:
 

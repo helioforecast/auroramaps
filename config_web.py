@@ -47,13 +47,13 @@ equatorial_boundary_flux_threshold=1.0
 global_flux_map=1         #northern polar view
 europe_flux_map=1       #Europe
 canada_flux_map=1       #North America
-
+greenland_flux_map=1       #Greenland
 
 #probability maps
 global_probability_map=0
 europe_probability_map=0
 canada_probability_map=0
-
+greenland_probability_map=0     
 
 #------------------------------- controls for computation
 

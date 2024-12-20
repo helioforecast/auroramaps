@@ -8,7 +8,6 @@ utilities for the ovation prime 2010 model in python
 ---------------------
 by C. Moestl, Austrian Space Weather Office, GeoSphere Austria.
 https://github.com/helioforecast/auroramaps
-twitter @chrisoutofspace
 https://helioforecast.space
 
 using a rewritten version of the ovationpyme aurora model 
@@ -18,7 +17,7 @@ contributions by R. L. Bailey, D. E. Morosan
 
 published under GNU Lesser General Public License v3.0
 
-last update October 2019
+last update Dec 2024
 
 
 sections:
@@ -721,11 +720,12 @@ def plot_ovation_single(wic,dt, outputdir, eb, maptype, map_img, region, type, u
      if region == 'global':  view_latitude=60; view_longitude=-40; plot_pos=[0.05,0.05,0.9,0.9]  #[left, bottom, width, height]
      if region == 'canada':  view_latitude=60; view_longitude=-100; plot_pos=[0.05,0.05,0.9,0.9]
      if region == 'europe':  view_latitude=60; view_longitude=0;    plot_pos=[0.05,0.05,0.9,0.9]
+     if region == 'greenland':  view_latitude=60; view_longitude=-45;    plot_pos=[0.05,0.05,0.9,0.9]
  
      #use my custom colormap suitable for aurora probabilities
      if type=='prob': my_cmap = aurora_cmap()
      
-    #for flux, hot is fine
+     #for flux, hot is fine
      if type=='flux':  
         #cmap = plt.get_cmap('hot')  # Choose colormap
         #my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
@@ -733,7 +733,6 @@ def plot_ovation_single(wic,dt, outputdir, eb, maptype, map_img, region, type, u
         #my_cmap = ListedColormap(my_cmap) # Create new colormap
 
          my_cmap=flux_cmap()
-
   
      crs=ccrs.PlateCarree()
 
@@ -744,8 +743,8 @@ def plot_ovation_single(wic,dt, outputdir, eb, maptype, map_img, region, type, u
 
      ax = fig.add_subplot(1, 1, 1, projection=ccrs.Orthographic(view_longitude, view_latitude),position=plot_pos)
 
-     fig.text(0.99,0.01,'Austrian Space Weather Office  helioforecast.space', color='white',fontsize=11,ha='right',va='bottom')
-     fig.text(0.01,0.01,'PREDSTORM  OP10 cartopy', color='white',fontsize=11,ha='left',va='bottom')
+     fig.text(0.99,0.01,'Austrian Space Weather Office   GeoSphere Austria', color='white',fontsize=11,ha='right',va='bottom')
+     fig.text(0.01,0.01,'NOAA/RTSW OP10', color='white',fontsize=11,ha='left',va='bottom')
  
  
      ###########define map extents
@@ -765,13 +764,26 @@ def plot_ovation_single(wic,dt, outputdir, eb, maptype, map_img, region, type, u
          ax.set_extent([europe_west, europe_east, europe_south, europe_north])
          ax.axis('off')   
 
+    
+     if region == 'greenland': 
+         greenland_east = -70; greenland_west = -20; greenland_north = 85; greenland_south = 52         
+         ax.set_extent([greenland_west, greenland_east, greenland_south, greenland_north])
+
+         ### add Sermilik Station here as a dot at 65°40.85 N and 37°55.0' W
+         ax.plot(-37.92,65.68,marker='o', markersize=10, markerfacecolor='white', 
+                 markeredgecolor='black',markeredgewidth=2, transform=crs, zorder=4, alpha=0.8)        
+         
+         
+         ax.axis('off')   
+
  
      #ax.background_patch.set_facecolor('k')    
      #show loaded image of world map (all in plate carree)
      #in order to speed up plotting, this is only done once, and other features like the aurora 
      #and day-night border are plotted and removed with each new frame
      ax.imshow(map_img,origin='upper',transform=crs, extent=[-180,180,-90,90])
- 
+
+    
      gl=ax.gridlines(linestyle='--',alpha=0.5,color='white') #make grid
      gl.n_steps=100   #make grid finer
      #make grid 
@@ -800,6 +812,8 @@ def plot_ovation_single(wic,dt, outputdir, eb, maptype, map_img, region, type, u
      if type=='flux': min_level=0; max_level=5 #max_level=np.max(wic)+0.1
 
      border1=ax.add_feature(Nightshade(dt[0]))  #add day night border
+
+ 
      img1=ax.imshow(wic[:,:,0],vmin=min_level, vmax=max_level,cmap=my_cmap) #needed to show because of the colorbar
      bound_e1=ax.plot(0,color='k') #equatorial boundary
      bound_v1=ax.plot(0,color='k') #viewing line
@@ -866,7 +880,14 @@ def plot_ovation_single(wic,dt, outputdir, eb, maptype, map_img, region, type, u
              txt6=fig.text(0.01,0.05,dt_cities['Edinburgh'][i].strftime('%H:%M')+' Edinburgh', color='white',fontsize=15, ha='left')      
              txt7=fig.text(0.99,0.08,'Oslo '+dt_cities['Oslo'][i].strftime('%H:%M'), color='white',fontsize=15, ha='right')      
              txt8=fig.text(0.99,0.05,'Helsinki '+dt_cities['Helsinki'][i].strftime('%H:%M'), color='white',fontsize=15, ha='right')      
-
+             
+         if region == 'greenland':   
+             #for sermilik UTC - 2 hours (*** check if always true)
+             dtsermilik=dt[i]-datetime.timedelta(hours=2)
+             txt5=fig.text(0.01,0.08,dtsermilik.strftime('%H:%M')+' Sermilik', color='white',fontsize=15, ha='left')     
+             txt7=fig.text(0.99,0.08,dt_cities['Reykjavik'][i].strftime('%H:%M')+' Reykjavik', color='white',fontsize=15, ha='right')     
+             
+             
      
          #plot current frame     
          #equatorial boundary
@@ -924,6 +945,7 @@ def plot_ovation_multi(wic,dt, outputdir, eb, maptype, map_img, region, type, ut
      if region == 'global':  view_latitude=90; view_longitude=-100; plot_pos=[0.1,0.1,0.8,0.8]  #[left, bottom, width, height]
      if region == 'canada':  view_latitude=60; view_longitude=-100; plot_pos=[0.05,0.05,0.9,0.9]
      if region == 'europe':  view_latitude=60; view_longitude=0;    plot_pos=[0.05,0.05,0.9,0.9]
+     if region == 'greenland':  view_latitude=60; view_longitude=-45;    plot_pos=[0.05,0.05,0.9,0.9]
    
  
      # use my custom colormap suitable for aurora probabilities

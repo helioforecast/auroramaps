@@ -8,13 +8,11 @@ CONFIGURATION PARAMETERS for main program aurora.py
 ---------------------
 by C. Moestl, Austrian Space Weather Office, GeoSphere Austria.
 https://github.com/helioforecast/auroramaps
-twitter @chrisoutofspace
 https://helioforecast.space
-
 
 published under GNU Lesser General Public License v3.0
 
-last update July 2023
+last update Dec 2024
 '''
 
 

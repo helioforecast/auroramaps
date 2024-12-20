@@ -8,13 +8,11 @@ CONFIGURATION PARAMETERS for main program aurora_web.py
 ---------------------
 by C. Moestl, Austrian Space Weather Office, GeoSphere Austria.
 https://github.com/helioforecast/auroramaps
-twitter @chrisoutofspace
 https://helioforecast.space
-
 
 published under GNU Lesser General Public License v3.0
 
-last update July 2023
+last update Dec 2024
 '''
 
 
@@ -28,7 +26,7 @@ frame_rate=1           #output movie frame rate frame rate 20 is good for 10 min
 
 # --------------------------- mode 0 settings
                                   # in real time mode, start time is always now in UTC
-past_hours      =  -6           # in real time mode, start time with previous hours, negative = past
+past_hours      =  -6          # in real time mode, start time with previous hours, negative = past
 future_hours    =  -1              # in real time mode, number of hours into future, 0 for one frame only
 
 
@@ -47,15 +45,18 @@ equatorial_boundary_flux_threshold=1.0
 # set 1 for making the map, 0 for not making the map
 
 #flux maps
-global_flux_map=1         #northern polar view
-europe_flux_map=1       #Europe
-canada_flux_map=1       #North America
+global_flux_map=0         #northern polar view
+europe_flux_map=0       #Europe
+canada_flux_map=0      #North America
+greenland_flux_map=1       #Greenland
+
 
 
 #probability maps
 global_probability_map=0
 europe_probability_map=0
 canada_probability_map=0
+greenland_probability_map=0       #Greenland
 
 
 

@@ -3,30 +3,31 @@
 
 # ### aurora.py
 # 
-# Main program for running the OVATION PRIME 2010 model to make an aurora forecast/hindcast 
-# based on the PREDSTORM solar wind prediction method, or OMNI2 data for historic events.
+# **THIS IS THE NOTEBOOK USED FOR DEVELOPMENT.**
 # 
-# THIS IS THE NOTEBOOK USED FOR DEVELOPMENT.
+# Main program for running the OVATION PRIME 2010 model to make an aurora hindcast based on solar wind real time NOAA RTSW data files or OMNI2 data for historic events. To be coupled with any solar wind forecasts later.
 # 
-# Use aurora.py or aurora.ipynb for testing out new developments.
+# Use this code aurora.py or aurora.ipynb for testing out new developments, aurora_web.py and aurora_web.ipynb for deployment.
 # 
-# A major update is in progress as July 2023 as we are transitioning this to the Austrian Space Weather Office.
+# Input parameters are given in the config_local.py (for local development) of config_server.py (for settings on servers) file.
+# 
+# 
+# Author: C. Möstl, Austrian Space Weather Office, GeoSphere Austria.
+# 
+# https://bsky.app/profile/chrisoutofspace.bsky.social
+# 
+# https://helioforecast.space
+# 
+# Contributions by Rachel L. Bailey, A. J. Weiss, Liam Kilcommons and Diana Morosan
+# 
+# This package uses a rewritten version of the ovationpyme aurora model 
+# by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
+# 
 # 
 # Part of the auroramaps package
 # https://github.com/helioforecast/auroramaps
 # 
 # uses environment 'envs/aurora1.yml'
-# 
-# by C. Möstl, Austrian Space Weather Office, GeoSphere Austria.
-# twitter @chrisoutofspace
-# https://helioforecast.space
-# 
-# Contributions by Rachel L. Bailey, A. J. Weiss, Liam Kilcommons and Diana Morosan
-# 
-# Input parameters are given in the input.py or input_realtime.py files
-# 
-# This package uses a rewritten version of the ovationpyme aurora model 
-# by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
 # 
 # published under GNU Lesser General Public License v3.0
 # 
@@ -46,11 +47,22 @@
 #   maybe on linux simply use the plotting function with multiprocessing.pool
 #   and multiple arguments (starmap) like for the data cubes
 # 
+# - time zone maps: https://www.timeanddate.com/time/map/#!cities=211
+# 
 # test bottlenecks: 
 #     python -m cProfile -s tottime aurora_forecast.py
 # 
 # 
+# add clouds:
+# 
+# e.g.
+# https://charts.ecmwf.int/products/medium-simulated-vis?base_time=202412170000&layer_name=sim_image_vis_ch2&projection=opencharts_europe&valid_time=202412170000
+# 
+# https://charts.ecmwf.int/opencharts-api/v1/products/medium-simulated-vis/?valid_time=2024-12-17T00%3A00%3A00Z&base_time=2024-12-17T00%3A00%3A00Z
+# 
+# 
 # plotting ideas:
+# - add Greenland view
 # - transparent to white colormap so that it looks like viirs images for direct comparison
 # - split land on dayside / night lights on night side 
 #   this should work in global_predstorm_north by loading background only once
@@ -59,7 +71,7 @@
 # - indicate moon phase with astropy
 # - cloud cover for local location? https://pypi.org/project/weather-api/ ? at least for locations
 
-# In[14]:
+# In[1]:
 
 
 import sys
@@ -192,7 +204,6 @@ if debug_mode>0:
 #au.save_gibs_earth_image('VIIRS_CityLights_2012',300)    
 #au.save_gibs_earth_image('BlueMarble_NextGeneration',600)    
 #au.save_gibs_earth_image('VIIRS_CityLights_2012',600)    
-
 
 
 #get current time as datetime object in UTC, rounded to minute and time zone aware
@@ -519,6 +530,9 @@ if calc_mode_frame == 'single':
     if canada_flux_map > 0:
       au.plot_ovation_single(ovation_img, ts, output_directory, eb, map_type, map_img, 'canada', 'flux',utcnow,swav.ec)
 
+    if greenland_flux_map > 0:
+      au.plot_ovation_single(ovation_img, ts, output_directory, eb, map_type, map_img, 'greenland', 'flux',utcnow,swav.ec)
+
     ########### same for probability maps
 
     #first convert flux to probability
@@ -532,6 +546,9 @@ if calc_mode_frame == 'single':
 
     if canada_probability_map > 0:
       au.plot_ovation_single(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'canada', 'prob',utcnow,swav.ec)
+
+    if greenland_probability_map > 0:
+      au.plot_ovation_single(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'greenland', 'prob',utcnow,swav.ec)
 
 
 
@@ -552,6 +569,10 @@ if calc_mode_frame == 'multi':
     if canada_flux_map > 0:
       au.plot_ovation_multi(ovation_img, ts, output_directory, eb, map_type, map_img, 'canada', 'flux',utcnow,swav.ec)
 
+    if greenland_flux_map > 0:
+      au.plot_ovation_single(ovation_img, ts, output_directory, eb, map_type, map_img, 'greenland', 'flux',utcnow,swav.ec)
+
+
     ########### same for probability maps
 
     #first convert flux to probability
@@ -566,12 +587,14 @@ if calc_mode_frame == 'multi':
     if canada_probability_map > 0:
       au.plot_ovation_multi(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'canada', 'prob',utcnow,swav.ec)
 
+    if greenland_probability_map > 0:
+      au.plot_ovation_single(ovation_img_prob, ts, output_directory, eb, map_type, map_img, 'greenland', 'prob',utcnow,swav.ec)
 
 
 
 ######################################
 
-number_of_maps=sum([global_flux_map, europe_flux_map, canada_flux_map, global_probability_map,europe_probability_map, canada_probability_map])
+number_of_maps=sum([global_flux_map, europe_flux_map, canada_flux_map, greenland_flux_map, global_probability_map,europe_probability_map, canada_probability_map, greenland_probability_map])
 end = time.time()
 print(number_of_maps, ' different maps were produced.')
 print('All movie frames took ',np.round(end - start,2),'sec or ', np.round((end - start)/60,2),'min, per frame',np.round((end - start)/np.size(ts)*1/number_of_maps,2),' sec.')
@@ -584,10 +607,9 @@ print()
 print('For all results see: results/'+output_directory)
 
  
-#frame rate is set in input.py
+#frame rate is set in config .. .py
 
 if global_flux_map > 0:
-
   os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_global/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_global.mp4 -y -loglevel quiet')
   os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_global/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_global.gif -y -loglevel quiet')
   ########## convert mp4 to gif and makes smaller
@@ -602,6 +624,11 @@ if canada_flux_map > 0:
   os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_canada.mp4 -y -loglevel quiet')
   os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_canada.gif -y -loglevel quiet')
   os.system('ffmpeg -i results/'+output_directory+'/flux_canada.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_canada_small.gif  -y -loglevel quiet ')
+
+if greenland_flux_map > 0:
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_greenland/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_greenland.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/flux_greenland/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/flux_greenland.gif -y -loglevel quiet')
+  os.system('ffmpeg -i results/'+output_directory+'/flux_greenland.mp4  -vf scale=1000:-1 results/'+output_directory+'/flux_greenland_small.gif  -y -loglevel quiet ')
 
 
 
@@ -632,6 +659,14 @@ if canada_probability_map > 0:
   os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_canada.gif -y -loglevel quiet')
   os.system('ffmpeg -i results/'+output_directory+'/prob_canada.mp4  -vf scale=800:-1 results/'+output_directory+'/prob_canada_small.gif  -y -loglevel quiet ')
 
+if canada_probability_map > 0:
+
+  #os.system(ffmpeg_path+' -i results/'+output_directory+'/prob_canada/aurora_%05d.png results/'+output_directory+'/prob_canada/aurora_%05d.jpg -y -loglevel quiet')
+  #os.system('rm results/'+output_directory+'/prob_canada/*.png -f ')
+ 
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_canada.mp4 -y -loglevel quiet')
+  os.system('ffmpeg -r '+str(frame_rate)+' -i results/'+output_directory+'/prob_canada/aurora_%05d.jpg -b:v 5000k -r '+str(frame_rate)+' results/'+output_directory+'/prob_canada.gif -y -loglevel quiet')
+  os.system('ffmpeg -i results/'+output_directory+'/prob_canada.mp4  -vf scale=800:-1 results/'+output_directory+'/prob_canada_small.gif  -y -loglevel quiet ')
 
 
 print()
@@ -643,6 +678,12 @@ print()
 
 
 ##################################### END ################################################
+
+
+# In[ ]:
+
+
+
 
 
 # In[10]:
@@ -684,7 +725,7 @@ print('auroramaps total run time',np.round((end_all-start_all)/60,2), ' minutes'
 
 
 
-# In[39]:
+# In[14]:
 
 
 from matplotlib import pyplot as plt

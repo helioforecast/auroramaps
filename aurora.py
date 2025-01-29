@@ -498,7 +498,7 @@ print()
 # ### (3) PLOTS and MOVIES
 # 
 
-# In[9]:
+# In[ ]:
 
 
 if debug_mode>0:
@@ -686,19 +686,19 @@ print()
 
 
 
-# In[10]:
+# In[ ]:
 
 
 end_all=time.time()
 
 
-# In[11]:
+# In[ ]:
 
 
 print('auroramaps total run time',np.round((end_all-start_all)/60,2), ' minutes')
 
 
-# In[12]:
+# In[ ]:
 
 
 #sns.set_style('darkgrid')
@@ -709,7 +709,7 @@ print('auroramaps total run time',np.round((end_all-start_all)/60,2), ' minutes'
 #print(np.max(ovation_img))
 
 
-# In[13]:
+# In[ ]:
 
 
 #if debug_mode>0:
@@ -725,7 +725,7 @@ print('auroramaps total run time',np.round((end_all-start_all)/60,2), ' minutes'
 
 
 
-# In[14]:
+# In[ ]:
 
 
 from matplotlib import pyplot as plt

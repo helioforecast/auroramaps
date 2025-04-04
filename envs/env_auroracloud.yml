@@ -1,0 +1,21 @@
+name: aurora1
+channels:
+  - conda-forge
+dependencies:
+  - python==3.10    
+  - jupyterlab
+  - pip==22.3.1
+  - geos>=3.7.2
+  - cartopy==0.21.1
+  - pip: 
+    - numpy==1.23.1
+    - numba==0.56.4
+    - matplotlib==3.6.3
+    - seaborn==0.12.2
+    - astropy==5.2.1
+    - scikit-learn==1.2.1
+    - scikit-image==0.19.3
+    - scipy==1.10.0
+    - pillow==9.4.0
+    - h5py==3.8.0
+    - aacgmv2==2.7.0

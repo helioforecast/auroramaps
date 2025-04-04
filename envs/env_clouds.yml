@@ -1,0 +1,19 @@
+name: clouds
+channels:
+  - conda-forge
+dependencies:
+  - python==3.10
+  - jupyterlab
+  - pip==22.3.1
+  - geos>=3.7.2
+  - cartopy==0.24.1
+  - pip: 
+    - numpy==1.24
+    - matplotlib==3.10.1
+    - pandas==2.2.3
+    - seaborn==0.13.2
+    - pillow==11.1.0
+    - aacgmv2==2.7.0
+    - ecmwf-api-client==1.6.5
+    - metview==1.16.1
+    - xarray==2025.3.1

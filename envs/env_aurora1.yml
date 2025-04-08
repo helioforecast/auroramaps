@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - python==3.10    
-  - jupyterlab
+  - jupyterlab==4.3.5
   - pip==22.3.1
   - geos>=3.7.2
   - cartopy==0.21.1

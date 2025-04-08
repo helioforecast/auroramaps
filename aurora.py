@@ -11,25 +11,21 @@
 # 
 # Input parameters are given in the config_local.py (for local development) of config_server.py (for settings on servers) file.
 # 
-# 
 # Author: C. Möstl, Austrian Space Weather Office, GeoSphere Austria.
-# 
-# https://bsky.app/profile/chrisoutofspace.bsky.social
-# 
-# https://helioforecast.space
-# 
 # Contributions by Rachel L. Bailey, A. J. Weiss, Liam Kilcommons and Diana Morosan
 # 
 # This package uses a rewritten version of the ovationpyme aurora model 
 # by Liam Kilcommons https://github.com/lkilcommons/OvationPyme
 # 
+# published under GNU Lesser General Public License v3.0
+# 
+# https://bsky.app/profile/chrisoutofspace.bsky.social
+# https://helioforecast.space
 # 
 # Part of the auroramaps package
 # https://github.com/helioforecast/auroramaps
 # 
 # uses environment 'envs/aurora1.yml'
-# 
-# published under GNU Lesser General Public License v3.0
 # 
 # -----------------------------------------------------------------------------------
 # #### Issues: 
@@ -129,7 +125,6 @@ if sys.platform =='darwin':
     
 
 #switches
-
 debug_mode=1
 
 print('imports done')
@@ -142,6 +137,8 @@ import warnings
 warnings.filterwarnings("ignore")
 
 start_all=time.time()
+
+print(mode)
 
 
 # #### Aurora Cube function
@@ -495,10 +492,16 @@ print()
 #plt.plot(eb['long'],eb['smooth'][0,:],'-b')   
 
 
+
+##for coupling to cloud model tests
+
+pickle.dump(ovation_img,open('data/ovation_img_test.p', 'wb' ) )
+
+
 # ### (3) PLOTS and MOVIES
 # 
 
-# In[ ]:
+# In[9]:
 
 
 if debug_mode>0:
@@ -686,19 +689,19 @@ print()
 
 
 
-# In[ ]:
+# In[10]:
 
 
 end_all=time.time()
 
 
-# In[ ]:
+# In[11]:
 
 
 print('auroramaps total run time',np.round((end_all-start_all)/60,2), ' minutes')
 
 
-# In[ ]:
+# In[12]:
 
 
 #sns.set_style('darkgrid')
@@ -709,7 +712,7 @@ print('auroramaps total run time',np.round((end_all-start_all)/60,2), ' minutes'
 #print(np.max(ovation_img))
 
 
-# In[ ]:
+# In[13]:
 
 
 #if debug_mode>0:
@@ -725,7 +728,7 @@ print('auroramaps total run time',np.round((end_all-start_all)/60,2), ' minutes'
 
 
 
-# In[ ]:
+# In[14]:
 
 
 from matplotlib import pyplot as plt
@@ -740,6 +743,36 @@ ax.set_subplotspec(gs[0:2])
 fig.add_subplot(gs[2])
 fig.tight_layout()
 plt.show()
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
 
 
 # In[ ]:

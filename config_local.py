@@ -12,13 +12,13 @@ https://helioforecast.space
 
 published under GNU Lesser General Public License v3.0
 
-last update Dec 2024
+last update April 2025
 '''
 
 
 
 
-mode=0                      # select mode: 0 for real time wind from URL, 1 for local file, 2 for OMNI2 data
+mode=0                     # select mode: 0 for real time wind from URL, 1 for local file, 2 for OMNI2 data
 
 time_resolution = 60        # time resolution of resulting auroramaps in minutes
 
@@ -26,7 +26,7 @@ frame_rate=1           #output movie frame rate frame rate 20 is good for 10 min
 
 # --------------------------- mode 0 settings
                                   # in real time mode, start time is always now in UTC
-past_hours      =  -6          # in real time mode, start time with previous hours, negative = past
+past_hours      =  -24          # in real time mode, start time with previous hours, negative = past
 future_hours    =  -1              # in real time mode, number of hours into future, 0 for one frame only
 
 
@@ -46,7 +46,7 @@ equatorial_boundary_flux_threshold=1.0
 
 #flux maps
 global_flux_map=0         #northern polar view
-europe_flux_map=0       #Europe
+europe_flux_map=1       #Europe
 canada_flux_map=0      #North America
 greenland_flux_map=1       #Greenland
 
@@ -79,8 +79,8 @@ predstorm_url='https://helioforecast.space/static/sync/predstorm_real_1m.txt'
 #start_time = '2019-May-14 05:00'  # in mode 1/2, set start and end times manually
 #end_time   = '2019-May-14 10:00'
 
-start_time = '2017-Sep-7 13:00' 
-end_time   = '2017-Sep-7 14:00'
+start_time = '2024-May-10 22:00' 
+end_time   = '2024-May-12 06:00'
 
 
 # --------------------------  mode 1 settings

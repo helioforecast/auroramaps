@@ -16,7 +16,7 @@
 # https://www.ecmwf.int/en/forecasts/accessing-forecasts
 # 
 # 
-# ### ForR DWD ICON
+# ### For DWD ICON
 # 
 # regular grid total cloud cover
 # https://opendata.dwd.de/weather/nwp/icon-eu/grib/00/clct
@@ -55,7 +55,7 @@
 # 
 # 
 
-# In[8]:
+# In[1]:
 
 
 import metview as mv
@@ -79,6 +79,7 @@ import pickle
 
 import urllib
 from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import ListedColormap
 import matplotlib.colors as mcolors
 
 import os
@@ -116,12 +117,39 @@ os.system('jupyter nbconvert cloud_tests.ipynb  --to script')
 
 #read in ovation test data
 
-#pickle.load()
+wic=pickle.load(open('data/ovation_img_test_1.p', 'rb') )
+
+
+#aurora
+def flux_cmap():
+    # Define the colors for the colormap    
+    colors = [
+            (0.0, 'black'),   # Black at 0 and below
+            (0.1, 'green'),   # Green at 0.1
+            (0.7, 'yellow'),  # Yellow at 0.5
+            (1.0, 'red')      # Red at 1
+        ]
+    #Create the colormap
+    cmap = matplotlib.colors.LinearSegmentedColormap.from_list('custom_colormap', colors,N=256)
+    #cmap.set_under(color='black', alpha=0)
+
+    my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
+    #set lowest 10 color alphas to 0
+    my_cmap[0:20, -1]=0
+    cmap = ListedColormap(my_cmap) # Create new colormap
+    
+
+    return cmap
+
+cmap = plt.get_cmap('hot')  # Choose colormap
+my_cmap = cmap(np.arange(cmap.N))  # Get the colormap colors
+my_cmap[:,-1] = np.linspace(0, 1, cmap.N)  #************ Set alpha
+my_cmap = ListedColormap(my_cmap) # Create new colormap
 
 
 # ### ECMWF example
 
-# In[10]:
+# In[2]:
 
 
 #server = ECMWFService("mars")
@@ -159,7 +187,7 @@ cdrfl_4 = data.select(channel= 4)
 
 # #### Extract values and grid points
 
-# In[11]:
+# In[3]:
 
 
 keys = mv.grib_get(data, ['shortName', 'dataDate', 'dataTime', 'stepRange', 'validityDate', 'validityTime'])
@@ -322,26 +350,31 @@ hist4, bin_edges = np.histogram(values4, bins=100)
 
 # ## ECMWF
 
-# In[7]:
+# In[6]:
 
 
 #ax.add_feature(cfeature.LAND, edgecolor='white')
 view_latitude=60; view_longitude=0;    plot_pos=[0.05,0.05,0.9,0.9]
-# Create a figure and axis with Cartopy projection
+
+region='global'
+
 fig = plt.figure(figsize=(20, 10),dpi=200)
-#ax = plt.axes(projection=ccrs.PlateCarree())
 
 crs=ccrs.PlateCarree()
 ax = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(view_longitude, view_latitude),position=plot_pos)
          
-bordercolor='black'; borderalpha=0.5; coastcolor='black';coastalpha=0.5
-# Add coastlines and other features
-#ax.coastlines()
-#ax.add_feature(cfeature.BORDERS, linestyle=':')
+##### borders and coasts parameters depending on background image
+if map_type=='marble': bordercolor='black'; borderalpha=0.4; coastcolor='black';coastalpha=0.4
+if map_type=='viirs':  bordercolor='white'; borderalpha=0.5; coastcolor='white';coastalpha=0.3
+if map_type=='topography': bordercolor='black'; borderalpha=0.4; coastcolor='black';coastalpha=0.1
 
-europe_east = 35; europe_west = -25; europe_north = 75; europe_south = 30 
-europe_mapextent=[europe_west, europe_east, europe_south, europe_north]
-ax.set_extent(europe_mapextent)
+
+if region == 'global':  view_latitude=60; view_longitude=-40; plot_pos=[0.05,0.05,0.9,0.9]  #[left, bottom, width, height]
+
+if region == 'europe': 
+     europe_east = 40; europe_west = -25; europe_north = 75; europe_south = 30 
+     ax.set_extent([europe_west, europe_east, europe_south, europe_north])
+ 
 
 #get high res country borders  
 #https://www.naturalearthdata.com/downloads/10m-cultural-vectors/
@@ -355,6 +388,17 @@ ax.coastlines('10m', color=coastcolor,alpha=coastalpha)
 
 
 ax.imshow(map_img,origin='upper',transform=crs, extent=[-180,180,-90,90])
+
+
+
+#aurora
+min_level=0
+max_level=5
+global_mapextent=[-180,180,-90,90] 
+#cmap = plt.get_cmap('hot')
+#or use my_cmap
+ax.imshow(wic[:,:,5], vmin=min_level, vmax=max_level, transform=crs, extent=global_mapextent, origin='lower', zorder=3,alpha=0.9, cmap=my_cmap) 
+
 
 # Plot the data
 #test with colormap
@@ -394,65 +438,75 @@ plt.savefig('results/clouds/europe_ecmwf.png', format='png', bbox_inches='tight'
 # In[ ]:
 
 
-#ax.add_feature(cfeature.LAND, edgecolor='white')
-view_latitude=60; view_longitude=0;    plot_pos=[0.05,0.05,0.9,0.9]
 # Create a figure and axis with Cartopy projection
+region='europe'
+
+view_latitude=45
+view_longitude=10
+
+plot_pos=[0.05,0.05,0.9,0.9]
+global_mapextent=[-180,180,-90,90] 
+
+map_type='topography'
+
+map_type='marble'
+
+map_img=au.load_high_res_background(map_type)
+
+
+
 fig = plt.figure(figsize=(20, 10),dpi=200)
-
-#ax = plt.axes(projection=ccrs.PlateCarree())
-
-crs=ccrs.PlateCarree()
 ax = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(view_longitude, view_latitude),position=plot_pos)
 
+crs=ccrs.PlateCarree()
 
 ##### borders and coasts parameters depending on background image
-if map_type=='marble': bordercolor='white'; borderalpha=0.4; coastcolor='white';coastalpha=0.4
+if map_type=='marble': bordercolor='black'; borderalpha=0.4; coastcolor='black';coastalpha=0.4
 if map_type=='viirs':  bordercolor='white'; borderalpha=0.5; coastcolor='white';coastalpha=0.3
 if map_type=='topography': bordercolor='black'; borderalpha=0.4; coastcolor='black';coastalpha=0.1
-
-
-#bordercolor='black'; borderalpha=0.5; coastcolor='black';coastalpha=0.5
-# Add coastlines and other features
-#ax.coastlines()
-#ax.add_feature(cfeature.BORDERS, linestyle=':')
-
-europe_east = 25; europe_west = -12; europe_north = 66; europe_south = 35 
-europe_mapextent=[europe_west, europe_east, europe_south, europe_north]
-ax.set_extent(europe_mapextent)
 
 #get high res country borders  
 #https://www.naturalearthdata.com/downloads/10m-cultural-vectors/
 borders_10m = carfeat.NaturalEarthFeature('cultural', 'admin_0_countries', '10m', facecolor='none',edgecolor=bordercolor)
-ax.add_feature(borders_10m,alpha=borderalpha)
+ax.add_feature(borders_10m,alpha=borderalpha, zorder=3)
+#add coastlines
+ax.coastlines('10m', color=coastcolor,alpha=coastalpha, zorder=3)
+
 #get high res state borders
 #provinces_50m = carfeat.NaturalEarthFeature('cultural','admin_1_states_provinces_lines','50m',facecolor='none',edgecolor=bordercolor)
 #ax.add_feature(provinces_50m,alpha=borderalpha)
-#add coastlines
-ax.coastlines('10m', color=coastcolor,alpha=coastalpha)
+
+if region == 'europe': 
+     #europe_east = 40; europe_west = -25; europe_north = 75; europe_south = 30 
+     europe_east = 30; europe_west = -11; europe_north = 68;  europe_south = 35 
+     ax.set_extent([europe_west, europe_east, europe_south, europe_north])
 
 
-ax.imshow(map_img,origin='upper',transform=crs, extent=[-180,180,-90,90])
+
+#--------- background
+ax.imshow(map_img,origin='upper',transform=crs, extent=global_mapextent)
+
+#------------- aurora
+min_level=0
+max_level=5
+
+#cmap = plt.get_cmap('hot')
+#or use my_cmap
+ax.imshow(wic[:,:,5], vmin=min_level, vmax=max_level, transform=crs, extent=global_mapextent, origin='lower', zorder=3,alpha=0.9, cmap=my_cmap) 
 
 
-# Plot the data
-
+#---------- cloud data
 #test with colormap
 #colors = [(1,1,1,c) for c in np.linspace(0,1,100)]
 #cmap1 = mcolors.LinearSegmentedColormap.from_list('mycmap', colors, N=10)
 
-
 #this alpha controls the cloud shade
-alpha=0.08
+alpha=0.05
 cmap1 = LinearSegmentedColormap.from_list('transparent_to_white', [(1, 1, 1, 0), (1, 1, 1, alpha)], N=20)
-
-ax.scatter(lons2, lats2, c=values2, cmap=cmap1, s=10, transform=crs)
-
+ax.scatter(lons2, lats2, c=values2, cmap=cmap1, s=10, transform=crs,zorder=2)
 #ax.scatter(lons2, lats2, c=values3, cmap='grey', s=5, transform=crs, alpha=0.5)
-
 #with nan for low values
 #ax.scatter(lons2, lats2, c=values3, cmap='grey', s=5, transform=crs, alpha=0.5)
-
-
 
 # Add a colorbar
 #plt.colorbar(sc, orientation='horizontal', pad=0.05, aspect=50)
@@ -471,18 +525,12 @@ plt.savefig('results/clouds/europe_icon.png', format='png', bbox_inches='tight')
 
 
 
-# In[56]:
+# In[8]:
 
 
 cloudarr=[lats2,lons2,values2,time_icon]
 filedump='data/icon-eu-pickle/icon_test.pickle'
 pickle.dump(cloudarr, open(filedump, 'wb'))
-
-
-# In[ ]:
-
-
-
 
 
 # In[ ]:

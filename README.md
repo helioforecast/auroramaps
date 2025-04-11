@@ -1,9 +1,9 @@
 # auroramaps
 
-This is an open-source version of the OVATION Prime 2010 (OP10) aurora model in python, developed at the Austrian Space Weather Office at the GeoSphere Austria. This implementation is work in progress, the results of the current prototype are shown here: https://helioforecast.space/aurora
-As it is now, it should not be used for scientific publications, but this should be possible be somewhen in the future.
+This is an open-source version of the OVATION Prime 2010 (OP10) aurora model in python, developed at the Austrian Space Weather Office at the GeoSphere Austria. This implementation is work in progress, the results of the current prototype are shown here: https://helioforecast.space/aurora .
+In its current version, it should not be used for scientific publications, but this should be possible be somewhen in the future.
 
-**Last update: April 2025**: 
+**Last update: April 2025**. 
 
 by C. Möstl, Rachel L. Bailey, Austrian Space Weather Office / Conrad Observatory, GeoSphere Austria. 
 Contributions by  Diana E. Morosan and Liam Kilcommons.

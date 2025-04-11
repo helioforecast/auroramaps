@@ -7,26 +7,32 @@
 # 
 # uses envs/env_clouds.yml
 # 
+# ICON global data are saved in folder "data/icon/"
 # 
 # ICON global cloud data needs to be regridded:
 # https://opendata.dwd.de/weather/nwp/icon/grib/00/clct/
 # 
-# we use cdo to convert to regular grid, need to "brew install cdo"
-# https://code.mpimet.mpg.de/projects/cdo/wiki/MacOS_Platform
-# 
-# need to download the grid definition file first from 
+# Need to download the grid definition file first from 
 # https://opendata.dwd.de/weather/lib/cdo/
 # 
 # 
-# Issues:
-# -
+# We use cdo to convert to regular grid on the command line (called with os.system), need to "brew install cdo" first:
+# https://code.mpimet.mpg.de/projects/cdo/wiki/MacOS_Platform
+# 
+# 
+# #### Issues:
+# - download all data -24 to +36 hours
+# - save datacube for clouds to be added to OP10 during plotting, similar as the aurora maps (lat grid values,lon grid values,counter)
+# - should be done with multiprocessing to run within minutes
+# - probably best to process cloud data in an extra script and then read into aurora.py
 
-# In[2]:
+# In[23]:
 
 
 from datetime import datetime
 from datetime import timedelta
 import metview as mv
+import time
 import eccodes
 import requests
 import xarray
@@ -48,7 +54,6 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.colors import ListedColormap
 import matplotlib.colors as mcolors
 
-
 from auroramaps import util as au
 
 print(cartopy.__version__)
@@ -59,7 +64,6 @@ import warnings
 # Suppress all warnings
 warnings.filterwarnings("ignore")
 
-
 #make sure to convert the current notebook to a script
 os.system('jupyter nbconvert op_cloud.ipynb  --to script')   
 icon_path='data/icon/'
@@ -68,10 +72,9 @@ icon_path='data/icon/'
 filegrid=icon_path+'gridfiles/icon_grid_0026_R03B07_G.nc'
 
 
-
 # ### initialize
 
-# In[3]:
+# In[24]:
 
 
 #if new background images need to be saved in auroramaps/data/wmts do this, some are included!
@@ -137,36 +140,62 @@ def create_cloud_cmap(response_function="linear", gamma=2.0,alphatop=0.5):
 
 # ### Download ICON cloud cover file, and regrid
 
-# In[21]:
+# In[25]:
 
+
+clock_start=time.time()
 
 #example file
 #https://opendata.dwd.de/weather/nwp/icon/grib/00/clct/icon_global_icosahedral_single-level_2025041000_000_CLCT.grib2
+##get all the files needed for previous and next 36 hours, loop
 
-## TBD **** define a time and date, and get the file needed, loop
+#e.g. download once per day the next 36 hours at 4 am when 00 run is ready, and take the 06 run from previous 24 hours
 
 #take the 00 run from today as base time
+
+# --------------------------------------- SELECT ICON RUN and FRAME TIME
+
+#run time,0 6 12 18 hours
+run_int=0
+
+#lead time from run time
+frame_from_run=18
+
+#-------------------------------------------------------------------------------
+
+
 now=datetime(datetime.utcnow().year,datetime.utcnow().month,datetime.utcnow().day)
-print(now)
-lead_time=np.arange(-24,25,1)
-lead_time
 
-#all_times=[]
-#for hours in lead_time:
-#    all_times.append(now+timedelta(hours=hours))
+run=str(run_int).zfill(2)
+print('run',run)
 
+print('current day 00 UT:',now)
+lead_time_array=np.arange(-24,37,1)
 
-# In[ ]:
+all_times=[]
+for hours in lead_time_array:
+    all_times.append(now+timedelta(hours=float(hours)))
 
+print('time steps to process:',len(all_times),' from ', all_times[0], 'to ', all_times[-1]  )
 
-#check definitions
-run='06'
-hours_ahead='006' #always with zero
+frame_time=all_times[frame_from_run+24]
+print('time selected for testing',frame_time)
+
+#get the hours for the filename with padding
+hours_ahead=frame_time-now
+runhours=str(hours_ahead)[0:2].zfill(3)
+
 # Get today's date and create the appropriate format
-today_run = datetime.utcnow().strftime("%Y%m%d")+run
-print(run, hours_ahead, today_run)
+today_run = datetime.utcnow().strftime("%Y%m%d")+run+'_'+runhours
+#print('filename ending for test time: ', today_run)
 
-fileicon='icon_global_icosahedral_single-level_'+today_run+'_'+hours_ahead+'_CLCT.grib2.bz2'
+fileicon='icon_global_icosahedral_single-level_'+today_run+'_CLCT.grib2.bz2'
+print(fileicon)
+
+
+# In[26]:
+
+
 url = 'https://opendata.dwd.de/weather/nwp/icon/grib/'+run+'/clct/'+fileicon
 fileicon_disk=icon_path+fileicon
 
@@ -187,8 +216,8 @@ if os.path.exists(fileicon_disk)==False:
     except urllib.error.URLError as e:
         print('not downloaded')
 
-#decompressed file
-fileicon_disk_d=icon_path+'icon_global_icosahedral_single-level_'+today_run+'_'+hours_ahead+'_CLCT.grib2'
+#decompressed file has no bz2 at the end
+fileicon_disk_d=icon_path+fileicon[0:-4]
 #read in file
 
 print('file downloaded and decompressed')
@@ -231,7 +260,7 @@ print('file grid converted to ',fileconv)
 
 # ### read data from regridded file and convert to image
 
-# In[4]:
+# In[27]:
 
 
 data = mv.read(fileconv)
@@ -301,12 +330,19 @@ print(cgrid.shape)
 shift_amount = len(lonsu) // 2  # Integer division to get half the columns
 cgrid2 = np.roll(cgrid, shift_amount, axis=1)
 
+print('-------')
+print('downloading and regridding takes')
+clock_regrid = time.time()
+print('done, took ',np.round(clock_regrid - clock_start,2),' seconds.')
+
+
+
 plt.imshow(cgrid, cmap='grey')
 
 
 # ## Make a cartopy plot global
 
-# In[40]:
+# In[28]:
 
 
 #### parameters to change
@@ -315,22 +351,19 @@ view_longitude=10
 
 #map_type='topography'
 map_type='marble'
-
 region='global'
 
 ####### fixed
 plot_pos=[0.05,0.05,0.9,0.9]
 global_mapextent=[-180,180,-90,90]
 crs=ccrs.PlateCarree()
-
 ############ figure
 fig = plt.figure(figsize=(20, 10),dpi=150)
 fig.set_facecolor('black') 
 ax = plt.subplot(1, 1, 1, projection=ccrs.PlateCarree())
 
-
 #add nightshade
-ax.add_feature(Nightshade(time_icon,alpha=0.2),zorder=4)
+ax.add_feature(Nightshade(time_icon,alpha=0.3),zorder=4)
 
 #map
 map_img=au.load_high_res_background(map_type)
@@ -344,19 +377,97 @@ ax.imshow(cgrid2,cmap=cloud_gamma,extent=global_mapextent,origin='lower') #lower
 min_level=0; max_level=5
 ax.imshow(wic[:,:,5], vmin=min_level, vmax=max_level,  extent=global_mapextent, origin='lower', zorder=3,alpha=0.9, cmap=my_cmap) 
 
+#ax.gridlines(draw_labels=True,color='white',alpha=0.2)
+
+ax.set_extent([-180, 180, -82, 82])
+
+plt.title('ICON total cloud cover, Ovation Prime 2010, cartopy ' +str(time_icon)[0:16]+' UTC',color='white')
+
+#plt.tight_layout()
+plotfile1='results/clouds/icon/'+region+'_icon_'+frame_time.strftime('%Y-%m-%d_%H00')+'.png'
+plt.savefig(plotfile1, format='png', bbox_inches='tight')
+print('saved as ', plotfile1)
 
 
-#ax.gridlines(draw_labels=True,color='white')
+# ## North America
 
-plt.title('ICON total cloud cover, Ovation Prime 2010, cartopy ' +str(time_icon)[0:16],color='white')
+# In[29]:
+
+
+#map_type='topography'
+map_type='marble'
+
+#region='europe'
+region='canada'
+
+if region=='europe':
+    #### parameters to change
+    view_latitude=45
+    view_longitude=10
+
+if region=='canada':
+    #### parameters to change
+    view_latitude=60
+    view_longitude=-100
+
+####### fixed
+plot_pos=[0.05,0.05,0.9,0.9]
+global_mapextent=[-180,180,-90,90]
+crs=ccrs.PlateCarree()
+
+############ figure
+fig = plt.figure(figsize=(20, 10),dpi=150)
+fig.set_facecolor('black') 
+ax = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(view_longitude, view_latitude),position=plot_pos)
+
+##### borders and coasts parameters depending on background image
+if map_type=='marble': bordercolor='black'; borderalpha=0.4; coastcolor='black';coastalpha=0.4
+if map_type=='viirs':  bordercolor='white'; borderalpha=0.5; coastcolor='white';coastalpha=0.3
+if map_type=='topography': bordercolor='black'; borderalpha=0.4; coastcolor='black';coastalpha=0.1
+
+#get high res country borders  
+#https://www.naturalearthdata.com/downloads/10m-cultural-vectors/
+borders_10m = carfeat.NaturalEarthFeature('cultural', 'admin_0_countries', '10m', facecolor='none',edgecolor=bordercolor)
+ax.add_feature(borders_10m,alpha=borderalpha, zorder=3)
+#add coastlines
+ax.coastlines('10m', color=coastcolor,alpha=coastalpha, zorder=3)
+#get high res state borders
+provinces_50m = carfeat.NaturalEarthFeature('cultural','admin_1_states_provinces_lines','50m',facecolor='none',edgecolor=bordercolor)
+ax.add_feature(provinces_50m,alpha=borderalpha)
+
+ax.add_feature(Nightshade(time_icon,alpha=0.3),zorder=4)
+
+if region == 'europe': 
+     europe_east = 40; europe_west = -30; europe_north = 73;  europe_south = 33      
+     ax.set_extent([europe_west, europe_east, europe_south, europe_north])
+
+if region == 'canada': 
+         canada_east = -65; canada_west = -135; canada_north = 75; canada_south = 20
+         ax.set_extent([canada_west, canada_east, canada_south, canada_north])
+
+#map
+map_img=au.load_high_res_background(map_type)
+ax.imshow(map_img,extent=global_mapextent,transform=crs, origin='upper') #upper correct
+
+#clouds
+cloud_gamma = create_cloud_cmap("gamma", gamma=2.5,alphatop=0.93)#colormap
+ax.imshow(cgrid2,cmap=cloud_gamma,extent=global_mapextent,origin='lower',transform=crs) #lower correct
+
+#aurora
+min_level=0; max_level=5
+ax.imshow(wic[:,:,5], vmin=min_level, vmax=max_level, transform=crs, extent=global_mapextent, origin='lower', zorder=3,alpha=0.9, cmap=my_cmap) 
+
+plt.title('ICON total cloud cover, Ovation Prime 2010, cartopy ' +str(time_icon)[0:16]+' UTC',color='white')
 
 plt.tight_layout()
-plt.savefig('results/clouds/icon/'+region+'_icon.png', format='png', bbox_inches='tight')
+plotfile1='results/clouds/icon/'+region+'_icon_'+frame_time.strftime('%Y-%m-%d_%H00')+'.png'
+plt.savefig(plotfile1, format='png', bbox_inches='tight')
+print('saved as ', plotfile1)
 
 
-# ### make a cartopy plot europe
+# ### Europe including Greenland
 
-# In[39]:
+# In[30]:
 
 
 #### parameters to change
@@ -402,8 +513,6 @@ if region == 'europe':
      europe_east = 40; europe_west = -30; europe_north = 73;  europe_south = 33      
      ax.set_extent([europe_west, europe_east, europe_south, europe_north])
 
-
-
 #map
 map_img=au.load_high_res_background(map_type)
 ax.imshow(map_img,extent=global_mapextent,transform=crs, origin='upper') #upper correct
@@ -416,16 +525,16 @@ ax.imshow(cgrid2,cmap=cloud_gamma,extent=global_mapextent,origin='lower',transfo
 min_level=0; max_level=5
 ax.imshow(wic[:,:,5], vmin=min_level, vmax=max_level, transform=crs, extent=global_mapextent, origin='lower', zorder=3,alpha=0.9, cmap=my_cmap) 
 
-plt.title('ICON total cloud cover, Ovation Prime 2010, cartopy ' +str(time_icon)[0:16],color='white')
+plt.title('ICON total cloud cover, Ovation Prime 2010, cartopy ' +str(time_icon)[0:16]+' UTC',color='white')
 
-plt.tight_layout()
+plotfile1='results/clouds/icon/'+region+'_icon_'+frame_time.strftime('%Y-%m-%d_%H00')+'.png'
+plt.savefig(plotfile1, format='png', bbox_inches='tight')
+print('saved as ', plotfile1)
 
-plt.savefig('results/clouds/icon/'+region+'_icon.png', format='png', bbox_inches='tight')
 
+# ## Global with spherical projection, centered on Europe
 
-# ## cartopy plot global with different projection
-
-# In[38]:
+# In[31]:
 
 
 #### parameters to change
@@ -434,7 +543,6 @@ view_longitude=10
 
 #map_type='topography'
 map_type='marble'
-
 region='global'
 
 ####### fixed
@@ -446,8 +554,6 @@ crs=ccrs.PlateCarree()
 fig = plt.figure(figsize=(15, 15),dpi=150)
 fig.set_facecolor('black') 
 ax = plt.subplot(1, 1, 1, projection=ccrs.Orthographic(view_longitude, view_latitude),position=plot_pos)
-#ax = plt.subplot(1, 1, 1, projection=crs)
-
 
 ##### borders and coasts parameters depending on background image
 if map_type=='marble': bordercolor='black'; borderalpha=0.4; coastcolor='black';coastalpha=0.4
@@ -463,7 +569,6 @@ ax.coastlines('10m', color=coastcolor,alpha=coastalpha, zorder=3)
 #add nightshade
 ax.add_feature(Nightshade(time_icon,alpha=0.3),zorder=4)
 
-
 #map
 map_img=au.load_high_res_background(map_type)
 ax.imshow(map_img,extent=global_mapextent, origin='upper', transform=crs) #upper correct
@@ -476,10 +581,30 @@ ax.imshow(cgrid2,cmap=cloud_gamma,extent=global_mapextent,origin='lower',transfo
 min_level=0; max_level=5
 ax.imshow(wic[:,:,5], vmin=min_level, vmax=max_level,  extent=global_mapextent, origin='lower', zorder=3,alpha=0.9, cmap=my_cmap,transform=crs)
 
-plt.title('ICON total cloud cover, Ovation Prime 2010, cartopy ' +str(time_icon)[0:16],color='white')
+plt.title('ICON total cloud cover, Ovation Prime 2010, cartopy ' +str(time_icon)[0:16]+' UTC',color='white')
 
-plt.tight_layout()
-plt.savefig('results/clouds/icon/'+region+'_icon_sphere.png', format='png', bbox_inches='tight')
+plotfile1='results/clouds/icon/'+region+'_icon_sphere_'+frame_time.strftime('%Y-%m-%d_%H00')+'.png'
+plt.savefig(plotfile1, format='png', bbox_inches='tight')
+print('saved as ', plotfile1)
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[32]:
+
+
+clock_end = time.time()
+print('done, all took ',np.round(clock_end - clock_start,2),' seconds.')
 
 
 # In[ ]:
@@ -500,27 +625,9 @@ plt.savefig('results/clouds/icon/'+region+'_icon_sphere.png', format='png', bbox
 
 
 
-# In[ ]:
+# ### addition: gamma correction curves for colormaps
 
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# ### gamma correction curves for colormaps
-
-# In[14]:
+# In[12]:
 
 
 import numpy as np
@@ -548,25 +655,9 @@ plt.tight_layout()
 plt.show()
 
 
-# In[ ]:
+# ## nightshade
 
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[15]:
-
-
-time_icon
-
-
-# In[33]:
+# In[13]:
 
 
 import matplotlib.pyplot as plt
@@ -580,7 +671,7 @@ fig = plt.figure(figsize=(10, 6))
 ax = plt.axes(projection=ccrs.PlateCarree())
 
 # Add the nightshade feature
-ax.add_feature(Nightshade(date, alpha=0.5))
+ax.add_feature(Nightshade(time_icon, alpha=0.5))
 
 # Add map features
 ax.coastlines()
@@ -589,18 +680,28 @@ ax.imshow(map_img,extent=global_mapextent, origin='upper') #upper correct
 ax.add_feature(cfeature.BORDERS, linestyle=':')
 #ax.gridlines(draw_labels=True)
 
-# Set the date/time for the night shade
-date = datetime(2023, 6, 15, 12, 0)  # June 15, 2023, at noon UTC
 
 ax.imshow(cgrid2,cmap=cloud_gamma,extent=global_mapextent,origin='lower') #lower correct
 
 
 # Set the title with the date
-ax.set_title(f'Day/Night Terminator on {date.strftime("%Y-%m-%d %H:%M")} UTC')
+ax.set_title(f'Day/Night Terminator on {time_icon.strftime("%Y-%m-%d %H:%M")} UTC')
 
 # Display the plot
 plt.tight_layout()
 plt.show()
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
 
 
 # In[ ]:

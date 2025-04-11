@@ -1,19 +1,25 @@
 # auroramaps
 
-This is an open-source version of the OVATION Prime 2010 (OP10) aurora model in python. 
+This is an open-source version of the OVATION Prime 2010 (OP10) aurora model in python, developed at the Austrian Space Weather Office at the GeoSphere Austria. This implementation is work in progress, the results of the current prototype are shown here: https://helioforecast.space/aurora
+As it is now, it should not be used for scientific publications, but this should be possible be somewhen in the future.
 
-Current status (August 2024): This code is redone for usage at the Austrian Space Weather Office. It likely has some bugs, so use with caution. Upgrade to OP13 is foreseen at some point in the future.
+**Last update: April 2025**: 
 
-https://helioforecast.space
-
-by C. Möstl, Rachel L. Bailey, Austrian Space Weather Office, GeoSphere Austria, Graz, Austria. 
+by C. Möstl, Rachel L. Bailey, Austrian Space Weather Office / Conrad Observatory, GeoSphere Austria. 
 Contributions by  Diana E. Morosan and Liam Kilcommons.
 
-If you want to use parts of this code for generating results for peer-reviewed scientific publications, please contact me per email (chris.moestl@outlook.com) or via https://twitter.com/chrisoutofspace .
+If you want to use parts of this code for generating results for peer-reviewed scientific publications, please contact me per email (chris.moestl@outlook.com).
 
-The solar wind input comes either from OMNI2 historic data or from the [PREDSTORM](https://github.com/helioforecast/predstorm) L1 solar wind forecast, which is based on data from the DSCOVR or ACE and STEREO-A spacecraft. The results are plotted with [cartopy](https://scitools.org.uk/cartopy/docs/latest/) on different types of world maps. 
+The solar wind input comes either from OMNI2 historic data or from the [PREDSTORM](https://github.com/helioforecast/predstorm) L1 solar wind forecast, which is based on data from the DSCOVR/ACE NOAA real time solar wind. The results are plotted with [cartopy](https://scitools.org.uk/cartopy/docs/latest/) on different types of world maps. 
 
 OVATION has been largely rewritten based on [Ovation Pyme](https://github.com/lkilcommons/OvationPyme) and open source versions thankfully made available by NOAA and the UK MetOffice.
+
+**Issues:**
+- southern hemisphere is not calculated but included in OP10
+- upgrade to OP13 needed
+- time shifting to magnetopause not sure if implemented correctly
+- need to go through complete code to eliminate some bugs
+- move equatorial boundary lower more south, for SAR events, how far?
 
 ## Installation
 
